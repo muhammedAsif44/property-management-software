@@ -1,4 +1,5 @@
 import React from 'react';
+import './globals.css';
 
 export const metadata = {
   title: 'Orvyn PMS - Customer Web Portal',
@@ -12,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif' }}>{children}</body>
+      <body className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased">{children}</body>
     </html>
   );
 }

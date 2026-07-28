@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User Management & Auth ────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  phone        String?
+  role         UserRole  @default(VIEWER)
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  ownedProperties Property[]           @relation("OwnerProperties")
+  tenantLeases    Lease[]              @relation("TenantLeases")
+  payments        Payment[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  OWNER
+  MANAGER
+  RECEPTION_STAFF
+  VIEWER
+}
+
+// ─── Properties ───────────────────────────────────
+
+model Property {
+  id          String       @id @default(uuid())
+  name        String
+  type        PropertyType
+  street      String
+  city        String
+  state       String
+  zipCode     String       @map("zip_code")
+  country     String       @default("US")
+  latitude    Float?
+  longitude   Float?
+  ownerId     String       @map("owner_id")
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  owner User   @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
+  units Unit[]
+
+  @@map("properties")
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  VILLA
+  COMMERCIAL
+  OFFICE
+  WAREHOUSE
+  LAND
+}
+
+// ─── Units ────────────────────────────────────────
+
+model Unit {
+  id         String     @id @default(uuid())
+  propertyId String     @map("property_id")
+  unitNumber String     @map("unit_number")
+  floor      Int?
+  bedrooms   Int        @default(1)
+  bathrooms  Int        @default(1)
+  areaSqft   Float?     @map("area_sqft")
+  rentAmount Decimal    @map("rent_amount") @db.Decimal(10, 2)
+  status     UnitStatus @default(VACANT)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leases   Lease[]
+
+  @@unique([propertyId, unitNumber])
+  @@map("units")
+}
+
+enum UnitStatus {
+  VACANT
+  OCCUPIED
+  MAINTENANCE
+  RESERVED
+}
+
+// ─── Leases ───────────────────────────────────────
+
+model Lease {
+  id         String      @id @default(uuid())
+  unitId     String      @map("unit_id")
+  tenantId   String      @map("tenant_id")
+  startDate  DateTime    @map("start_date")
+  endDate    DateTime    @map("end_date")
+  rentAmount Decimal     @map("rent_amount") @db.Decimal(10, 2)
+  deposit    Decimal     @db.Decimal(10, 2)
+  status     LeaseStatus @default(ACTIVE)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  unit     Unit      @relation(fields: [unitId], references: [id])
+  tenant   User      @relation("TenantLeases", fields: [tenantId], references: [id])
+  payments Payment[]
+
+  @@map("leases")
+}
+
+enum LeaseStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  RENEWED
+}
+
+// ─── Payments ─────────────────────────────────────
+
+model Payment {
+  id        String        @id @default(uuid())
+  leaseId   String        @map("lease_id")
+  tenantId  String        @map("tenant_id")
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod @default(BANK_TRANSFER)
+  status    PaymentStatus @default(PENDING)
+  paidAt    DateTime?     @map("paid_at")
+  reference String?
+  notes     String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  lease  Lease @relation(fields: [leaseId], references: [id])
+  tenant User  @relation(fields: [tenantId], references: [id])
+
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CREDIT_CARD
+  DEBIT_CARD
+  CHEQUE
+  ONLINE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+// ─── Audit Log ────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  action    String
+  resource  String
+  details   Json?
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}

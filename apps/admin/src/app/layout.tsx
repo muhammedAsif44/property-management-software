@@ -1,4 +1,5 @@
 import React from 'react';
+import './globals.css';
 
 export const metadata = {
   title: 'Orvyn PMS - Admin Panel',
@@ -12,7 +13,7 @@ export default function AdminLayout({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif' }}>{children}</body>
+      <body className="min-h-screen bg-slate-900 text-slate-100 font-sans antialiased">{children}</body>
     </html>
   );
 }

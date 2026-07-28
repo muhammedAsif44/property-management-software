@@ -1,26 +1,45 @@
-import { PropertyType } from '@orvyn/shared-types';
-import { formatCurrency } from '@orvyn/utils';
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { AppModule } from './app.module';
 
-console.log('🚀 Starting Orvyn PMS Backend API...');
-console.log(`Sample Property Type: ${PropertyType.APARTMENT}`);
-console.log(`Sample Formatted Currency: ${formatCurrency(5000)}`);
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
 
-// Basic HTTP server placeholder before NestJS modules setup
-import http from 'http';
+  // 1. Enable Global API Prefix & URI Versioning (/api/v1/...)
+  const prefix = process.env.API_PREFIX || 'api';
+  const defaultVersion = process.env.API_VERSION || '1';
 
-const PORT = process.env.PORT || 4000;
+  app.setGlobalPrefix(prefix);
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion,
+  });
 
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(
-    JSON.stringify({
-      success: true,
-      message: 'Orvyn PMS Backend API is running',
-      timestamp: new Date().toISOString(),
+  // 2. CORS configuration
+  const origins = process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'];
+  app.enableCors({
+    origin: origins,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
+  // 3. Global Pipe for Validation & DTO Transformation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
-});
 
-server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+  // 4. Start Server
+  const port = process.env.PORT || 4000;
+  await app.listen(port);
+
+  console.log(`🚀 Orvyn PMS Backend API is running on: http://localhost:${port}/${prefix}/v${defaultVersion}`);
+}
+
+bootstrap();

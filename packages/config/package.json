@@ -1,0 +1,17 @@
+{
+  "name": "@orvyn/config",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@orvyn/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@orvyn/typescript-config": "workspace:*",
+    "typescript": "^5.7.2"
+  }
+}

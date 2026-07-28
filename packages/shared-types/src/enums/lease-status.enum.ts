@@ -1,0 +1,7 @@
+export enum LeaseStatus {
+  DRAFT = 'DRAFT',
+  ACTIVE = 'ACTIVE',
+  EXPIRED = 'EXPIRED',
+  TERMINATED = 'TERMINATED',
+  RENEWED = 'RENEWED',
+}

@@ -1,0 +1,7 @@
+{
+  "extends": "@orvyn/typescript-config/library.json",
+  "compilerOptions": {
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"]
+}

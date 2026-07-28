@@ -1,0 +1,25 @@
+{
+  "name": "@orvyn/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@orvyn/api-client": "workspace:*",
+    "@orvyn/shared-types": "workspace:*",
+    "@orvyn/utils": "workspace:*",
+    "expo": "~52.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.5"
+  },
+  "devDependencies": {
+    "@orvyn/typescript-config": "workspace:*",
+    "@types/react": "~18.3.12",
+    "typescript": "^5.7.2"
+  }
+}

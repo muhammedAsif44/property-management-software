@@ -1,0 +1,9 @@
+{
+  "extends": "@orvyn/typescript-config/nestjs.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*"]
+}

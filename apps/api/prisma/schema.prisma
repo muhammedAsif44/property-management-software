@@ -7,26 +7,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── User Management & Auth ────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. Organizations
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  firstName    String    @map("first_name")
-  lastName     String    @map("last_name")
-  phone        String?
-  role         UserRole  @default(VIEWER)
-  isActive     Boolean   @default(true) @map("is_active")
-  lastLoginAt  DateTime? @map("last_login_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+model Organization {
+  id                 String             @id @default(uuid())
+  name               String
+  slug               String             @unique
+  subscriptionPlan   SubscriptionPlan   @default(FREE) @map("subscription_plan")
+  subscriptionStatus SubscriptionStatus @default(TRIAL) @map("subscription_status")
+  billingEmail       String?            @map("billing_email")
+  maxProperties      Int                @default(1) @map("max_properties")
+  settings           Json?
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
 
   // Relations
-  ownedProperties Property[]           @relation("OwnerProperties")
-  tenantLeases    Lease[]              @relation("TenantLeases")
-  payments        Payment[]
-  auditLogs       AuditLog[]
+  users              User[]
+  owners             Owner[]
+  properties         Property[]
+  invoiceTemplates   InvoiceTemplate[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  apiKeys            ApiKey[]
+  webhooks           Webhook[]
+
+  @@map("organizations")
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. Users
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model User {
+  id               String         @id @default(uuid())
+  organizationId   String         @map("organization_id")
+  email            String         @unique
+  passwordHash     String         @map("password_hash")
+  phone            String?
+  role             UserRole       @default(VIEWER)
+  approvalStatus   ApprovalStatus @default(PENDING) @map("approval_status")
+  rejectionReason  String?        @map("rejection_reason")
+  isActive         Boolean        @default(true) @map("is_active")
+  lastLoginAt      DateTime?      @map("last_login_at")
+  mfaEnabled       Boolean        @default(false) @map("mfa_enabled")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  deletedAt        DateTime?      @map("deleted_at")
+
+  // Relations
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner             Owner?
+  staffMemberships  StaffMember[]       @relation("StaffUser")
+  createdBookings   Booking[]           @relation("BookingCreatedBy")
+  createdPayments   Payment[]           @relation("PaymentCreatedBy")
+  createdNotifications Notification[]   @relation("NotificationCreatedBy")
+  notificationReads NotificationRead[]
+  deviceTokens      DeviceToken[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
 
   @@map("users")
 }
@@ -39,152 +92,711 @@ enum UserRole {
   VIEWER
 }
 
-// ─── Properties ───────────────────────────────────
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
 
-model Property {
-  id          String       @id @default(uuid())
-  name        String
-  type        PropertyType
-  street      String
-  city        String
-  state       String
-  zipCode     String       @map("zip_code")
-  country     String       @default("US")
-  latitude    Float?
-  longitude   Float?
-  ownerId     String       @map("owner_id")
-  isActive    Boolean      @default(true) @map("is_active")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. Owners
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Owner {
+  id                String    @id @default(uuid())
+  userId            String    @unique @map("user_id")
+  organizationId    String    @map("organization_id")
+  fullName          String    @map("full_name")
+  whatsappNumber    String?   @map("whatsapp_number")
+  defaultPropertyId String?   @map("default_property_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
   // Relations
-  owner User   @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
-  units Unit[]
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  defaultProperty   Property?     @relation("OwnerDefaultProperty", fields: [defaultPropertyId], references: [id], onDelete: SetNull)
+  ownedProperties   Property[]    @relation("PropertyOwner")
+  invitedStaff      StaffMember[] @relation("StaffInvitedByOwner")
+
+  @@map("owners")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. Properties
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Property {
+  id              String         @id @default(uuid())
+  organizationId  String         @map("organization_id")
+  ownerId         String         @map("owner_id")
+  name            String
+  slug            String         @unique
+  logoUrl         String?        @map("logo_url")
+  address         String?
+  city            String?
+  state           String?
+  country         String?        @default("IN")
+  timezone        String         @default("Asia/Kolkata")
+  currency        String         @default("INR")
+  status          PropertyStatus @default(ONBOARDING)
+  onboardingStep  Int            @default(0) @map("onboarding_step")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  deletedAt       DateTime?      @map("deleted_at")
+
+  // Relations
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner            Owner             @relation("PropertyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  defaultForOwners Owner[]           @relation("OwnerDefaultProperty")
+  staffMembers     StaffMember[]
+  settings         PropertySettings?
+  roomTypes        RoomType[]
+  amenities        Amenity[]
+  guests           Guest[]
+  bookings         Booking[]
+  agencies         Agency[]
+  notifications    Notification[]    @relation("NotificationTargetProperty")
+  backupLogs       BackupLog[]
+  featureFlags     FeatureFlag[]
+  otaIntegrations  OtaIntegration[]
 
   @@map("properties")
 }
 
-enum PropertyType {
-  APARTMENT
-  HOUSE
-  VILLA
-  COMMERCIAL
-  OFFICE
-  WAREHOUSE
-  LAND
-}
-
-// ─── Units ────────────────────────────────────────
-
-model Unit {
-  id         String     @id @default(uuid())
-  propertyId String     @map("property_id")
-  unitNumber String     @map("unit_number")
-  floor      Int?
-  bedrooms   Int        @default(1)
-  bathrooms  Int        @default(1)
-  areaSqft   Float?     @map("area_sqft")
-  rentAmount Decimal    @map("rent_amount") @db.Decimal(10, 2)
-  status     UnitStatus @default(VACANT)
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
-
-  // Relations
-  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  leases   Lease[]
-
-  @@unique([propertyId, unitNumber])
-  @@map("units")
-}
-
-enum UnitStatus {
-  VACANT
-  OCCUPIED
-  MAINTENANCE
-  RESERVED
-}
-
-// ─── Leases ───────────────────────────────────────
-
-model Lease {
-  id         String      @id @default(uuid())
-  unitId     String      @map("unit_id")
-  tenantId   String      @map("tenant_id")
-  startDate  DateTime    @map("start_date")
-  endDate    DateTime    @map("end_date")
-  rentAmount Decimal     @map("rent_amount") @db.Decimal(10, 2)
-  deposit    Decimal     @db.Decimal(10, 2)
-  status     LeaseStatus @default(ACTIVE)
-  createdAt  DateTime    @default(now()) @map("created_at")
-  updatedAt  DateTime    @updatedAt @map("updated_at")
-
-  // Relations
-  unit     Unit      @relation(fields: [unitId], references: [id])
-  tenant   User      @relation("TenantLeases", fields: [tenantId], references: [id])
-  payments Payment[]
-
-  @@map("leases")
-}
-
-enum LeaseStatus {
-  DRAFT
+enum PropertyStatus {
+  ONBOARDING
   ACTIVE
-  EXPIRED
-  TERMINATED
-  RENEWED
+  SUSPENDED
+  ARCHIVED
 }
 
-// ─── Payments ─────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. Staff Members
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model StaffMember {
+  id               String      @id @default(uuid())
+  userId           String      @map("user_id")
+  propertyId       String      @map("property_id")
+  invitedByOwnerId String      @map("invited_by_owner_id")
+  role             StaffRole   @default(RECEPTION_STAFF)
+  status           StaffStatus @default(INVITED)
+  invitedAt        DateTime    @default(now()) @map("invited_at")
+  joinedAt         DateTime?   @map("joined_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  user             User     @relation("StaffUser", fields: [userId], references: [id], onDelete: Cascade)
+  property         Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  invitedByOwner   Owner    @relation("StaffInvitedByOwner", fields: [invitedByOwnerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+  @@map("staff_members")
+}
+
+enum StaffRole {
+  MANAGER
+  RECEPTION_STAFF
+  VIEWER
+}
+
+enum StaffStatus {
+  INVITED
+  ACTIVE
+  REMOVED
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. Property Settings
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model PropertySettings {
+  propertyId              String           @id @map("property_id")
+  checkInTime             String           @default("14:00") @map("check_in_time")
+  checkOutTime            String           @default("11:00") @map("check_out_time")
+  termsAndConditions      String?          @map("terms_and_conditions") @db.Text
+  gstEnabled              Boolean          @default(false) @map("gst_enabled")
+  gstRate                 Decimal?         @map("gst_rate") @db.Decimal(5, 2)
+  bankAccountDetails      Json?            @map("bank_account_details")
+  upiId                   String?          @map("upi_id")
+  qrCodeUrl               String?          @map("qr_code_url")
+  activeInvoiceTemplateId String?          @map("active_invoice_template_id")
+  updatedAt               DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  property                Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  activeInvoiceTemplate   InvoiceTemplate? @relation(fields: [activeInvoiceTemplateId], references: [id], onDelete: SetNull)
+
+  @@map("property_settings")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7. Room Types
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model RoomType {
+  id           String   @id @default(uuid())
+  propertyId   String   @map("property_id")
+  name         String
+  totalUnits   Int      @default(1) @map("total_units")
+  basePrice    Decimal  @map("base_price") @db.Decimal(10, 2)
+  maxOccupancy Int      @default(2) @map("max_occupancy")
+  isActive     Boolean  @default(true) @map("is_active")
+  sortOrder    Int      @default(0) @map("sort_order")
+
+  // Relations
+  property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@map("room_types")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 8. Amenities
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Amenity {
+  id         String  @id @default(uuid())
+  propertyId String  @map("property_id")
+  name       String
+  price      Decimal @default(0) @db.Decimal(10, 2)
+  icon       String?
+  isActive   Boolean @default(true) @map("is_active")
+
+  // Relations
+  property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bookingFacilities BookingFacility[]
+
+  @@map("amenities")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 9. Guests
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Guest {
+  id             String    @id @default(uuid())
+  propertyId     String    @map("property_id")
+  fullName       String    @map("full_name")
+  phone          String?
+  whatsappNumber String?   @map("whatsapp_number")
+  email          String?
+  nationality    String?
+  notes          String?   @db.Text
+  totalVisits    Int       @default(0) @map("total_visits")
+  totalSpend     Decimal   @default(0) @map("total_spend") @db.Decimal(12, 2)
+  firstStayAt    DateTime? @map("first_stay_at")
+  lastStayAt     DateTime? @map("last_stay_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@map("guests")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 10. Bookings
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Booking {
+  id                 String            @id @default(uuid())
+  propertyId         String            @map("property_id")
+  guestId            String            @map("guest_id")
+  roomTypeId         String            @map("room_type_id")
+  agencyId           String?           @map("agency_id")
+  channel            BookingChannel    @default(WALK_IN)
+  status             BookingStatus     @default(CONFIRMED)
+  checkInDate        DateTime          @map("check_in_date") @db.Date
+  checkOutDate       DateTime          @map("check_out_date") @db.Date
+  adults             Int               @default(1)
+  children           Int               @default(0)
+  mealPlan           MealPlan?         @map("meal_plan")
+  baseAmount         Decimal           @map("base_amount") @db.Decimal(10, 2)
+  gstAmount          Decimal           @default(0) @map("gst_amount") @db.Decimal(10, 2)
+  totalAmount        Decimal           @map("total_amount") @db.Decimal(10, 2)
+  advancePaid        Decimal           @default(0) @map("advance_paid") @db.Decimal(10, 2)
+  balanceDue         Decimal           @default(0) @map("balance_due") @db.Decimal(10, 2)
+  tacStatus          TacStatus?        @map("tac_status")
+  cancellationReason String?           @map("cancellation_reason")
+  refundAmount       Decimal?          @map("refund_amount") @db.Decimal(10, 2)
+  idempotencyKey     String?           @unique @map("idempotency_key")
+  createdByUserId    String            @map("created_by_user_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  deletedAt          DateTime?         @map("deleted_at")
+
+  // Relations
+  property           Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  guest              Guest             @relation(fields: [guestId], references: [id])
+  roomType           RoomType          @relation(fields: [roomTypeId], references: [id])
+  agency             Agency?           @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+  createdByUser      User              @relation("BookingCreatedBy", fields: [createdByUserId], references: [id])
+  bookingFacilities  BookingFacility[]
+  payments           Payment[]
+  invoices           Invoice[]
+  otaBookingMap      OtaBookingMap?
+
+  @@map("bookings")
+}
+
+enum BookingChannel {
+  WALK_IN
+  PHONE
+  WEBSITE
+  OTA
+  AGENCY
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
+enum MealPlan {
+  EP
+  CP
+  MAP
+  AP
+}
+
+enum TacStatus {
+  PENDING
+  SETTLED
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 11. Booking Facilities
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model BookingFacility {
+  bookingId      String  @map("booking_id")
+  amenityId      String  @map("amenity_id")
+  quantity       Int     @default(1)
+  priceAtBooking Decimal @map("price_at_booking") @db.Decimal(10, 2)
+
+  // Relations
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amenity Amenity @relation(fields: [amenityId], references: [id])
+
+  @@id([bookingId, amenityId])
+  @@map("booking_facilities")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 12. Payments
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model Payment {
-  id        String        @id @default(uuid())
-  leaseId   String        @map("lease_id")
-  tenantId  String        @map("tenant_id")
-  amount    Decimal       @db.Decimal(10, 2)
-  method    PaymentMethod @default(BANK_TRANSFER)
-  status    PaymentStatus @default(PENDING)
-  paidAt    DateTime?     @map("paid_at")
-  reference String?
-  notes     String?
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
+  id                   String      @id @default(uuid())
+  bookingId            String      @map("booking_id")
+  amount               Decimal     @db.Decimal(10, 2)
+  mode                 PaymentMode @default(CASH)
+  gatewayTransactionId String?     @map("gateway_transaction_id")
+  referenceNote        String?     @map("reference_note")
+  paidAt               DateTime    @default(now()) @map("paid_at")
+  createdByUserId      String      @map("created_by_user_id")
+  createdAt            DateTime    @default(now()) @map("created_at")
 
   // Relations
-  lease  Lease @relation(fields: [leaseId], references: [id])
-  tenant User  @relation(fields: [tenantId], references: [id])
+  booking       Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  createdByUser User    @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id])
 
   @@map("payments")
 }
 
-enum PaymentMethod {
+enum PaymentMode {
   CASH
+  UPI
   BANK_TRANSFER
   CREDIT_CARD
   DEBIT_CARD
-  CHEQUE
   ONLINE
 }
 
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
-  CANCELLED
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 13. Agencies
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Agency {
+  id             String   @id @default(uuid())
+  propertyId     String   @map("property_id")
+  name           String
+  contactPerson  String?  @map("contact_person")
+  phone          String?
+  email          String?
+  defaultTacRate Decimal? @map("default_tac_rate") @db.Decimal(5, 2)
+  totalTac       Decimal  @default(0) @map("total_tac") @db.Decimal(12, 2)
+  tacPaid        Decimal  @default(0) @map("tac_paid") @db.Decimal(12, 2)
+  pendingTac     Decimal  @default(0) @map("pending_tac") @db.Decimal(12, 2)
+  isActive       Boolean  @default(true) @map("is_active")
+
+  // Relations
+  property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@map("agencies")
 }
 
-// ─── Audit Log ────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 14. Invoice Templates
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-model AuditLog {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  action    String
-  resource  String
-  details   Json?
-  ipAddress String?  @map("ip_address")
-  createdAt DateTime @default(now()) @map("created_at")
+model InvoiceTemplate {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  name            String
+  htmlContent     String   @map("html_content") @db.Text
+  version         Int      @default(1)
+  isDefault       Boolean  @default(false) @map("is_default")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
 
+  // Relations
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  propertySettings  PropertySettings[]
+  invoices          Invoice[]
+
+  @@map("invoice_templates")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 15. Invoices
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Invoice {
+  id               String           @id @default(uuid())
+  bookingId        String           @map("booking_id")
+  type             InvoiceType      @default(FINAL)
+  templateId       String?          @map("template_id")
+  pdfUrl           String?          @map("pdf_url")
+  generationStatus GenerationStatus @default(PENDING) @map("generation_status")
+  generatedAt      DateTime?        @map("generated_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  booking  Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  template InvoiceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@map("invoices")
+}
+
+enum InvoiceType {
+  PROFORMA
+  FINAL
+  RECEIPT
+}
+
+enum GenerationStatus {
+  PENDING
+  GENERATED
+  FAILED
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 16. Notifications
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Notification {
+  id               String           @id @default(uuid())
+  organizationId   String           @map("organization_id")
+  title            String
+  message          String           @db.Text
+  type             NotificationType @default(SYSTEM)
+  targetRole       UserRole?        @map("target_role")
+  targetPropertyId String?          @map("target_property_id")
+  expiresAt        DateTime?        @map("expires_at")
+  createdByUserId  String?          @map("created_by_user_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  targetProperty  Property?          @relation("NotificationTargetProperty", fields: [targetPropertyId], references: [id], onDelete: SetNull)
+  createdByUser   User?              @relation("NotificationCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reads           NotificationRead[]
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  SYSTEM
+  BOOKING
+  PAYMENT
+  ALERT
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 17. Notification Reads
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model NotificationRead {
+  notificationId String   @map("notification_id")
+  userId         String   @map("user_id")
+  readAt         DateTime @default(now()) @map("read_at")
+
+  // Relations
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([notificationId, userId])
+  @@map("notification_reads")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 18. Device Tokens
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model DeviceToken {
+  id           String       @id @default(uuid())
+  userId       String       @map("user_id")
+  pushToken    String       @map("push_token")
+  platform     DevicePlatform
+  registeredAt DateTime     @default(now()) @map("registered_at")
+  lastActiveAt DateTime     @default(now()) @map("last_active_at")
+
+  // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@map("device_tokens")
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+  WEB
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 19. Refresh Tokens
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @map("token_hash")
+  deviceId  String?   @map("device_id")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 20. Backup Logs
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model BackupLog {
+  id           String       @id @default(uuid())
+  propertyId   String       @map("property_id")
+  syncType     SyncType     @default(MANUAL) @map("sync_type")
+  status       BackupStatus @default(IN_PROGRESS)
+  recordCounts Json?        @map("record_counts")
+  errorMessage String?      @map("error_message") @db.Text
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("backup_logs")
+}
+
+enum SyncType {
+  MANUAL
+  AUTO
+}
+
+enum BackupStatus {
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 21. Audit Logs
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  actorUserId    String   @map("actor_user_id")
+  entityType     String   @map("entity_type")
+  entityId       String   @map("entity_id")
+  action         String
+  beforeState    Json?    @map("before_state")
+  afterState     Json?    @map("after_state")
+  ipAddress      String?  @map("ip_address")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorUser    User         @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+
   @@map("audit_logs")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 22. API Keys
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model ApiKey {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  keyHash        String    @map("key_hash")
+  scopes         String[]
+  lastUsedAt     DateTime? @map("last_used_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 23. Webhooks
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Webhook {
+  id               String             @id @default(uuid())
+  organizationId   String             @map("organization_id")
+  targetUrl        String             @map("target_url")
+  subscribedEvents String[]           @map("subscribed_events")
+  secret           String
+  isActive         Boolean            @default(true) @map("is_active")
+
+  // Relations
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@map("webhooks")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 24. Webhook Deliveries
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model WebhookDelivery {
+  id            String                @id @default(uuid())
+  webhookId     String                @map("webhook_id")
+  eventName     String                @map("event_name")
+  payload       Json
+  status        WebhookDeliveryStatus @default(PENDING)
+  attempts      Int                   @default(0)
+  lastAttemptAt DateTime?             @map("last_attempt_at")
+  createdAt     DateTime              @default(now()) @map("created_at")
+
+  // Relations
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@map("webhook_deliveries")
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 25. Feature Flags
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model FeatureFlag {
+  id         String   @id @default(uuid())
+  flagName   String   @map("flag_name")
+  isEnabled  Boolean  @default(false) @map("is_enabled")
+  propertyId String?  @map("property_id")
+
+  // Relations
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([flagName, propertyId])
+  @@map("feature_flags")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 26. OTA Integrations
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model OtaIntegration {
+  id           String         @id @default(uuid())
+  propertyId   String         @map("property_id")
+  channel      OtaChannel
+  credentials  Json
+  syncStatus   OtaSyncStatus  @default(PENDING) @map("sync_status")
+  lastSyncedAt DateTime?      @map("last_synced_at")
+
+  // Relations
+  property       Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  otaBookingMaps OtaBookingMap[]
+
+  @@unique([propertyId, channel])
+  @@map("ota_integrations")
+}
+
+enum OtaChannel {
+  BOOKING_COM
+  GOIBIBO
+  MAKEMYTRIP
+  AGODA
+  EXPEDIA
+}
+
+enum OtaSyncStatus {
+  SYNCED
+  PENDING
+  FAILED
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 27. OTA Booking Map
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model OtaBookingMap {
+  bookingId             String         @id @map("booking_id")
+  otaIntegrationId      String         @map("ota_integration_id")
+  externalReservationId String         @map("external_reservation_id")
+  rawPayload            Json?          @map("raw_payload")
+
+  // Relations
+  booking        Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  otaIntegration OtaIntegration @relation(fields: [otaIntegrationId], references: [id], onDelete: Cascade)
+
+  @@map("ota_booking_map")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 28. Payment Transactions
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model PaymentTransaction {
+  id                   String                   @id @default(uuid())
+  gateway              PaymentGateway
+  gatewayTransactionId String                   @map("gateway_transaction_id")
+  amount               Decimal                  @db.Decimal(10, 2)
+  status               PaymentTransactionStatus @default(INITIATED)
+  rawPayload           Json?                    @map("raw_payload")
+
+  @@map("payment_transactions")
+}
+
+enum PaymentGateway {
+  RAZORPAY
+  STRIPE
+  PHONEPE
+}
+
+enum PaymentTransactionStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+  REFUNDED
 }

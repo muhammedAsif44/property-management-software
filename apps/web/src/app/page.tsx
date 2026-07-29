@@ -24,17 +24,17 @@ export default function HomePage() {
 
       <AuthHeader currentTab="login" />
 
-      <main className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-6xl mx-auto z-10 my-6">
+      <main className="flex-1 flex flex-col items-center justify-start px-6 pt-2 sm:pt-4 pb-12 text-center max-w-6xl mx-auto z-10">
         
         {/* Seamless Transparent Logo Display */}
-        <div className="mb-4 group flex flex-col items-center">
-          <div className="p-3 rounded-3xl bg-transparent transition-transform duration-300 group-hover:scale-105">
+        <div className="mb-2 group flex flex-col items-center">
+          <div className="p-1 rounded-3xl bg-transparent transition-transform duration-300 group-hover:scale-105">
             <Image
               src="/orvyn-logo.png"
               alt="Orvyn PMS Logo"
-              width={280}
-              height={90}
-              className="h-24 sm:h-28 w-auto object-contain drop-shadow-md"
+              width={240}
+              height={75}
+              className="h-16 sm:h-20 w-auto object-contain drop-shadow-md"
               priority
             />
           </div>
@@ -47,14 +47,14 @@ export default function HomePage() {
         </span>
 
         {/* Hero Title */}
-        <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-900 tracking-tight mt-6 leading-tight max-w-3xl">
+        <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-900 tracking-tight mt-4 leading-tight max-w-3xl">
           Complete Property Operations, <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-emerald-800">
             Intelligent & Automated
           </span>
         </h1>
 
-        <p className="text-slate-600 text-base sm:text-lg mt-5 max-w-2xl leading-relaxed font-normal">
+        <p className="text-slate-600 text-base sm:text-lg mt-4 max-w-2xl leading-relaxed font-normal">
           Orvyn PMS streamlines property portfolios, automates monthly billing, simplifies tenant communication, and delivers real-time financial insights.
         </p>
 

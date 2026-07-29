@@ -34,37 +34,26 @@ export const AuthLoginForm: React.FC = () => {
   };
 
   return (
-    <div className="lg:col-span-7 p-8 sm:p-12 flex flex-col justify-center animate-fade-in-up">
+    <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-center animate-fade-in-up">
       <div className="max-w-md mx-auto w-full">
         
-        {/* Prominent High-Resolution Logo & Header */}
-        <div className="mb-8 flex flex-col items-start">
-          <div className="mb-4 transition-transform duration-300 hover:scale-105">
-            <Image
-              src="/orvyn-logo.png"
-              alt="Orvyn PMS Logo"
-              width={280}
-              height={85}
-              className="h-20 sm:h-24 w-auto object-contain drop-shadow-md"
-              priority
-            />
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+        {/* Form Header */}
+        <div className="mb-5 flex flex-col items-start">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Welcome back
           </h2>
-          <p className="text-slate-500 text-sm sm:text-base mt-2 font-normal">
+          <p className="text-slate-500 text-xs sm:text-sm mt-1 font-normal">
             Enter your credentials to access your Orvyn PMS portal.
           </p>
         </div>
 
         {error && (
-          <div className="mb-6">
+          <div className="mb-4">
             <Alert type="error" message={error} onDismiss={clearError} />
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Email Address"
             type="email"
@@ -76,7 +65,7 @@ export const AuthLoginForm: React.FC = () => {
           />
 
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-1.5">
               <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 Password
               </span>
@@ -97,7 +86,7 @@ export const AuthLoginForm: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center justify-between pt-0.5">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -112,14 +101,14 @@ export const AuthLoginForm: React.FC = () => {
             isLoading={loading}
             loadingText="Authenticating..."
             size="lg"
-            className="w-full mt-4 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35"
+            className="w-full mt-2 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35"
             icon={<ArrowRight className="w-4 h-4" />}
           >
             Sign In to Portal
           </Button>
         </form>
 
-        <div className="mt-8 text-center text-xs text-slate-500">
+        <div className="mt-5 text-center text-xs text-slate-500">
           Are you a property owner wanting to manage properties?{' '}
           <Link
             href="/signup/owner"

@@ -17,13 +17,13 @@ export default function OwnerSignupPage() {
 
       <AuthHeader currentTab="signup" />
 
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 z-10 my-4">
+      <main className="flex-1 flex items-center justify-center px-4 py-2 sm:px-6 sm:py-3 z-10">
         <div className="w-full max-w-4xl bg-white/95 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-2xl shadow-emerald-950/10 overflow-hidden">
           <OwnerSignupForm />
         </div>
       </main>
 
-      <footer className="py-6 text-center text-xs text-slate-400 font-medium border-t border-slate-200/60 max-w-7xl mx-auto w-full z-10">
+      <footer className="py-2.5 text-center text-xs text-slate-400 font-medium border-t border-slate-200/60 max-w-7xl mx-auto w-full z-10">
         © {new Date().getFullYear()} Orvyn PMS. Property Management System. Powered by <strong>Orvyn Labs Inc.</strong>
       </footer>
     </div>

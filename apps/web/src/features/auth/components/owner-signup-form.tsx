@@ -95,26 +95,26 @@ export const OwnerSignupForm: React.FC = () => {
   const activeError = validationError || error;
 
   return (
-    <div className="p-6 sm:p-12 animate-fade-in-up">
+    <div className="p-5 sm:p-7 animate-fade-in-up">
       <div className="max-w-xl mx-auto">
         
         {/* Form Header */}
-        <div className="text-center mb-8 flex flex-col items-center">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-100/90 text-emerald-800 text-xs font-extrabold tracking-wide uppercase border border-emerald-200 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <div className="text-center mb-4 flex flex-col items-center">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/90 text-emerald-800 text-[11px] font-extrabold tracking-wide uppercase border border-emerald-200 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Company Onboarding Portal
           </span>
 
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-3">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5">
             Register Your Organization
           </h2>
-          <p className="text-slate-500 text-xs sm:text-sm mt-1">
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
             Set up your property management company on Orvyn PMS.
           </p>
         </div>
 
         {activeError && (
-          <div className="mb-6">
+          <div className="mb-3">
             <Alert
               type="error"
               message={activeError}
@@ -126,8 +126,8 @@ export const OwnerSignupForm: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Company / Org Name *"
               name="organizationName"
@@ -148,7 +148,7 @@ export const OwnerSignupForm: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Work Email *"
               type="email"
@@ -171,7 +171,7 @@ export const OwnerSignupForm: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Input
                 label="Password *"
@@ -184,7 +184,7 @@ export const OwnerSignupForm: React.FC = () => {
                 icon={<Lock className="w-4 h-4" />}
               />
               {formData.password && (
-                <div className="mt-2 flex items-center gap-1.5">
+                <div className="mt-1.5 flex items-center gap-1.5">
                   <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden flex gap-1">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
@@ -224,9 +224,9 @@ export const OwnerSignupForm: React.FC = () => {
           </div>
 
           {/* Info Banner */}
-          <div className="p-4 bg-slate-50/90 rounded-2xl border border-slate-200 text-xs text-slate-600 flex items-start gap-3 shadow-inner">
-            <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            <span className="leading-relaxed">
+          <div className="p-2.5 bg-slate-50/90 rounded-2xl border border-slate-200 text-xs text-slate-600 flex items-start gap-2.5 shadow-inner">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <span className="leading-snug">
               Owner registrations are set to <strong>PENDING</strong> status and require verification by a Super Admin before account activation.
             </span>
           </div>
@@ -236,14 +236,14 @@ export const OwnerSignupForm: React.FC = () => {
             isLoading={loading}
             loadingText="Submitting Registration..."
             size="lg"
-            className="w-full mt-6 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35"
+            className="w-full mt-3 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35"
             icon={<ArrowRight className="w-4 h-4" />}
           >
             Submit Registration Request
           </Button>
         </form>
 
-        <div className="mt-8 text-center text-xs text-slate-500">
+        <div className="mt-4 text-center text-xs text-slate-500">
           Already have an approved account?{' '}
           <Link
             href="/login"

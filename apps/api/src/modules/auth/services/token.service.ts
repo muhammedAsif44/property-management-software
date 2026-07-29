@@ -14,7 +14,7 @@ export class TokenService {
     private readonly configService: ConfigService,
   ) {}
 
-  // 1. Generate 15m Access Token & 30d Refresh Token + Set Cookies
+  // 1. Generate 7d Access Token & 30d Refresh Token + Set Cookies
   async generateTokensAndSetCookies(user: any, res: Response) {
     const payload = {
       sub: user.id,
@@ -25,7 +25,7 @@ export class TokenService {
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET') || 'orvyn_access_super_secret_key_2026_x89a',
-      expiresIn: '15m',
+      expiresIn: (this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '7d') as any,
     });
 
     const refreshToken = this.jwtService.sign(payload, {
@@ -54,7 +54,7 @@ export class TokenService {
       secure: isProduction,
       sameSite: 'lax',
       path: '/',
-      maxAge: 15 * 60 * 1000, // 15 mins
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days persistent session
     });
 
     res.cookie('refresh_token', refreshToken, {
@@ -83,7 +83,7 @@ export class TokenService {
       },
       tokens: {
         accessToken,
-        accessTokenExpiresIn: '15m',
+        accessTokenExpiresIn: '7d',
         refreshTokenExpiresIn: '30d',
       },
     };

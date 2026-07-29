@@ -8,7 +8,7 @@ interface AuthHeaderProps {
 
 export const AuthHeader: React.FC<AuthHeaderProps> = ({ currentTab }) => {
   return (
-    <header className="w-full flex flex-wrap items-center justify-between gap-4 px-4 sm:px-10 py-4 sm:py-5 max-w-7xl mx-auto z-20">
+    <header className="w-full flex flex-wrap items-center justify-between gap-4 px-4 sm:px-10 py-2 sm:py-3 max-w-7xl mx-auto z-20">
       {/* Prominent High-Quality Brand Logo */}
       <Link href="/" className="flex items-center gap-3 group">
         <div className="relative flex items-center justify-center group-hover:scale-105 transition-transform duration-300">

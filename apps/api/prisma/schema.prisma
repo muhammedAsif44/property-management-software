@@ -159,6 +159,9 @@ model Property {
   featureFlags     FeatureFlag[]
   otaIntegrations  OtaIntegration[]
 
+  @@index([ownerId, deletedAt])
+  @@index([organizationId])
+  @@index([status])
   @@map("properties")
 }
 
@@ -247,6 +250,7 @@ model RoomType {
   property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   bookings Booking[]
 
+  @@index([propertyId, isActive])
   @@map("room_types")
 }
 
@@ -266,6 +270,7 @@ model Amenity {
   property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   bookingFacilities BookingFacility[]
 
+  @@index([propertyId, isActive])
   @@map("amenities")
 }
 

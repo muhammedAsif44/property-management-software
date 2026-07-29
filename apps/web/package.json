@@ -3,20 +3,26 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
+    "dev": "next dev --turbo --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@hookform/resolvers": "^3.9.1",
     "@orvyn/api-client": "workspace:*",
     "@orvyn/shared-types": "workspace:*",
     "@orvyn/ui": "workspace:*",
     "@orvyn/utils": "workspace:*",
+    "@tanstack/react-query": "^5.62.7",
+    "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.54.1",
+    "zod": "^3.24.1",
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@orvyn/typescript-config": "workspace:*",

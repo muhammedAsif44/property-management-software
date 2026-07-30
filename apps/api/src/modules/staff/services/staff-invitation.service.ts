@@ -50,6 +50,7 @@ export class StaffInvitationService {
         await tx.user.update({
           where: { id: targetUser.id },
           data: {
+            organizationId: property.organizationId,
             role: mappedUserRole,
             approvalStatus: ApprovalStatus.APPROVED,
             isActive: true,

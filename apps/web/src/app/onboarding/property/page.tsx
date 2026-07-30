@@ -4,6 +4,7 @@ import React, { useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useToast } from '@/components/ui/toast';
 import {
   propertyService,
   usePropertyOnboarding,
@@ -25,9 +26,12 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
+
 function OnboardingWizardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
 
   const {
     propertyId,
@@ -52,24 +56,40 @@ function OnboardingWizardContent() {
     saveStep,
   } = usePropertyOnboarding();
 
+  const toast = useToast();
+  const hasToastedRef = React.useRef(false);
+
   useEffect(() => {
     const init = async () => {
-      let id = searchParams.get('id');
-      if (!id) {
-        const active = await propertyService.getActiveProperty();
-        if (active.activeProperty) {
-          id = active.activeProperty.id;
-        } else {
-          const created = await propertyService.createProperty({ name: 'My Luxury Hotel', city: 'Goa' });
-          id = created.property.id;
+      try {
+        let id = searchParams.get('id');
+        if (!id) {
+          const active = await propertyService.getActiveProperty();
+          if (active.activeProperty) {
+            id = active.activeProperty.id;
+          } else {
+            const created = await propertyService.createProperty({ name: 'My Luxury Hotel', city: 'Goa' });
+            id = created.property.id;
+          }
         }
-      }
-      if (id) {
-        loadPropertyData(id);
+        if (id) {
+          loadPropertyData(id);
+        }
+      } catch (err: any) {
+        if (err?.status === 403 || err?.statusCode === 403) {
+          if (!hasToastedRef.current) {
+            hasToastedRef.current = true;
+            toast.info(
+              'Access Restricted: Property onboarding & settings are reserved for Property Owners.',
+              'Restricted Access',
+            );
+          }
+          router.push('/dashboard');
+        }
       }
     };
     init();
-  }, [searchParams, loadPropertyData]);
+  }, [searchParams, loadPropertyData, router, toast]);
 
   if (loading) {
     return (
@@ -111,12 +131,16 @@ function OnboardingWizardContent() {
             </span>
           </div>
 
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
-          >
-            Save & Exit to Dashboard
-          </button>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+            >
+              {t('dashboard')}
+            </button>
+          </div>
         </div>
       </header>
 

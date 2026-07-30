@@ -22,11 +22,11 @@ export const usePropertyStore = create<PropertyState>((set) => ({
 
   setProperties: (properties, defaultPropertyId) =>
     set((state) => {
-      const activeId = defaultPropertyId || state.defaultPropertyId;
-      const active = properties.find((p) => p.id === activeId) || properties[0] || null;
+      const activeId = defaultPropertyId || state.activeProperty?.id || state.defaultPropertyId;
+      const active = properties.find((p) => p.id === activeId) || state.activeProperty || properties[0] || null;
       return {
         properties,
-        defaultPropertyId: activeId || null,
+        defaultPropertyId: activeId || active?.id || null,
         activeProperty: active,
       };
     }),

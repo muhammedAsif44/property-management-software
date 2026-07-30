@@ -25,6 +25,8 @@ export interface LoginPayload {
 
 export interface LoginResponse {
   message?: string;
+  targetApp?: string;
+  redirectUrl?: string;
   user?: {
     id: string;
     email: string;

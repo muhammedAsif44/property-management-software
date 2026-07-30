@@ -1,5 +1,5 @@
 import React from 'react';
-import { Manrope } from 'next/font/google';
+import { Manrope, Noto_Sans_Malayalam } from 'next/font/google';
 import { Providers } from './providers';
 import './globals.css';
 
@@ -10,13 +10,20 @@ const manrope = Manrope({
   display: 'swap',
 });
 
+const notoMalayalam = Noto_Sans_Malayalam({
+  subsets: ['malayalam'],
+  variable: '--font-noto-malayalam',
+  weight: ['400', '500', '600', '700', '800'],
+  display: 'swap',
+});
+
 export const metadata = {
   title: 'Orvyn PMS - Property Management System',
   description: 'Manage your properties, tenants, and automated payments easily with Orvyn PMS',
   icons: {
-    icon: '/icon.svg',
-    shortcut: '/icon.svg',
-    apple: '/icon.svg',
+    icon: [{ url: '/icon.svg?v=2', type: 'image/svg+xml' }],
+    shortcut: '/icon.svg?v=2',
+    apple: '/icon.svg?v=2',
   },
 };
 
@@ -26,11 +33,11 @@ export default function RootLayout({
   children: any;
 }) {
   return (
-    <html lang="en" className={manrope.variable}>
+    <html lang="en" className={`${manrope.variable} ${notoMalayalam.variable}`}>
       <head>
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="shortcut icon" href="/icon.svg" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
+        <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml" sizes="any" />
+        <link rel="shortcut icon" href="/icon.svg?v=2" />
+        <link rel="apple-touch-icon" href="/icon.svg?v=2" />
       </head>
       <body className={`${manrope.className} font-sans min-h-screen bg-slate-50 text-slate-900 antialiased`}>
         <Providers>{children}</Providers>

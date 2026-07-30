@@ -26,13 +26,13 @@ export class PropertiesController {
   ) {}
 
   @Get()
-  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.VIEWER, UserRole.SUPER_ADMIN)
   async getMyProperties(@Req() req: any) {
     return this.propertiesService.getMyProperties(req.user.id);
   }
 
   @Get('active')
-  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.VIEWER, UserRole.SUPER_ADMIN)
   async getActiveProperty(@Req() req: any) {
     return this.propertiesService.getActiveProperty(req.user.id);
   }
@@ -50,7 +50,7 @@ export class PropertiesController {
   }
 
   @Post(':id/onboarding/step')
-  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
   async saveOnboardingStep(
     @Req() req: any,
     @Param('id') id: string,
@@ -60,7 +60,7 @@ export class PropertiesController {
   }
 
   @Patch('switch/:propertyId')
-  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.VIEWER, UserRole.SUPER_ADMIN)
   async switchActiveProperty(@Req() req: any, @Param('propertyId') propertyId: string) {
     return this.propertiesService.switchActiveProperty(req.user.id, propertyId);
   }

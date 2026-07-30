@@ -15,6 +15,10 @@ export const authService = {
   ownerSignup: (data: OwnerSignupPayload) =>
     httpClient.post<OwnerSignupResponse>('/auth/signup/owner', data),
 
+  // Register invited staff member (Manager, Reception Staff, Viewer)
+  staffSignup: (data: { name: string; email: string; password: string; phone?: string }) =>
+    httpClient.post<LoginResponse>('/auth/signup/staff', data),
+
   // Get current user profile
   getProfile: () => httpClient.get<{ user: any }>('/auth/me'),
 

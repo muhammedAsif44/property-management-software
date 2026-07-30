@@ -7,6 +7,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { PropertySwitcher } from '@/features/properties';
 import { authService } from '@/features/auth';
 import { useToast } from '@/components/ui/toast';
+import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from '@/lib/i18n';
 import {
   LayoutDashboard,
   Building2,
@@ -18,8 +20,9 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   ShieldCheck,
+  Menu,
+  X,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -31,62 +34,87 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
   const pathname = usePathname();
   const router = useRouter();
   const toast = useToast();
-  const [collapsed, setCollapsed] = useState(false);
+  const { t } = useTranslation();
 
-  const navigationItems = [
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Fetch current user profile to determine role-based menu items
+  const { data: profileData } = useQuery({
+    queryKey: ['auth', 'profile'],
+    queryFn: () => authService.getProfile(),
+    staleTime: 60000,
+    retry: false,
+  });
+
+  const userRole = profileData?.user?.role || 'OWNER';
+  const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN';
+  const isManagerOrOwner = isOwner || userRole === 'MANAGER';
+
+  const rawNavigationItems = [
     {
-      name: 'Dashboard',
+      name: t('dashboard'),
       href: '/dashboard',
       icon: LayoutDashboard,
       active: pathname === '/dashboard',
+      visible: true,
     },
     {
-      name: 'Properties',
+      name: t('properties'),
       href: '/settings/property',
       icon: Building2,
       active: pathname.startsWith('/settings/property') || pathname.startsWith('/onboarding/property'),
+      visible: isOwner,
     },
     {
-      name: 'Staff Directory',
+      name: t('staffDirectory'),
       href: '/settings/staff',
       icon: Users,
       active: pathname.startsWith('/settings/staff'),
+      visible: isManagerOrOwner,
     },
     {
-      name: 'Bookings',
+      name: t('bookings'),
       href: '#',
       icon: Calendar,
       active: pathname.startsWith('/bookings'),
-      badge: 'Coming Soon',
+      badge: t('comingSoon'),
+      visible: true,
     },
     {
-      name: 'Rooms & Units',
+      name: t('roomsAndUnits'),
       href: '#',
       icon: BedDouble,
       active: pathname.startsWith('/rooms'),
-      badge: 'Coming Soon',
+      badge: t('comingSoon'),
+      visible: true,
     },
     {
-      name: 'Guests',
+      name: t('guests'),
       href: '#',
       icon: Users,
       active: pathname.startsWith('/guests'),
-      badge: 'Coming Soon',
+      badge: t('comingSoon'),
+      visible: true,
     },
     {
-      name: 'Invoices & Billing',
+      name: t('invoicesAndBilling'),
       href: '#',
       icon: Receipt,
       active: pathname.startsWith('/invoices'),
-      badge: 'Coming Soon',
+      badge: t('comingSoon'),
+      visible: true,
     },
     {
-      name: 'Settings',
+      name: t('settings'),
       href: '/settings',
       icon: Settings,
       active: pathname === '/settings',
+      visible: isManagerOrOwner,
     },
   ];
+
+  const navigationItems = rawNavigationItems.filter((item) => item.visible);
 
   const handleLogout = async () => {
     try {
@@ -99,116 +127,228 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
   };
 
   return (
-    <aside
-      className={`fixed top-0 left-0 bottom-0 z-40 bg-white/95 backdrop-blur-2xl border-r border-emerald-200/80 transition-all duration-300 flex flex-col justify-between ${
-        collapsed ? 'w-16' : 'w-60'
-      } shadow-xl shadow-emerald-950/5`}
-    >
-      {/* Top Header & Brand Logo */}
-      <div className="p-3 space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <Link href="/dashboard" className="flex items-center gap-2 group overflow-hidden">
-            <div className="relative flex items-center justify-center shrink-0">
-              <Image
-                src="/orvyn-logo.png"
-                alt="Orvyn PMS"
-                width={140}
-                height={40}
-                className={`h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 ${
-                  collapsed ? 'scale-90' : ''
-                }`}
-                priority
-              />
-            </div>
-          </Link>
+    <>
+      {/* Mobile Top Navigation Header (< lg screens) */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-emerald-200/80 px-4 py-2.5 flex items-center justify-between shadow-2xs">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <Image
+            src="/orvyn-logo.png"
+            alt="Orvyn PMS"
+            width={130}
+            height={36}
+            className="h-7 w-auto object-contain"
+            priority
+          />
+        </Link>
 
-          {/* Toggle Button */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 text-emerald-700 transition-all border border-emerald-200/80"
-            title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all cursor-pointer"
+            aria-label="Toggle Mobile Navigation"
           >
-            {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
+      </header>
 
-        {/* Property Switcher Integration */}
-        {!collapsed && (
-          <div className="pt-1">
-            <PropertySwitcher />
-          </div>
-        )}
-
-        {/* Navigation Links */}
-        <nav className="space-y-1 pt-1">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            const isClickable = item.href !== '#';
-
-            return isClickable ? (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 group relative ${
-                  item.active
-                    ? 'bg-gradient-to-r from-emerald-600 via-emerald-700 to-emerald-800 text-white shadow-md shadow-emerald-700/20 border border-emerald-500/30'
-                    : 'text-slate-700 hover:text-emerald-900 hover:bg-emerald-100/60'
-                }`}
-              >
-                <Icon
-                  className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
-                    item.active ? 'text-white' : 'text-emerald-700 group-hover:text-emerald-800'
-                  }`}
-                />
-                {!collapsed && <span className="truncate">{item.name}</span>}
-              </Link>
-            ) : (
-              <div
-                key={item.name}
-                className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all cursor-not-allowed opacity-80 relative group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Icon className="w-4 h-4 shrink-0 text-slate-400" />
-                  {!collapsed && <span className="truncate">{item.name}</span>}
-                </div>
-                {!collapsed && item.badge && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100/90 text-emerald-800 border border-emerald-200/80">
-                    Soon
-                  </span>
-                )}
+      {/* Mobile Sliding Navigation Drawer */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex">
+          <div className="bg-white w-72 max-w-[85vw] h-full flex flex-col justify-between p-4 shadow-2xl animate-in slide-in-from-left duration-200">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
+                  <Image
+                    src="/orvyn-logo.png"
+                    alt="Orvyn PMS"
+                    width={140}
+                    height={40}
+                    className="h-8 w-auto object-contain"
+                  />
+                </Link>
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            );
-          })}
-        </nav>
-      </div>
 
-      {/* Bottom User & Logout Footer */}
-      <div className="p-2.5 border-t border-emerald-100/80 space-y-2 bg-emerald-50/30">
-        {!collapsed && (
-          <div className="p-2 rounded-xl bg-emerald-100/70 border border-emerald-200/90 text-emerald-950 shadow-xs flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-700 flex items-center justify-center font-bold shrink-0 border border-emerald-300/40">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+              <div className="pt-1">
+                <PropertySwitcher />
+              </div>
+
+              <nav className="space-y-1 pt-1">
+                {navigationItems.map((item) => {
+                  const Icon = item.icon;
+                  const isClickable = item.href !== '#';
+
+                  return isClickable ? (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        item.active
+                          ? 'bg-emerald-700 text-white shadow-xs'
+                          : 'text-slate-700 hover:bg-emerald-50'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{item.name}</span>
+                    </Link>
+                  ) : (
+                    <div
+                      key={item.name}
+                      className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 cursor-not-allowed opacity-75"
+                    >
+                      <div className="flex items-center gap-3 truncate">
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span className="truncate font-bold">{item.name}</span>
+                      </div>
+                      {item.badge && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] font-extrabold bg-emerald-100 text-emerald-800">
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </nav>
             </div>
-            <div className="overflow-hidden text-left">
-              <p className="text-[11px] font-black truncate text-emerald-950">Owner Portal</p>
-              <p className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Active
-              </p>
+
+            <div className="pt-4 border-t border-slate-100 space-y-2">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100"
+              >
+                <LogOut className="w-4 h-4" /> {t('signOut')}
+              </button>
             </div>
           </div>
-        )}
 
-        <button
-          onClick={handleLogout}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition-all duration-200 border border-rose-100 hover:border-rose-200 ${
-            collapsed ? 'justify-center' : ''
-          }`}
-          title="Sign Out"
-        >
-          <LogOut className="w-3.5 h-3.5 shrink-0 text-rose-500" />
-          {!collapsed && <span>Sign Out</span>}
-        </button>
-      </div>
-    </aside>
+          <div className="flex-1" onClick={() => setMobileOpen(false)} />
+        </div>
+      )}
+
+      {/* Desktop Fixed Left Sidebar (>= lg screens) */}
+      <aside
+        className={`hidden lg:flex fixed top-0 left-0 bottom-0 z-40 bg-white/95 backdrop-blur-2xl border-r border-emerald-200/80 transition-all duration-300 flex-col justify-between ${
+          collapsed ? 'w-16' : 'w-60'
+        } shadow-xl shadow-emerald-950/5`}
+      >
+        {/* Top Header & Brand Logo */}
+        <div className="p-3 space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <Link href="/dashboard" className="flex items-center gap-2 group overflow-hidden">
+              <div className="relative flex items-center justify-center shrink-0">
+                <Image
+                  src="/orvyn-logo.png"
+                  alt="Orvyn PMS"
+                  width={140}
+                  height={40}
+                  className={`h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 ${
+                    collapsed ? 'scale-90' : ''
+                  }`}
+                  priority
+                />
+              </div>
+            </Link>
+
+            {/* Toggle Button */}
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="p-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 text-emerald-700 transition-all border border-emerald-200/80 cursor-pointer"
+              title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+            >
+              {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          {/* Property Switcher Integration */}
+          {!collapsed && (
+            <div className="pt-1">
+              <PropertySwitcher />
+            </div>
+          )}
+
+          {/* Navigation Links */}
+          <nav className="space-y-1 pt-1">
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              const isClickable = item.href !== '#';
+
+              return isClickable ? (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 group relative ${
+                    item.active
+                      ? 'bg-gradient-to-r from-emerald-600 via-emerald-700 to-emerald-800 text-white shadow-md shadow-emerald-700/20 border border-emerald-500/30'
+                      : 'text-slate-700 hover:text-emerald-900 hover:bg-emerald-100/60'
+                  }`}
+                >
+                  <Icon
+                    className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
+                      item.active ? 'text-white' : 'text-emerald-700 group-hover:text-emerald-800'
+                    }`}
+                  />
+                  {!collapsed && <span className="truncate">{item.name}</span>}
+                </Link>
+              ) : (
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-all cursor-not-allowed opacity-85 relative group"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+                    <Icon className="w-4 h-4 shrink-0 text-slate-400" />
+                    {!collapsed && <span className="truncate font-bold">{item.name}</span>}
+                  </div>
+                  {!collapsed && item.badge && (
+                    <span className="px-1.5 py-0.5 rounded-md text-[9px] font-extrabold bg-emerald-100/90 text-emerald-800 border border-emerald-200/80 shrink-0 whitespace-nowrap">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Bottom User & Logout Footer */}
+        <div className="p-2.5 border-t border-emerald-100/80 space-y-2 bg-emerald-50/30">
+          {!collapsed && (
+            <div className="p-2 rounded-xl bg-emerald-100/70 border border-emerald-200/90 text-emerald-950 shadow-xs flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-700 flex items-center justify-center font-bold shrink-0 border border-emerald-300/40">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+              </div>
+              <div className="overflow-hidden text-left">
+                <p className="text-[11px] font-black truncate text-emerald-950">
+                  {isOwner && t('ownerPortal')}
+                  {userRole === 'MANAGER' && t('managerPortal')}
+                  {userRole === 'RECEPTION_STAFF' && t('receptionPortal')}
+                  {userRole === 'VIEWER' && t('viewerPortal')}
+                </p>
+                <p className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> {t('liveActive')}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={handleLogout}
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition-all duration-200 border border-rose-100 hover:border-rose-200 ${
+              collapsed ? 'justify-center' : ''
+            }`}
+            title={t('signOut')}
+          >
+            <LogOut className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+            {!collapsed && <span>{t('signOut')}</span>}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 };

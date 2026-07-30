@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { PropertyItem, propertyService } from '../services/property.service';
 import { usePropertyStore } from '../store/use-property-store';
+import { useQuery } from '@tanstack/react-query';
+import { authService } from '@/features/auth';
 import {
   useMyPropertiesQuery,
   useSwitchPropertyMutation,
@@ -20,10 +22,13 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+import { useTranslation } from '@/lib/i18n';
+
 export const PropertySwitcher: React.FC<{ onPropertyChange?: (prop: PropertyItem) => void }> = ({
   onPropertyChange,
 }) => {
   const toast = useToast();
+  const { t } = useTranslation();
   
   // Zustand Global State
   const activeProperty = usePropertyStore((state) => state.activeProperty);
@@ -32,6 +37,17 @@ export const PropertySwitcher: React.FC<{ onPropertyChange?: (prop: PropertyItem
   // TanStack Query & Mutation
   const { isLoading, refetch } = useMyPropertiesQuery();
   const switchMutation = useSwitchPropertyMutation();
+
+  // Resolve user role for button guarding
+  const { data: profileData } = useQuery({
+    queryKey: ['auth', 'profile'],
+    queryFn: () => authService.getProfile(),
+    staleTime: 60000,
+    retry: false,
+  });
+
+  const userRole = profileData?.user?.role || 'OWNER';
+  const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN';
 
   const [isOpen, setIsOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -105,11 +121,11 @@ export const PropertySwitcher: React.FC<{ onPropertyChange?: (prop: PropertyItem
 
           <div className="text-left min-w-0 pr-1">
             <div className="text-xs font-black truncate text-slate-900 max-w-[130px]">
-              {activeProperty ? activeProperty.name : 'No Property Selected'}
+              {activeProperty ? activeProperty.name : t('noPropertySelected')}
             </div>
             <div className="text-[10px] text-emerald-700/80 font-bold truncate flex items-center gap-1">
               <MapPin className="w-2.5 h-2.5 text-emerald-600" />
-              {activeProperty?.city || 'Onboarding'}
+              {activeProperty?.city || t('onboarding')}
             </div>
           </div>
         </div>
@@ -120,20 +136,20 @@ export const PropertySwitcher: React.FC<{ onPropertyChange?: (prop: PropertyItem
       {/* Instagram-Style Dropdown Modal */}
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-xs" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsOpen(false)} />
           
-          <div className="absolute left-0 top-full mt-2 w-full min-w-[220px] max-w-[260px] bg-white/98 backdrop-blur-xl rounded-2xl border border-emerald-200/90 shadow-xl p-3 z-50 animate-fade-in-up space-y-2.5">
+          <div className="absolute left-0 top-full mt-2 w-full min-w-[240px] max-w-[280px] bg-white rounded-2xl border border-slate-200 shadow-2xl p-3 z-[100] animate-in fade-in zoom-in-95 duration-150 space-y-2.5">
             
-            <div className="flex items-center justify-between px-1 pt-0.5 border-b border-emerald-100 pb-2">
+            <div className="flex items-center justify-between px-1 pt-0.5 border-b border-slate-100 pb-2">
               <div className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">
                   Switch Property ({properties.length})
                 </span>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -187,18 +203,20 @@ export const PropertySwitcher: React.FC<{ onPropertyChange?: (prop: PropertyItem
               })}
             </div>
 
-            {/* Add Property Action Button */}
-            <div className="pt-2 border-t border-emerald-100">
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  setIsAddModalOpen(true);
-                }}
-                className="w-full py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-900 text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5 text-emerald-700" /> Onboard Property
-              </button>
-            </div>
+            {/* Add Property Action Button: Reserved for Owner */}
+            {isOwner && (
+              <div className="pt-2 border-t border-emerald-100">
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    setIsAddModalOpen(true);
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-900 text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5 text-emerald-700" /> Onboard Property
+                </button>
+              </div>
+            )}
 
           </div>
         </>

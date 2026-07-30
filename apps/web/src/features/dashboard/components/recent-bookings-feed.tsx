@@ -2,6 +2,7 @@ import React from 'react';
 import { RecentBookingItem } from '../types/dashboard.types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, User, Phone, ArrowUpRight } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 interface RecentBookingsFeedProps {
   bookings?: RecentBookingItem[];
@@ -14,6 +15,8 @@ export function RecentBookingsFeed({
   currency = '₹',
   loading = false,
 }: RecentBookingsFeedProps) {
+  const { t } = useTranslation();
+
   if (loading) {
     return (
       <div className="p-6 bg-white/95 backdrop-blur-xl rounded-2xl border border-emerald-200/90 shadow-xs space-y-4">
@@ -42,9 +45,9 @@ export function RecentBookingsFeed({
     <div className="p-6 bg-white/95 backdrop-blur-xl rounded-2xl border border-emerald-200/90 shadow-xs space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Recent Reservations Feed</h3>
+          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">{t('recentBookingsFeed')}</h3>
           <p className="text-xs font-semibold text-slate-500 mt-0.5">
-            Real-time feed of guest check-ins, bookings, and balances.
+            {t('recentBookingsSubtitle')}
           </p>
         </div>
       </div>
@@ -52,8 +55,8 @@ export function RecentBookingsFeed({
       {bookings.length === 0 ? (
         <div className="p-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200 space-y-2">
           <Calendar className="w-8 h-8 text-slate-400 mx-auto" />
-          <p className="text-xs font-bold text-slate-600">No recent reservations recorded yet</p>
-          <p className="text-[11px] text-slate-400">New guest bookings will appear here automatically.</p>
+          <p className="text-xs font-bold text-slate-600">{t('noRecentBookings')}</p>
+          <p className="text-[11px] text-slate-400">{t('newBookingsAppearHere')}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">

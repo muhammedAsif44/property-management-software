@@ -41,6 +41,19 @@ export function useAuth() {
     }
   };
 
+  const staffSignup = async (payload: { name: string; email: string; password: string; phone?: string }): Promise<LoginResponse> => {
+    setLoading(true);
+    setError(null);
+    try {
+      return await authService.staffSignup(payload);
+    } catch (err: any) {
+      setError(err.message || 'Staff registration failed.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async (): Promise<void> => {
     setLoading(true);
     setError(null);
@@ -60,6 +73,7 @@ export function useAuth() {
     clearError,
     login,
     ownerSignup,
+    staffSignup,
     logout,
   };
 }

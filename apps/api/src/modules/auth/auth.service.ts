@@ -10,13 +10,13 @@ import { PrismaService } from '../../database/prisma.service';
 import { TokenService } from './services/token.service';
 import { PasswordService } from './services/password.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { OwnerSignupDto } from './dto/owner-signup.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChangeEmailDto } from './dto/change-email.dto';
-import { UserRole, ApprovalStatus } from '@prisma/client';
+import { StaffSignupDto } from './dto/staff-signup.dto';
+import { UserRole, ApprovalStatus, StaffStatus } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -37,6 +37,11 @@ export class AuthService {
     });
 
     if (existingUser) {
+      if (existingUser.role !== UserRole.OWNER && existingUser.role !== UserRole.SUPER_ADMIN) {
+        throw new ConflictException(
+          'This email was invited as a staff member. Please select "Joining as Invited Staff?" tab to set your password and log in.',
+        );
+      }
       throw new ConflictException('An account with this email address already exists');
     }
 
@@ -94,15 +99,51 @@ export class AuthService {
     };
   }
 
-  // Legacy/General Register helper
-  async register(dto: RegisterDto, res: Response) {
-    return this.ownerSignup({
-      name: dto.fullName,
-      email: dto.email,
-      password: dto.password,
-      organizationName: dto.organizationName,
-      phone: dto.phone,
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 1b. Staff Member Signup (For Invited Team Members)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  async staffSignup(dto: StaffSignupDto, res: Response) {
+    const emailNormalized = dto.email.toLowerCase().trim();
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: emailNormalized },
+      include: {
+        organization: true,
+        staffMemberships: true,
+      },
     });
+
+    if (!user || user.staffMemberships.length === 0) {
+      throw new BadRequestException(
+        'No staff invitation found for this email address. Please ask your property owner to invite you first.',
+      );
+    }
+
+    const passwordHash = await this.passwordService.hashPassword(dto.password);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          phone: dto.phone || user.phone,
+          approvalStatus: ApprovalStatus.APPROVED,
+          isActive: true,
+        },
+      }),
+      this.prisma.staffMember.updateMany({
+        where: { userId: user.id },
+        data: {
+          status: StaffStatus.ACTIVE,
+          joinedAt: new Date(),
+        },
+      }),
+    ]);
+
+    user.approvalStatus = ApprovalStatus.APPROVED;
+    user.isActive = true;
+
+    return this.tokenService.generateTokensAndSetCookies(user, res);
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

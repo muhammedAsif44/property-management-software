@@ -342,6 +342,11 @@ model Booking {
   invoices           Invoice[]
   otaBookingMap      OtaBookingMap?
 
+  @@index([propertyId, status, deletedAt])
+  @@index([propertyId, checkInDate, status, deletedAt])
+  @@index([propertyId, checkOutDate, status, deletedAt])
+  @@index([propertyId, createdAt])
+  @@index([propertyId, agencyId, tacStatus, deletedAt])
   @@map("bookings")
 }
 
@@ -410,6 +415,7 @@ model Payment {
   booking       Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   createdByUser User    @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id])
 
+  @@index([bookingId, paidAt])
   @@map("payments")
 }
 

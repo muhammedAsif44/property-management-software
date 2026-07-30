@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { LanguageSwitcher } from '@/lib/i18n';
 
 interface AuthHeaderProps {
   currentTab: 'login' | 'signup';
@@ -23,28 +24,32 @@ export const AuthHeader: React.FC<AuthHeaderProps> = ({ currentTab }) => {
         </div>
       </Link>
 
-      {/* Switcher Navigation */}
-      <div className="flex items-center bg-white/90 p-1 sm:p-1.5 rounded-2xl border border-slate-200/90 backdrop-blur-md shadow-sm">
-        <Link
-          href="/login"
-          className={`px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-            currentTab === 'login'
-              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
-          }`}
-        >
-          Sign In
-        </Link>
-        <Link
-          href="/signup/owner"
-          className={`px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-            currentTab === 'signup'
-              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
-          }`}
-        >
-          Register Company
-        </Link>
+      {/* Switcher Navigation & Language Switcher */}
+      <div className="flex items-center gap-2.5">
+        <LanguageSwitcher />
+
+        <div className="flex items-center bg-white/90 p-1 sm:p-1.5 rounded-2xl border border-slate-200/90 backdrop-blur-md shadow-sm">
+          <Link
+            href="/login"
+            className={`px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+              currentTab === 'login'
+                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+            }`}
+          >
+            Sign In
+          </Link>
+          <Link
+            href="/signup/owner"
+            className={`px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+              currentTab === 'signup'
+                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+            }`}
+          >
+            Register Company
+          </Link>
+        </div>
       </div>
     </header>
   );

@@ -24,12 +24,12 @@ export class TokenService {
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_ACCESS_SECRET') || 'orvyn_access_super_secret_key_2026_x89a',
+      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
       expiresIn: (this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '7d') as any,
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'orvyn_refresh_super_secret_key_2026_z91b',
+      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       expiresIn: '30d',
     });
 
@@ -97,7 +97,7 @@ export class TokenService {
 
     try {
       const payload = this.jwtService.verify(refreshTokenString, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'orvyn_refresh_super_secret_key_2026_z91b',
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
 
       const userRefreshTokens = await this.prisma.refreshToken.findMany({

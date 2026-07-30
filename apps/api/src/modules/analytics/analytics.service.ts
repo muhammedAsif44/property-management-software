@@ -242,26 +242,12 @@ export class AnalyticsService {
     const todayDateOnly = new Date();
     todayDateOnly.setHours(0, 0, 0, 0);
 
-    const expiredBookings = await this.prisma.booking.findMany({
+    const result = await this.prisma.booking.updateMany({
       where: {
         propertyId: targetPropertyId,
         status: 'CHECKED_IN',
         checkOutDate: { lt: todayDateOnly },
         deletedAt: null,
-      },
-      select: { id: true },
-    });
-
-    if (expiredBookings.length === 0) {
-      return {
-        message: 'No expired check-ins to update',
-        updatedCount: 0,
-      };
-    }
-
-    const result = await this.prisma.booking.updateMany({
-      where: {
-        id: { in: expiredBookings.map((b) => b.id) },
       },
       data: {
         status: 'CHECKED_OUT',
@@ -269,7 +255,9 @@ export class AnalyticsService {
     });
 
     return {
-      message: `Successfully checked out ${result.count} expired booking(s)`,
+      message: result.count > 0
+        ? `Successfully checked out ${result.count} expired booking(s)`
+        : 'No expired check-ins to update',
       updatedCount: result.count,
     };
   }

@@ -16,31 +16,57 @@ export class PropertyOnboardingService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Helper: Retrieve owner metadata for logged in user
+   * Helper: Resolve property access for any user role (Owner, Manager, Staff)
    */
-  private async getOwnerForUser(userId: string): Promise<OwnerSlim> {
-    const owner = await this.prisma.owner.findUnique({
-      where: { userId },
-      select: { id: true, organizationId: true, defaultPropertyId: true },
+  private async resolveUserPropertyAccess(userId: string, propertyId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        organizationId: true,
+        owner: { select: { id: true } },
+      },
     });
 
-    if (!owner) {
-      throw new NotFoundException('Owner profile not found for this user');
+    if (!user) {
+      throw new NotFoundException('User account profile not found');
     }
 
-    return owner;
+    // Attempt to locate property by owner or staff membership or organization match
+    const property = await this.prisma.property.findFirst({
+      where: {
+        id: propertyId,
+        deletedAt: null,
+        OR: [
+          ...(user.owner ? [{ ownerId: user.owner.id }] : []),
+          { owner: { userId: user.id } },
+          { staffMembers: { some: { userId: user.id } } },
+          { staffMembers: { some: { user: { email: user.email } } } },
+          ...(user.organizationId ? [{ organizationId: user.organizationId }] : []),
+        ],
+      },
+      select: { id: true, ownerId: true, onboardingStep: true, status: true },
+    });
+
+    if (!property) {
+      throw new NotFoundException(`Property with ID ${propertyId} not found or access restricted`);
+    }
+
+    return { user, property };
   }
 
   /**
    * 1. Fetch Onboarding & Configuration Details for a Property
-   * Runs property and template queries in parallel using Promise.all.
+   * Accessible by Owner, Manager, & Super Admin
    */
   async getOnboardingData(userId: string, propertyId: string) {
-    const owner = await this.getOwnerForUser(userId);
+    const { property: targetProp } = await this.resolveUserPropertyAccess(userId, propertyId);
 
     const [property, invoiceTemplates] = await Promise.all([
-      this.prisma.property.findFirst({
-        where: { id: propertyId, ownerId: owner.id, deletedAt: null },
+      this.prisma.property.findUnique({
+        where: { id: targetProp.id },
         include: {
           settings: {
             include: {
@@ -65,7 +91,7 @@ export class PropertyOnboardingService {
     ]);
 
     if (!property) {
-      throw new NotFoundException('Property not found');
+      throw new NotFoundException('Property settings details not found');
     }
 
     return {
@@ -79,23 +105,14 @@ export class PropertyOnboardingService {
    * Encapsulates all updates inside an atomic database transaction (prisma.$transaction).
    */
   async saveOnboardingStep(userId: string, propertyId: string, dto: UpdateOnboardingDto) {
-    const owner = await this.getOwnerForUser(userId);
-
-    const property = await this.prisma.property.findFirst({
-      where: { id: propertyId, ownerId: owner.id, deletedAt: null },
-      select: { id: true, onboardingStep: true, status: true },
-    });
-
-    if (!property) {
-      throw new NotFoundException('Property not found');
-    }
+    const { property } = await this.resolveUserPropertyAccess(userId, propertyId);
 
     // Execute updates inside an atomic transaction
     await this.prisma.$transaction(async (tx) => {
       // Step 1: Property Identity
       if (dto.step === 1 && dto.step1) {
         await tx.property.update({
-          where: { id: propertyId },
+          where: { id: property.id },
           data: {
             name: dto.step1.name,
             logoUrl: dto.step1.logoUrl,
@@ -112,14 +129,14 @@ export class PropertyOnboardingService {
       // Step 2: Check-in/out & Terms
       if (dto.step === 2 && dto.step2) {
         await tx.propertySettings.upsert({
-          where: { propertyId },
+          where: { propertyId: property.id },
           update: {
             checkInTime: dto.step2.checkInTime || '14:00',
             checkOutTime: dto.step2.checkOutTime || '11:00',
             termsAndConditions: dto.step2.termsAndConditions,
           },
           create: {
-            propertyId,
+            propertyId: property.id,
             checkInTime: dto.step2.checkInTime || '14:00',
             checkOutTime: dto.step2.checkOutTime || '11:00',
             termsAndConditions: dto.step2.termsAndConditions,
@@ -129,65 +146,67 @@ export class PropertyOnboardingService {
 
       // Step 3: Room Types Configuration
       if (dto.step === 3 && dto.step3?.roomTypes) {
-        for (const rt of dto.step3.roomTypes) {
-          if (rt.id) {
-            await tx.roomType.update({
-              where: { id: rt.id },
+        await Promise.all(
+          dto.step3.roomTypes.map((rt) => {
+            if (rt.id) {
+              return tx.roomType.update({
+                where: { id: rt.id },
+                data: {
+                  name: rt.name,
+                  totalUnits: rt.totalUnits,
+                  basePrice: rt.basePrice,
+                  maxOccupancy: rt.maxOccupancy || 2,
+                },
+              });
+            }
+            return tx.roomType.create({
               data: {
+                propertyId: property.id,
                 name: rt.name,
                 totalUnits: rt.totalUnits,
                 basePrice: rt.basePrice,
                 maxOccupancy: rt.maxOccupancy || 2,
               },
             });
-          } else {
-            await tx.roomType.create({
-              data: {
-                propertyId,
-                name: rt.name,
-                totalUnits: rt.totalUnits,
-                basePrice: rt.basePrice,
-                maxOccupancy: rt.maxOccupancy || 2,
-              },
-            });
-          }
-        }
+          }),
+        );
       }
 
       // Step 4: Amenities Setup
       if (dto.step === 4 && dto.step4?.amenities) {
-        for (const am of dto.step4.amenities) {
-          if (am.id) {
-            await tx.amenity.update({
-              where: { id: am.id },
+        await Promise.all(
+          dto.step4.amenities.map((am) => {
+            if (am.id) {
+              return tx.amenity.update({
+                where: { id: am.id },
+                data: {
+                  name: am.name,
+                  price: am.price,
+                  icon: am.icon,
+                },
+              });
+            }
+            return tx.amenity.create({
               data: {
+                propertyId: property.id,
                 name: am.name,
                 price: am.price,
                 icon: am.icon,
               },
             });
-          } else {
-            await tx.amenity.create({
-              data: {
-                propertyId,
-                name: am.name,
-                price: am.price,
-                icon: am.icon,
-              },
-            });
-          }
-        }
+          }),
+        );
       }
 
       // Step 5: Invoice Theme Selection
       if (dto.step === 5 && dto.step5?.activeInvoiceTemplateId) {
         await tx.propertySettings.upsert({
-          where: { propertyId },
+          where: { propertyId: property.id },
           update: {
             activeInvoiceTemplateId: dto.step5.activeInvoiceTemplateId,
           },
           create: {
-            propertyId,
+            propertyId: property.id,
             activeInvoiceTemplateId: dto.step5.activeInvoiceTemplateId,
           },
         });
@@ -196,14 +215,14 @@ export class PropertyOnboardingService {
       // Step 6: Bank & Payment Details
       if (dto.step === 6 && dto.step6) {
         await tx.propertySettings.upsert({
-          where: { propertyId },
+          where: { propertyId: property.id },
           update: {
             bankAccountDetails: dto.step6.bankAccountDetails as any,
             upiId: dto.step6.upiId,
             qrCodeUrl: dto.step6.qrCodeUrl,
           },
           create: {
-            propertyId,
+            propertyId: property.id,
             bankAccountDetails: dto.step6.bankAccountDetails as any,
             upiId: dto.step6.upiId,
             qrCodeUrl: dto.step6.qrCodeUrl,
@@ -216,7 +235,7 @@ export class PropertyOnboardingService {
       const newStatus = dto.step >= 6 || nextStep >= 6 ? 'ACTIVE' : property.status;
 
       await tx.property.update({
-        where: { id: propertyId },
+        where: { id: property.id },
         data: {
           onboardingStep: nextStep,
           status: newStatus,
@@ -225,7 +244,7 @@ export class PropertyOnboardingService {
     });
 
     const updatedProperty = await this.prisma.property.findUnique({
-      where: { id: propertyId },
+      where: { id: property.id },
       include: {
         settings: { include: { activeInvoiceTemplate: true } },
         roomTypes: true,

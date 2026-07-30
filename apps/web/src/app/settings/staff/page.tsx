@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/toast';
 import { usePropertyStore, useActivePropertyQuery } from '@/features/properties';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,8 +27,11 @@ import {
   Building2,
 } from 'lucide-react';
 
+import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
+
 export default function StaffDirectoryPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   // Active Property Query & Context
@@ -65,6 +69,38 @@ export default function StaffDirectoryPage() {
   const handleReactivate = (staffId: string) => {
     reactivateStaffMutation.mutate(staffId);
   };
+
+  const toast = useToast();
+
+  // Redirect to login if unauthenticated (HTTP 401)
+  const is401Error =
+    (queryError as any)?.status === 401 ||
+    (queryError as any)?.statusCode === 401 ||
+    (propQueryError as any)?.status === 401 ||
+    (propQueryError as any)?.statusCode === 401;
+
+  // Redirect to dashboard if forbidden (HTTP 403)
+  const is403Error =
+    (queryError as any)?.status === 403 ||
+    (queryError as any)?.statusCode === 403 ||
+    (propQueryError as any)?.status === 403 ||
+    (propQueryError as any)?.statusCode === 403;
+
+  React.useEffect(() => {
+    if (is401Error) {
+      router.push('/login');
+    }
+  }, [is401Error, router]);
+
+  React.useEffect(() => {
+    if (is403Error) {
+      toast.info(
+        'Access Restricted: Staff directory management is reserved for Property Owners and Managers.',
+        'Restricted Access',
+      );
+      router.push('/dashboard');
+    }
+  }, [is403Error, router, toast]);
 
   const handleDelete = (staffId: string) => {
     if (confirm('Are you sure you want to permanently delete this staff member from your property?')) {
@@ -105,11 +141,13 @@ export default function StaffDirectoryPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <LanguageSwitcher />
+
             <button
               onClick={() => setIsInviteModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
-              <UserPlus className="w-3.5 h-3.5" /> Invite Staff
+              <UserPlus className="w-3.5 h-3.5" /> {t('inviteStaff')}
             </button>
           </div>
         </header>
@@ -117,8 +155,8 @@ export default function StaffDirectoryPage() {
         {/* Directory Workspace */}
         <main className="p-6 space-y-6 max-w-7xl mx-auto w-full flex-1">
           
-          {/* Error Banner with Retry */}
-          {staffError && (
+          {/* Error Banner with Retry (Suppressed for 401 & 403) */}
+          {staffError && !is401Error && !is403Error && (
             <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200/90 text-rose-800 flex items-center justify-between gap-4 shadow-sm animate-fade-in">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-4.5 h-4.5 text-rose-600 shrink-0" />

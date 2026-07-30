@@ -17,9 +17,9 @@ export class PropertiesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Helper: Retrieve owner metadata for logged in user
+   * Helper: Retrieve owner metadata for logged in user (or null if staff)
    */
-  private async getOwnerForUser(userId: string): Promise<OwnerSlim> {
+  private async getOwnerForUser(userId: string): Promise<OwnerSlim | null> {
     const owner = await this.prisma.owner.findUnique({
       where: { userId },
       select: {
@@ -29,23 +29,40 @@ export class PropertiesService {
       },
     });
 
-    if (!owner) {
-      throw new NotFoundException('Owner profile not found for this user');
-    }
-
     return owner;
   }
 
   /**
-   * 1. Get All Properties Owned by Logged-In Owner
-   * Uses optimized Prisma projections & lean selection to minimize payload size.
+   * 1. Get All Properties Accessible by Logged-In User (Owner or Staff Member)
    */
   async getMyProperties(userId: string) {
-    const owner = await this.getOwnerForUser(userId);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        organizationId: true,
+        owner: { select: { id: true, defaultPropertyId: true } },
+        staffMemberships: {
+          select: { propertyId: true },
+        },
+      },
+    });
+
+    if (!user) {
+      return { defaultPropertyId: null, properties: [], total: 0 };
+    }
+
+    const staffPropertyIds = user.staffMemberships.map((s) => s.propertyId);
 
     const properties = await this.prisma.property.findMany({
       where: {
-        ownerId: owner.id,
+        OR: [
+          { owner: { userId } },
+          { id: { in: staffPropertyIds } },
+          { staffMembers: { some: { OR: [{ userId: user.id }, { user: { email: user.email } }] } } },
+          ...(user.organizationId ? [{ organizationId: user.organizationId }] : []),
+        ],
         deletedAt: null,
       },
       orderBy: { createdAt: 'desc' },
@@ -81,22 +98,29 @@ export class PropertiesService {
       },
     });
 
+    const activePropertyId =
+      user.owner?.defaultPropertyId ||
+      (user.staffMemberships.length > 0 ? user.staffMemberships[0].propertyId : properties[0]?.id || null);
+
     return {
-      defaultPropertyId: owner.defaultPropertyId,
+      defaultPropertyId: activePropertyId,
       properties: properties.map((prop) => ({
         ...prop,
-        isActive: prop.id === owner.defaultPropertyId,
+        isActive: prop.id === activePropertyId,
       })),
       total: properties.length,
     };
   }
 
   /**
-   * 2. Atomic Property Creation
-   * Creates property, initial settings, and updates default owner selection inside a single atomic transaction.
+   * 2. Atomic Property Creation (Owner Only)
    */
   async createProperty(userId: string, dto: CreatePropertyDto) {
     const owner = await this.getOwnerForUser(userId);
+
+    if (!owner) {
+      throw new ForbiddenException('Only Property Owners can create new properties');
+    }
 
     const timestamp = Date.now();
     const cleanSlug = dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -150,27 +174,43 @@ export class PropertiesService {
 
   /**
    * 3. Switch Active Managed Property
-   * Updates default_property_id on the Owner database record.
    */
   async switchActiveProperty(userId: string, propertyId: string) {
-    const owner = await this.getOwnerForUser(userId);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        organizationId: true,
+        owner: { select: { id: true } },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User profile not found');
+    }
 
     const property = await this.prisma.property.findFirst({
       where: {
         id: propertyId,
-        ownerId: owner.id,
+        OR: [
+          { owner: { userId } },
+          { staffMembers: { some: { userId } } },
+          { organizationId: user.organizationId },
+        ],
         deletedAt: null,
       },
     });
 
     if (!property) {
-      throw new ForbiddenException('Property not found or you do not own this property');
+      throw new ForbiddenException('Property not found or you do not have permission to access this property');
     }
 
-    await this.prisma.owner.update({
-      where: { id: owner.id },
-      data: { defaultPropertyId: property.id },
-    });
+    if (user.owner) {
+      await this.prisma.owner.update({
+        where: { id: user.owner.id },
+        data: { defaultPropertyId: property.id },
+      });
+    }
 
     return {
       message: `Switched active property to ${property.name}`,
@@ -179,30 +219,61 @@ export class PropertiesService {
   }
 
   /**
-   * 4. Get Current Active Property
+   * 4. Get Current Active Property (For Owner or Staff Member)
    */
   async getActiveProperty(userId: string) {
-    const owner = await this.getOwnerForUser(userId);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        organizationId: true,
+        owner: { select: { id: true, defaultPropertyId: true } },
+        staffMemberships: {
+          select: { propertyId: true },
+          take: 1,
+        },
+      },
+    });
 
-    if (!owner.defaultPropertyId) {
+    if (!user) {
+      return { activeProperty: null };
+    }
+
+    let targetPropertyId: string | null = user.owner?.defaultPropertyId || null;
+
+    if (!targetPropertyId && user.staffMemberships.length > 0) {
+      targetPropertyId = user.staffMemberships[0].propertyId;
+    }
+
+    if (!targetPropertyId) {
       const firstProperty = await this.prisma.property.findFirst({
-        where: { ownerId: owner.id, deletedAt: null },
+        where: {
+          OR: [
+            { owner: { userId } },
+            { staffMembers: { some: { OR: [{ userId: user.id }, { user: { email: user.email } }] } } },
+            ...(user.organizationId ? [{ organizationId: user.organizationId }] : []),
+          ],
+          deletedAt: null,
+        },
       });
 
       if (!firstProperty) {
         return { activeProperty: null };
       }
 
-      await this.prisma.owner.update({
-        where: { id: owner.id },
-        data: { defaultPropertyId: firstProperty.id },
-      });
+      targetPropertyId = firstProperty.id;
 
-      return { activeProperty: firstProperty };
+      if (user.owner) {
+        await this.prisma.owner.update({
+          where: { id: user.owner.id },
+          data: { defaultPropertyId: firstProperty.id },
+        });
+      }
     }
 
     const activeProperty = await this.prisma.property.findUnique({
-      where: { id: owner.defaultPropertyId },
+      where: { id: targetPropertyId },
       include: {
         settings: true,
         roomTypes: { where: { isActive: true } },

@@ -10,6 +10,7 @@ import {
   Clock,
   ArrowUpRight,
 } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 interface RevenueSummaryCardsProps {
   metrics?: DashboardMetrics;
@@ -22,6 +23,8 @@ export function RevenueSummaryCards({
   currency = '₹',
   loading = false,
 }: RevenueSummaryCardsProps) {
+  const { t } = useTranslation();
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -48,7 +51,7 @@ export function RevenueSummaryCards({
         <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-            Today's Revenue
+            {t('todayRevenue')}
           </span>
           <div className="w-9 h-9 rounded-xl bg-emerald-100/80 text-emerald-800 border border-emerald-200/80 flex items-center justify-center group-hover:scale-105 transition-transform">
             <DollarSign className="w-4 h-4 text-emerald-700" />
@@ -67,7 +70,7 @@ export function RevenueSummaryCards({
         <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-xl pointer-events-none" />
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-            Monthly Revenue
+            {t('monthlyRevenue')}
           </span>
           <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-200/80 flex items-center justify-center group-hover:scale-105 transition-transform">
             <Calendar className="w-4 h-4 text-amber-600" />
@@ -109,7 +112,7 @@ export function RevenueSummaryCards({
         <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-xl pointer-events-none" />
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-            Occupancy Rate
+            {t('occupancyRate')}
           </span>
           <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-200/80 flex items-center justify-center group-hover:scale-105 transition-transform">
             <BedDouble className="w-4 h-4 text-blue-600" />

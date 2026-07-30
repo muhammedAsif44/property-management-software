@@ -16,6 +16,10 @@ export function useStaffDirectoryQuery(propertyId?: string) {
     queryKey: staffKeys.directory(propertyId),
     queryFn: () => staffService.getStaffDirectory(propertyId),
     staleTime: 15000,
+    retry: (failureCount, error: any) => {
+      if (error?.status === 401 || error?.statusCode === 401) return false;
+      return failureCount < 2;
+    },
   });
 }
 

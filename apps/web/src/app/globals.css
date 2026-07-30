@@ -11,7 +11,7 @@
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
-  font-family: var(--font-manrope), sans-serif;
+  font-family: var(--font-manrope), var(--font-noto-malayalam), system-ui, sans-serif;
 }
 
 @keyframes fadeInUp {

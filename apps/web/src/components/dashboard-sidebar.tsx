@@ -47,6 +47,12 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       active: pathname.startsWith('/settings/property') || pathname.startsWith('/onboarding/property'),
     },
     {
+      name: 'Staff Directory',
+      href: '/settings/staff',
+      icon: Users,
+      active: pathname.startsWith('/settings/staff'),
+    },
+    {
       name: 'Bookings',
       href: '#',
       icon: Calendar,

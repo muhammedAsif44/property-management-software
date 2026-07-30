@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Rich Emerald Gradient -->
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="50%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="brightEmerald" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <filter id="softShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#047857" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Pure White Opaque Background Squircle (Ensures 100% contrast on dark & light browser tabs) -->
+  <rect x="16" y="16" width="480" height="480" rx="110" fill="#ffffff" stroke="#10b981" stroke-width="16" />
+
+  <!-- Inner Vibrant Emerald Badge Fill -->
+  <rect x="44" y="44" width="424" height="424" rx="92" fill="url(#emeraldGrad)" />
+
+  <!-- Orvyn PMS Green Architecture Emblem -->
+  <g filter="url(#softShadow)">
+    <path d="M140 370 V 210 L 210 160 V 370 Z" fill="#e2e8f0" />
+    <path d="M210 370 V 120 L 280 80 L 350 120 V 370 Z" fill="#ffffff" />
+    <path d="M350 370 V 230 L 400 260 V 370 Z" fill="#cbd5e1" />
+
+    <!-- Windows -->
+    <rect x="240" y="165" width="30" height="42" rx="6" fill="#047857" />
+    <rect x="285" y="165" width="30" height="42" rx="6" fill="#047857" />
+    <rect x="240" y="230" width="30" height="42" rx="6" fill="#047857" />
+    <rect x="285" y="230" width="30" height="42" rx="6" fill="#047857" />
+    <rect x="240" y="295" width="30" height="42" rx="6" fill="#047857" />
+    <rect x="285" y="295" width="30" height="42" rx="6" fill="#047857" />
+
+    <rect x="165" y="240" width="24" height="35" rx="5" fill="#059669" />
+    <rect x="165" y="295" width="24" height="35" rx="5" fill="#059669" />
+
+    <!-- Crown Star -->
+    <path d="M280 48 L288 68 L308 76 L288 84 L280 104 L272 84 L252 76 L272 68 Z" fill="url(#brightEmerald)" />
+  </g>
+</svg>

@@ -241,6 +241,16 @@ export class PropertiesService {
 
     let targetPropertyId: string | null = user.owner?.defaultPropertyId || null;
 
+    if (targetPropertyId) {
+      const validProp = await this.prisma.property.findFirst({
+        where: { id: targetPropertyId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!validProp) {
+        targetPropertyId = null;
+      }
+    }
+
     if (!targetPropertyId && user.staffMemberships.length > 0) {
       targetPropertyId = user.staffMemberships[0].propertyId;
     }

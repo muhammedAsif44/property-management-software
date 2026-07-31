@@ -31,7 +31,13 @@ export class AnalyticsService {
     });
 
     if (user?.owner?.defaultPropertyId) {
-      return user.owner.defaultPropertyId;
+      const exists = await this.prisma.property.findFirst({
+        where: { id: user.owner.defaultPropertyId, deletedAt: null },
+        select: { id: true },
+      });
+      if (exists) {
+        return exists.id;
+      }
     }
 
     if (user?.staffMemberships && user.staffMemberships.length > 0) {

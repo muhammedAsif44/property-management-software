@@ -80,6 +80,8 @@ model User {
   deviceTokens      DeviceToken[]
   refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]
+  deletionRequestsCreated  BookingDeletionRequest[] @relation("DeletionRequestedBy")
+  deletionRequestsDecided  BookingDeletionRequest[] @relation("DeletionDecidedBy")
 
   @@map("users")
 }
@@ -297,6 +299,8 @@ model Guest {
   property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   bookings Booking[]
 
+  @@unique([propertyId, phone])
+  @@index([propertyId, fullName])
   @@map("guests")
 }
 
@@ -341,6 +345,7 @@ model Booking {
   payments           Payment[]
   invoices           Invoice[]
   otaBookingMap      OtaBookingMap?
+  deletionRequests   BookingDeletionRequest[]
 
   @@index([propertyId, status, deletedAt])
   @@index([propertyId, checkInDate, status, deletedAt])
@@ -810,4 +815,33 @@ enum PaymentTransactionStatus {
   SUCCESS
   FAILED
   REFUNDED
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 29. Booking Deletion Requests
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model BookingDeletionRequest {
+  id             String                @id @default(uuid())
+  bookingId      String                @map("booking_id")
+  requestedById  String                @map("requested_by_id")
+  reason         String                @db.Text
+  status         DeletionRequestStatus @default(PENDING)
+  decidedById    String?               @map("decided_by_id")
+  decidedAt      DateTime?             @map("decided_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  // Relations
+  booking        Booking               @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  requestedBy    User                  @relation("DeletionRequestedBy", fields: [requestedById], references: [id])
+  decidedBy      User?                 @relation("DeletionDecidedBy", fields: [decidedById], references: [id])
+
+  @@index([bookingId, status])
+  @@map("booking_deletion_requests")
+}
+
+enum DeletionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

@@ -98,16 +98,7 @@ export class StaffService {
     const { property, isOwner } = await this.resolveCallerProperty(userId, propertyId);
 
     const staffMembers = await this.prisma.staffMember.findMany({
-      where:
-        isOwner && property.organizationId
-          ? {
-              OR: [
-                { propertyId: property.id },
-                { property: { organizationId: property.organizationId } },
-                { invitedByOwner: { userId } },
-              ],
-            }
-          : { propertyId: property.id },
+      where: { propertyId: property.id },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,

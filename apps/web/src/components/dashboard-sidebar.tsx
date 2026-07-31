@@ -78,15 +78,14 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
     },
     {
       name: t('bookings'),
-      href: '#',
+      href: '/bookings',
       icon: Calendar,
       active: pathname.startsWith('/bookings'),
-      badge: t('comingSoon'),
       visible: true,
     },
     {
       name: t('roomsAndUnits'),
-      href: '#',
+      href: '/rooms',
       icon: BedDouble,
       active: pathname.startsWith('/rooms'),
       badge: t('comingSoon'),
@@ -94,7 +93,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
     },
     {
       name: t('guests'),
-      href: '#',
+      href: '/guests',
       icon: Users,
       active: pathname.startsWith('/guests'),
       badge: t('comingSoon'),
@@ -102,7 +101,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
     },
     {
       name: t('invoicesAndBilling'),
-      href: '#',
+      href: '/invoices',
       icon: Receipt,
       active: pathname.startsWith('/invoices'),
       badge: t('comingSoon'),
@@ -235,9 +234,9 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
         </div>
       )}
 
-      {/* Desktop Fixed Left Sidebar (>= lg screens) */}
+      {/* Desktop Left Sidebar (>= lg screens) */}
       <aside
-        className={`hidden lg:flex fixed top-0 left-0 bottom-0 z-40 bg-white/95 backdrop-blur-2xl border-r border-emerald-200/80 transition-all duration-300 flex-col justify-between ${
+        className={`hidden lg:flex sticky top-0 h-screen shrink-0 z-40 bg-white/95 backdrop-blur-2xl border-r border-emerald-200/80 transition-all duration-300 flex-col justify-between ${
           collapsed ? 'w-16' : 'w-60'
         } shadow-xl shadow-emerald-950/5`}
       >

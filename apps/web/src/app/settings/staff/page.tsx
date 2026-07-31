@@ -146,7 +146,7 @@ export default function StaffDirectoryPage() {
       <DashboardSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 pl-60 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
         
         {/* Top Header Bar */}
         <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 px-6 flex items-center justify-between shadow-xs">
@@ -181,7 +181,7 @@ export default function StaffDirectoryPage() {
         </header>
 
         {/* Directory Workspace */}
-        <main className="p-6 space-y-6 max-w-7xl mx-auto w-full flex-1">
+        <main className="p-6 space-y-6 w-full flex-1">
           
           {/* Error Banner with Retry (Suppressed for 401 & 403) */}
           {staffError && !is401Error && !is403Error && (

@@ -82,9 +82,12 @@ export function useSwitchPropertyMutation() {
         setActiveProperty(data.activeProperty);
         queryClient.setQueryData(propertyKeys.active(), { activeProperty: data.activeProperty });
       }
-      // Selective invalidation of active property & dashboard analytics only
+      // Invalidate all property-dependent domain queries for clean isolated reload
       queryClient.invalidateQueries({ queryKey: propertyKeys.active(), exact: true });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
     },
     onError: (err: any, _variables, context) => {
       // Rollback to previous state on network failure

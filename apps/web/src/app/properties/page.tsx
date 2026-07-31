@@ -123,7 +123,7 @@ export default function PropertiesPage() {
       <DashboardSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 lg:pl-60 pl-0 pt-14 lg:pt-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
         
         {/* Top Header Bar */}
         <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 px-6 flex items-center justify-between shadow-xs">
@@ -159,7 +159,7 @@ export default function PropertiesPage() {
         </header>
 
         {/* Properties Workspace */}
-        <main className="p-6 space-y-6 max-w-7xl mx-auto w-full flex-1">
+        <main className="p-6 space-y-6 w-full flex-1">
           
           {/* Hero Banner & Search Filter Bar */}
           <div className="p-6 rounded-3xl bg-white/95 backdrop-blur-xl border border-emerald-200/90 shadow-xs relative overflow-hidden space-y-6">

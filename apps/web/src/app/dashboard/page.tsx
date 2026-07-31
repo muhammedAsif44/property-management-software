@@ -144,13 +144,14 @@ export default function DashboardPage() {
             {/* Language Switcher Pill (English ↔ Malayalam) */}
             <LanguageSwitcher />
 
-            {/* Add Property Button: Visible ONLY to Owner */}
+            {/* Primary Add Property Action: Reserved strictly for Property Owner */}
             {isOwner && (
               <Link
                 href="/onboarding/property"
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 active:scale-95 text-white text-xs font-black transition-all duration-200 shadow-md shadow-emerald-700/20 flex items-center gap-1.5 cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" /> {t('addProperty')}
+                <Plus className="w-4 h-4 text-emerald-200" />
+                <span>{t('addProperty')}</span>
               </Link>
             )}
 
@@ -224,20 +225,20 @@ export default function DashboardPage() {
                 </h1>
 
                 <p className="text-xs text-emerald-100/90 font-medium leading-relaxed">
-                  {isOwner && 'Real-time financial performance, property governance, check-in feeds, and team permissions.'}
-                  {isManager && 'Manage daily front desk operations, guest check-ins, auto-checkouts, and staff directory.'}
-                  {isReception && 'Front-desk reservations, active guest check-in/out feed, and agency settlement entries.'}
-                  {isViewer && 'Read-only overview of live property bookings and daily occupancy status.'}
+                  {isOwner && 'Full Property Control — Settings, Permanent Staff Removal, Bookings, Invoices, Payments, Agencies & Reports.'}
+                  {isManager && 'Full Operational Access — Bookings, Invoices, Agencies, TAC, Reports & Staff Management (Invite, Suspend, Reactivate).'}
+                  {isReception && 'Front Desk Operations — Manage Bookings, Send Invoices, Agencies & TAC.'}
+                  {isViewer && 'Read-Only Observer — View Bookings, Invoices, Calendar & Reports.'}
                 </p>
               </div>
 
               {/* Action Link in Hero Banner */}
               {isOwner && (
                 <Link
-                  href="/settings/property"
+                  href="/properties"
                   className="px-4 py-2 rounded-xl bg-white text-emerald-900 text-xs font-extrabold hover:bg-emerald-50 transition-all shadow-sm z-10 shrink-0 flex items-center gap-1.5 group"
                 >
-                  <span>Property Settings</span>
+                  <span>Properties Portfolio</span>
                   <ChevronRight className="w-3.5 h-3.5 text-emerald-700 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               )}
@@ -261,14 +262,17 @@ export default function DashboardPage() {
             <RevenueSummaryCards
               metrics={analyticsData?.metrics}
               loading={analyticsLoading}
+              userRole={userRole}
             />
           )}
 
-          {/* Quick Actions Strip */}
-          <QuickActionsStrip
-            onTriggerAutoCheckout={handleAutoCheckout}
-            isAutoCheckoutSyncing={autoCheckoutMutation.isPending}
-          />
+          {/* Quick Actions Strip (Hide auto-checkout for Viewers) */}
+          {!isViewer && (
+            <QuickActionsStrip
+              onTriggerAutoCheckout={handleAutoCheckout}
+              isAutoCheckoutSyncing={autoCheckoutMutation.isPending}
+            />
+          )}
 
           {/* Main Dashboard Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

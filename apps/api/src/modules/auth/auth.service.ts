@@ -174,21 +174,29 @@ export class AuthService {
     }
 
     if (user.approvalStatus === ApprovalStatus.PENDING) {
-      // Check if user is an invited staff member - auto-approve staff
-      const staffCount = await this.prisma.staffMember.count({
-        where: { userId: user.id },
-      });
-
-      if (staffCount > 0) {
+      if (user.role === UserRole.SUPER_ADMIN) {
         await this.prisma.user.update({
           where: { id: user.id },
           data: { approvalStatus: ApprovalStatus.APPROVED },
         });
         user.approvalStatus = ApprovalStatus.APPROVED;
       } else {
-        throw new UnauthorizedException(
-          'Your account is pending admin approval. Please wait for a Super Admin to review your registration.',
-        );
+        // Check if user is an invited staff member - auto-approve staff
+        const staffCount = await this.prisma.staffMember.count({
+          where: { userId: user.id },
+        });
+
+        if (staffCount > 0) {
+          await this.prisma.user.update({
+            where: { id: user.id },
+            data: { approvalStatus: ApprovalStatus.APPROVED },
+          });
+          user.approvalStatus = ApprovalStatus.APPROVED;
+        } else {
+          throw new UnauthorizedException(
+            'Your account is pending admin approval. Please wait for a Super Admin to review your registration.',
+          );
+        }
       }
     }
 

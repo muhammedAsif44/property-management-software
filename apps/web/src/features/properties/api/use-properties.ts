@@ -51,20 +51,47 @@ export function useOnboardingDataQuery(propertyId: string | null) {
 
 /**
  * TanStack Mutation hook for switching active property (Instagram-style)
+ * Implements 0ms Optimistic UI updates for instant 60 FPS UI switching.
  */
 export function useSwitchPropertyMutation() {
   const queryClient = useQueryClient();
   const setActiveProperty = usePropertyStore((state) => state.setActiveProperty);
+  const properties = usePropertyStore((state) => state.properties);
   const toast = useToast();
 
   return useMutation({
     mutationFn: (propertyId: string) => propertyService.switchActiveProperty(propertyId),
-    onSuccess: (data: { message: string; activeProperty: PropertyItem }) => {
-      setActiveProperty(data.activeProperty);
-      toast.success(data.message, 'Property Switched');
-      queryClient.invalidateQueries({ queryKey: propertyKeys.all });
+    onMutate: async (propertyId: string) => {
+      // 1. Cancel outgoing queries so background fetches don't overwrite optimistic state
+      await queryClient.cancelQueries({ queryKey: propertyKeys.active() });
+
+      // 2. Snapshot previous active property
+      const previousActive = usePropertyStore.getState().activeProperty;
+
+      // 3. Find target property and update Zustand + Query cache INSTANTLY (0ms!)
+      const targetProperty = properties.find((p) => p.id === propertyId);
+      if (targetProperty) {
+        setActiveProperty(targetProperty);
+        queryClient.setQueryData(propertyKeys.active(), { activeProperty: targetProperty });
+      }
+
+      return { previousActive };
     },
-    onError: (err: any) => {
+    onSuccess: (data: { message: string; activeProperty: PropertyItem }) => {
+      if (data?.activeProperty) {
+        setActiveProperty(data.activeProperty);
+        queryClient.setQueryData(propertyKeys.active(), { activeProperty: data.activeProperty });
+      }
+      // Selective invalidation of active property & dashboard analytics only
+      queryClient.invalidateQueries({ queryKey: propertyKeys.active(), exact: true });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+    },
+    onError: (err: any, _variables, context) => {
+      // Rollback to previous state on network failure
+      if (context?.previousActive) {
+        setActiveProperty(context.previousActive);
+        queryClient.setQueryData(propertyKeys.active(), { activeProperty: context.previousActive });
+      }
       toast.error(err?.message || 'Failed to switch property', 'Switch Error');
     },
   });

@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { authService } from '@/features/auth';
 import { useToast } from '@/components/ui/toast';
 import { usePropertyStore, useActivePropertyQuery } from '@/features/properties';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
@@ -85,6 +87,32 @@ export default function StaffDirectoryPage() {
     (queryError as any)?.statusCode === 403 ||
     (propQueryError as any)?.status === 403 ||
     (propQueryError as any)?.statusCode === 403;
+
+  const [resendEmail, setResendEmail] = useState('');
+
+  // Query profile for upfront RBAC guard
+  const { data: profileData } = useQuery({
+    queryKey: ['auth', 'profile'],
+    queryFn: () => authService.getProfile(),
+    staleTime: 60000,
+    retry: false,
+  });
+
+  const userRole = profileData?.user?.role || profileData?.data?.user?.role || 'OWNER';
+  const userEmail = profileData?.user?.email || profileData?.data?.user?.email || '';
+
+  React.useEffect(() => {
+    if (profileData) {
+      const uRole = profileData?.user?.role || profileData?.data?.user?.role || '';
+      if (uRole && uRole !== 'OWNER' && uRole !== 'SUPER_ADMIN' && uRole !== 'MANAGER') {
+        toast.info(
+          'Access Restricted: Staff directory management is reserved for Property Owners and Managers.',
+          'Restricted Access'
+        );
+        router.push('/dashboard');
+      }
+    }
+  }, [profileData, router, toast]);
 
   React.useEffect(() => {
     if (is401Error) {
@@ -200,11 +228,15 @@ export default function StaffDirectoryPage() {
           {/* Staff Directory Table */}
           <StaffDirectoryTable
             staffList={staffData?.staff}
-            currentUserRole="OWNER" // Will automatically check user role
+            currentUserRole={userRole}
             loading={staffLoading}
             onSuspend={handleSuspend}
             onReactivate={handleReactivate}
             onDelete={handleDelete}
+            onResendInvite={(email) => {
+              setResendEmail(email);
+              setIsInviteModalOpen(true);
+            }}
             isActionPending={
               suspendStaffMutation.isPending ||
               reactivateStaffMutation.isPending ||
@@ -215,9 +247,14 @@ export default function StaffDirectoryPage() {
           {/* Invite Staff Modal */}
           <InviteStaffModal
             isOpen={isInviteModalOpen}
-            onClose={() => setIsInviteModalOpen(false)}
+            onClose={() => {
+              setIsInviteModalOpen(false);
+              setResendEmail('');
+            }}
             onInvite={handleInvite}
             isSubmitting={inviteStaffMutation.isPending}
+            currentUserEmail={userEmail}
+            initialEmail={resendEmail}
           />
 
         </main>

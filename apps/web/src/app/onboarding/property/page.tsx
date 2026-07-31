@@ -62,14 +62,42 @@ function OnboardingWizardContent() {
   useEffect(() => {
     const init = async () => {
       try {
+        // Upfront role check: Only owners can access onboarding
+        const { authService } = await import('@/features/auth');
+        const profile = await authService.getProfile();
+        const userObj = profile?.user || profile?.data?.user || profile;
+        const role = userObj?.role || '';
+        if (role !== 'OWNER' && role !== 'SUPER_ADMIN') {
+          if (!hasToastedRef.current) {
+            hasToastedRef.current = true;
+            toast.info(
+              'Access Restricted: Property onboarding & settings are reserved for Property Owners.',
+              'Restricted Access',
+            );
+          }
+          router.push('/dashboard');
+          return;
+        }
+
         let id = searchParams.get('id');
-        if (!id) {
+        const isNewParam = searchParams.get('new') === 'true';
+
+        if (isNewParam) {
+          const created = await propertyService.createProperty({ name: 'New Property Branch', city: '' });
+          id = created.property.id;
+          router.replace(`/onboarding/property?id=${id}`);
+        } else if (!id) {
           const active = await propertyService.getActiveProperty();
-          if (active.activeProperty) {
+          if (active?.activeProperty) {
             id = active.activeProperty.id;
           } else {
-            const created = await propertyService.createProperty({ name: 'My Luxury Hotel', city: 'Goa' });
-            id = created.property.id;
+            const myProps = await propertyService.getMyProperties();
+            if (myProps.properties && myProps.properties.length > 0) {
+              id = myProps.properties[0].id;
+            } else {
+              const created = await propertyService.createProperty({ name: 'My Hotel', city: 'Goa' });
+              id = created.property.id;
+            }
           }
         }
         if (id) {
@@ -145,7 +173,21 @@ function OnboardingWizardContent() {
       </header>
 
       {/* Stepper Navigation */}
-      <div className="max-w-5xl mx-auto px-6 pt-8">
+      <div className="max-w-5xl mx-auto px-6 pt-8 space-y-4">
+        {/* Progress Bar & Header */}
+        <div className="flex items-center justify-between text-xs font-bold text-slate-600 bg-white/80 backdrop-blur-md px-5 py-3 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Step {currentStep} of 6 — {Math.round((currentStep / 6) * 100)}% Completed</span>
+          </div>
+          {saving && (
+            <div className="flex items-center gap-1.5 text-emerald-800 text-xs font-black animate-pulse">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+              <span>Saving Step {currentStep} Details...</span>
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-6 gap-2 sm:gap-4 bg-white p-4 rounded-3xl border border-slate-200/90 shadow-sm">
           {stepsList.map((st) => {
             const Icon = st.icon;
@@ -156,13 +198,14 @@ function OnboardingWizardContent() {
               <button
                 key={st.num}
                 onClick={() => setCurrentStep(st.num)}
-                className={`flex flex-col items-center gap-1.5 p-2 rounded-2xl transition-all ${
+                disabled={saving}
+                className={`flex flex-col items-center gap-1.5 p-2 rounded-2xl transition-all cursor-pointer ${
                   isCurrent
                     ? 'bg-[#0B6E4F] text-white shadow-md shadow-[#0B6E4F]/20 font-bold'
                     : isDone
                     ? 'bg-emerald-50 text-[#0B6E4F] hover:bg-emerald-100'
                     : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                }`}
+                } disabled:opacity-50`}
               >
                 <div className="flex items-center gap-1">
                   {isDone ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
@@ -175,7 +218,13 @@ function OnboardingWizardContent() {
       </div>
 
       {/* Dynamic Active Step View */}
-      <main className="max-w-4xl mx-auto px-6 pt-8 animate-fade-in-up">
+      <main className="max-w-4xl mx-auto px-6 pt-8 animate-fade-in-up relative">
+        {saving && (
+          <div className="fixed top-0 left-0 right-0 h-1 z-50 overflow-hidden">
+            <div className="h-full bg-emerald-500 w-full animate-[progress_1s_ease-in-out_infinite] origin-left shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+          </div>
+        )}
+
         {currentStep === 1 && (
           <Step1Identity
             data={step1Data}
@@ -233,7 +282,12 @@ function OnboardingWizardContent() {
           <Step6BankDetails
             data={bankData}
             onChange={setBankData}
-            onSave={() => saveStep(6, () => router.push('/dashboard'))}
+            onSave={() =>
+              saveStep(6, () => {
+                toast.success('🎉 Property onboarding complete! Portfolio active.', 'Setup Complete');
+                router.push('/properties');
+              })
+            }
             onBack={() => setCurrentStep(5)}
             saving={saving}
           />

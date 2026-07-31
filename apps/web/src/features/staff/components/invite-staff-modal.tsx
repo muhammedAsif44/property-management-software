@@ -8,6 +8,8 @@ interface InviteStaffModalProps {
   onClose: () => void;
   onInvite: (email: string, role: StaffRole) => void;
   isSubmitting?: boolean;
+  currentUserEmail?: string;
+  initialEmail?: string;
 }
 
 export function InviteStaffModal({
@@ -15,16 +17,26 @@ export function InviteStaffModal({
   onClose,
   onInvite,
   isSubmitting = false,
+  currentUserEmail = '',
+  initialEmail = '',
 }: InviteStaffModalProps) {
   const { t } = useTranslation();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [role, setRole] = useState<StaffRole>('RECEPTION_STAFF');
+
+  React.useEffect(() => {
+    if (initialEmail) {
+      setEmail(initialEmail);
+    }
+  }, [initialEmail]);
 
   if (!isOpen) return null;
 
+  const isSelfInvite = email.trim().toLowerCase() === currentUserEmail.trim().toLowerCase();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim() || isSelfInvite) return;
     onInvite(email.trim(), role);
     setEmail('');
   };
@@ -67,6 +79,11 @@ export function InviteStaffModal({
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
+            {isSelfInvite && (
+              <p className="text-[11px] font-bold text-rose-600 mt-1">
+                You cannot invite your own logged-in email address.
+              </p>
+            )}
           </div>
 
           <div>
@@ -144,7 +161,7 @@ export function InviteStaffModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !email.trim()}
+              disabled={isSubmitting || !email.trim() || isSelfInvite}
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold transition-all disabled:opacity-60 flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <UserPlus className="w-3.5 h-3.5" />

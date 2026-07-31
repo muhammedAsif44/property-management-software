@@ -25,18 +25,18 @@ export class TokenService {
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      expiresIn: (this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '7d') as any,
+      expiresIn: (this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '30d') as any,
     });
 
     const refreshToken = this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: '30d',
+      expiresIn: '365d',
     });
 
     // Hash refresh token & persist in database
     const tokenHash = await bcrypt.hash(refreshToken, 10);
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + 365);
 
     await this.prisma.refreshToken.create({
       data: {
@@ -54,15 +54,15 @@ export class TokenService {
       secure: isProduction,
       sameSite: 'lax',
       path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days persistent session
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days persistent session
     });
 
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
-      path: '/api/v1/auth',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      path: '/',
+      maxAge: 365 * 24 * 60 * 60 * 1000, // 365 days (1 year)
     });
 
     const targetApp = user.role === UserRole.SUPER_ADMIN ? 'admin' : 'pms';
@@ -190,7 +190,7 @@ export class TokenService {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
-      path: '/api/v1/auth',
+      path: '/',
       expires: new Date(0),
     });
   }

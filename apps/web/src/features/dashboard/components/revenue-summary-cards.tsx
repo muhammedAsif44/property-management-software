@@ -16,14 +16,17 @@ interface RevenueSummaryCardsProps {
   metrics?: DashboardMetrics;
   currency?: string;
   loading?: boolean;
+  userRole?: string;
 }
 
 export function RevenueSummaryCards({
   metrics,
   currency = '₹',
   loading = false,
+  userRole = 'OWNER',
 }: RevenueSummaryCardsProps) {
   const { t } = useTranslation();
+  const isReception = userRole === 'RECEPTION_STAFF';
 
   if (loading) {
     return (
@@ -36,11 +39,15 @@ export function RevenueSummaryCards({
     );
   }
 
-  const formattedTodayRev = metrics
+  const formattedTodayRev = isReception
+    ? '••••••'
+    : metrics
     ? `${currency}${metrics.todayRevenue.toLocaleString('en-IN')}`
     : `${currency}0`;
 
-  const formattedMonthlyRev = metrics
+  const formattedMonthlyRev = isReception
+    ? '••••••'
+    : metrics
     ? `${currency}${metrics.monthlyRevenue.toLocaleString('en-IN')}`
     : `${currency}0`;
 

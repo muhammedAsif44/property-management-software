@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { InviteStaffDto } from '../dto/invite-staff.dto';
@@ -12,10 +14,25 @@ export class StaffInvitationService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Invite staff member by email (Auto-links existing/new users)
+   * Invite staff member by email (With Edge Case Guards & Resend Handling)
    */
   async inviteStaff(userId: string, property: any, dto: InviteStaffDto) {
     const emailNormalized = dto.email.toLowerCase().trim();
+
+    // 1. Fetch Inviter User context
+    const inviterUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true },
+    });
+
+    if (!inviterUser) {
+      throw new NotFoundException('Inviter user profile not found');
+    }
+
+    // Edge Case A: Prevent Self-Invitation
+    if (inviterUser.email.toLowerCase() === emailNormalized) {
+      throw new BadRequestException('You cannot invite yourself as a staff member.');
+    }
 
     const propertyOwner = await this.prisma.owner.findUnique({
       where: { id: property.ownerId },
@@ -37,14 +54,46 @@ export class StaffInvitationService {
       where: { email: emailNormalized },
     });
 
+    // Edge Case B: Protect existing Owner / Super Admin accounts from demotion
+    if (targetUser) {
+      if (targetUser.role === UserRole.OWNER || targetUser.role === UserRole.SUPER_ADMIN) {
+        throw new ForbiddenException('Cannot invite or alter an Owner or Super Admin account.');
+      }
+    }
+
     return await this.prisma.$transaction(async (tx) => {
       if (targetUser) {
         const existingStaff = await tx.staffMember.findUnique({
           where: { userId_propertyId: { userId: targetUser.id, propertyId: property.id } },
         });
 
+        // Edge Case C: Resend Pending Invitation vs Active Conflict
         if (existingStaff) {
-          throw new ConflictException('This user is already a staff member of this property');
+          if (existingStaff.status === StaffStatus.INVITED) {
+            // Resend invitation & update role / timestamp
+            const updatedStaff = await tx.staffMember.update({
+              where: { id: existingStaff.id },
+              data: {
+                role: dto.role,
+                invitedAt: new Date(),
+              },
+              include: {
+                user: { select: { id: true, email: true, role: true } },
+              },
+            });
+
+            await tx.user.update({
+              where: { id: targetUser.id },
+              data: { role: mappedUserRole },
+            });
+
+            return {
+              message: `Resent invitation to ${emailNormalized} as ${dto.role}.`,
+              staff: updatedStaff,
+            };
+          }
+
+          throw new ConflictException('This user is already an active staff member of this property');
         }
 
         await tx.user.update({

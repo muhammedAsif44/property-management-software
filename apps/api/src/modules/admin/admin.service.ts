@@ -7,14 +7,19 @@ import { ApprovalStatus, UserRole } from '@prisma/client';
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // 1. Get List of Pending Owner Account Applications
-  async getPendingOwners() {
+  // 1. Get List of Owner Account Applications (Supports optional status filter)
+  async getPendingOwners(status?: string) {
+    const whereClause: any = {
+      role: UserRole.OWNER,
+      deletedAt: null,
+    };
+
+    if (status && status !== 'ALL') {
+      whereClause.approvalStatus = status as ApprovalStatus;
+    }
+
     const pendingUsers = await this.prisma.user.findMany({
-      where: {
-        role: UserRole.OWNER,
-        approvalStatus: ApprovalStatus.PENDING,
-        deletedAt: null,
-      },
+      where: whereClause,
       select: {
         id: true,
         email: true,
@@ -132,6 +137,46 @@ export class AdminService {
     return {
       message: `Owner account (${user.email}) rejected.`,
       user: updatedUser,
+    };
+  }
+
+  // 4. Get List of All Registered Organizations & Companies
+  async getAllOrganizations() {
+    const organizations = await this.prisma.organization.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        billingEmail: true,
+        subscriptionPlan: true,
+        subscriptionStatus: true,
+        createdAt: true,
+        users: {
+          where: { role: UserRole.OWNER, deletedAt: null },
+          select: {
+            id: true,
+            email: true,
+            approvalStatus: true,
+            owner: {
+              select: {
+                fullName: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            properties: true,
+            users: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      count: organizations.length,
+      organizations,
     };
   }
 }

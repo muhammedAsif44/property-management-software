@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { RejectOwnerDto } from './dto/reject-owner.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -13,8 +13,8 @@ export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get('pending-owners')
-  async getPendingOwners() {
-    return this.adminService.getPendingOwners();
+  async getPendingOwners(@Query('status') status?: string) {
+    return this.adminService.getPendingOwners(status);
   }
 
   @Patch('owners/:userId/approve')
@@ -30,5 +30,10 @@ export class AdminController {
     @Body() dto: RejectOwnerDto,
   ) {
     return this.adminService.rejectOwner(userId, dto);
+  }
+
+  @Get('organizations')
+  async getAllOrganizations() {
+    return this.adminService.getAllOrganizations();
   }
 }

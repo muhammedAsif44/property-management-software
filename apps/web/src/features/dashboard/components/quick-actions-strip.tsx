@@ -24,7 +24,7 @@ export function QuickActionsStrip({
     retry: false,
   });
 
-  const userRole = profileData?.user?.role || 'OWNER';
+  const userRole = profileData?.user?.role || profileData?.data?.user?.role || 'OWNER';
   const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN';
   const isManagerOrOwner = isOwner || userRole === 'MANAGER';
 
@@ -54,15 +54,6 @@ export function QuickActionsStrip({
           </button>
         )}
 
-        {/* Add Property: Reserved Strictly for Property Owner */}
-        {isOwner && (
-          <Link
-            href="/onboarding/property"
-            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-900 transition-all flex items-center gap-1.5 text-xs font-bold shadow-xs"
-          >
-            <Building2 className="w-3.5 h-3.5 text-emerald-700" /> {t('addProperty')}
-          </Link>
-        )}
 
         {/* Staff Directory: Visible to Owner & Manager */}
         {isManagerOrOwner && (

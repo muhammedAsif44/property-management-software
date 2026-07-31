@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { propertyService, PropertyItem, InvoiceTemplateItem } from '../services/property.service';
+import { getQueryClient } from '@/lib/react-query';
+import { propertyKeys } from '../api/property-keys';
 import { useToast } from '@/components/ui/toast';
 import {
   Step1IdentityData,
@@ -66,27 +68,35 @@ export function usePropertyOnboarding() {
     setLoading(true);
     try {
       setPropertyId(id);
-      const data = await propertyService.getOnboardingData(id);
-      setProperty(data.property);
-      setInvoiceTemplates(data.invoiceTemplates);
-      setCurrentStep(data.property.onboardingStep || 1);
+      const raw = await propertyService.getOnboardingData(id);
+      const data = (raw as any)?.data || raw;
+      const propObj = data?.property || (data as any)?.data?.property;
+
+      if (!propObj) {
+        console.warn('Property object is undefined for ID:', id, data);
+        return;
+      }
+
+      setProperty(propObj);
+      setInvoiceTemplates(data.invoiceTemplates ?? (data as any)?.invoiceTemplates ?? []);
+      setCurrentStep(propObj.onboardingStep || 1);
 
       setStep1Data({
-        name: data.property.name || '',
-        logoUrl: data.property.logoUrl || '',
-        address: data.property.address || '',
-        city: data.property.city || '',
-        state: data.property.state || '',
-        country: data.property.country || 'IN',
-        currency: data.property.currency || 'INR',
-        timezone: data.property.timezone || 'Asia/Kolkata',
+        name: propObj.name || '',
+        logoUrl: propObj.logoUrl || '',
+        address: propObj.address || '',
+        city: propObj.city || '',
+        state: propObj.state || '',
+        country: propObj.country || 'IN',
+        currency: propObj.currency || 'INR',
+        timezone: propObj.timezone || 'Asia/Kolkata',
       });
 
-      if (data.property.settings) {
+      if (propObj.settings) {
         setStep2Data({
-          checkInTime: data.property.settings.checkInTime || '14:00',
-          checkOutTime: data.property.settings.checkOutTime || '11:00',
-          termsAndConditions: data.property.settings.termsAndConditions || '',
+          checkInTime: propObj.settings.checkInTime || '14:00',
+          checkOutTime: propObj.settings.checkOutTime || '11:00',
+          termsAndConditions: propObj.settings.termsAndConditions || '',
         });
 
         setSelectedTemplateId(
@@ -106,9 +116,9 @@ export function usePropertyOnboarding() {
         });
       }
 
-      if (data.property.roomTypes && data.property.roomTypes.length > 0) {
+      if (propObj.roomTypes && propObj.roomTypes.length > 0) {
         setRoomTypes(
-          data.property.roomTypes.map((rt) => ({
+          propObj.roomTypes.map((rt: any) => ({
             id: rt.id,
             name: rt.name,
             totalUnits: Number(rt.totalUnits),
@@ -118,9 +128,9 @@ export function usePropertyOnboarding() {
         );
       }
 
-      if (data.property.amenities && data.property.amenities.length > 0) {
+      if (propObj.amenities && propObj.amenities.length > 0) {
         setAmenities(
-          data.property.amenities.map((am) => ({
+          propObj.amenities.map((am: any) => ({
             id: am.id,
             name: am.name,
             price: Number(am.price),
@@ -135,36 +145,68 @@ export function usePropertyOnboarding() {
     }
   }, []);
 
-  // Save Step
+  // Keep a mutable ref of form state to prevent saveStep callback reference invalidation on every keystroke
+  const formDataRef = useState({
+    step1Data,
+    step2Data,
+    roomTypes,
+    amenities,
+    selectedTemplateId,
+    bankData,
+  })[0];
+  formDataRef.step1Data = step1Data;
+  formDataRef.step2Data = step2Data;
+  formDataRef.roomTypes = roomTypes;
+  formDataRef.amenities = amenities;
+  formDataRef.selectedTemplateId = selectedTemplateId;
+  formDataRef.bankData = bankData;
+
+  // Save Step (Stable Callback across keystrokes)
   const saveStep = useCallback(
     async (stepNum: number, onSuccess?: () => void) => {
       if (!propertyId) return;
 
       setSaving(true);
       try {
+        if (onSuccess && stepNum !== 6) {
+          // Optimistic instant UI transition for all steps except the final one!
+          onSuccess();
+        }
+
+        const currentData = formDataRef;
         let payload: any = { step: stepNum };
 
-        if (stepNum === 1) payload.step1 = step1Data;
-        if (stepNum === 2) payload.step2 = step2Data;
-        if (stepNum === 3) payload.step3 = { roomTypes };
-        if (stepNum === 4) payload.step4 = { amenities };
-        if (stepNum === 5) payload.step5 = { activeInvoiceTemplateId: selectedTemplateId };
+        if (stepNum === 1) payload.step1 = currentData.step1Data;
+        if (stepNum === 2) payload.step2 = currentData.step2Data;
+        if (stepNum === 3) payload.step3 = { roomTypes: currentData.roomTypes };
+        if (stepNum === 4) payload.step4 = { amenities: currentData.amenities };
+        if (stepNum === 5) payload.step5 = { activeInvoiceTemplateId: currentData.selectedTemplateId };
         if (stepNum === 6)
           payload.step6 = {
             bankAccountDetails: {
-              accountNumber: bankData.accountNumber,
-              ifscCode: bankData.ifscCode,
-              bankName: bankData.bankName,
-              accountHolderName: bankData.accountHolderName,
+              accountNumber: currentData.bankData.accountNumber,
+              ifscCode: currentData.bankData.ifscCode,
+              bankName: currentData.bankData.bankName,
+              accountHolderName: currentData.bankData.accountHolderName,
             },
-            upiId: bankData.upiId,
-            qrCodeUrl: bankData.qrCodeUrl,
+            upiId: currentData.bankData.upiId,
+            qrCodeUrl: currentData.bankData.qrCodeUrl,
           };
 
         const res = await propertyService.saveOnboardingStep(propertyId, payload);
-        toast.success(res.message, 'Saved Successfully');
+        toast.success(res.message, `Step ${stepNum} Saved`);
 
-        if (onSuccess) {
+        const propResult = (res as any)?.property || (res as any)?.data?.property;
+        if (propResult) {
+          setProperty(propResult);
+        }
+
+        // Invalidate global property queries so switcher and portfolio hub update 0ms instantly!
+        const queryClient = getQueryClient();
+        queryClient.invalidateQueries({ queryKey: propertyKeys.all });
+        queryClient.invalidateQueries({ queryKey: ['analytics'] });
+
+        if (onSuccess && stepNum === 6) {
           onSuccess();
         }
       } catch (err: any) {
@@ -173,7 +215,7 @@ export function usePropertyOnboarding() {
         setSaving(false);
       }
     },
-    [propertyId, step1Data, step2Data, roomTypes, amenities, selectedTemplateId, bankData, toast],
+    [propertyId, toast],
   );
 
   return {

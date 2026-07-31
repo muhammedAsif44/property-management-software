@@ -47,7 +47,10 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
     retry: false,
   });
 
-  const userRole = profileData?.user?.role || 'OWNER';
+  const userObj = profileData?.user || profileData?.data?.user || profileData;
+  const userName = userObj?.owner?.fullName || userObj?.fullName || userObj?.email || '';
+
+  const userRole = profileData?.user?.role || profileData?.data?.user?.role || 'OWNER';
   const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN';
   const isManagerOrOwner = isOwner || userRole === 'MANAGER';
 
@@ -61,9 +64,9 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
     },
     {
       name: t('properties'),
-      href: '/settings/property',
+      href: '/properties',
       icon: Building2,
-      active: pathname.startsWith('/settings/property') || pathname.startsWith('/onboarding/property'),
+      active: pathname.startsWith('/properties'),
       visible: isOwner,
     },
     {
@@ -110,7 +113,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       href: '/settings',
       icon: Settings,
       active: pathname === '/settings',
-      visible: isManagerOrOwner,
+      visible: true,
     },
   ];
 
@@ -283,7 +286,10 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                 <Link
                   key={item.name}
                   href={item.href}
+                  title={collapsed ? item.name : undefined}
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 group relative ${
+                    collapsed ? 'justify-center' : ''
+                  } ${
                     item.active
                       ? 'bg-gradient-to-r from-emerald-600 via-emerald-700 to-emerald-800 text-white shadow-md shadow-emerald-700/20 border border-emerald-500/30'
                       : 'text-slate-700 hover:text-emerald-900 hover:bg-emerald-100/60'
@@ -294,7 +300,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                       item.active ? 'text-white' : 'text-emerald-700 group-hover:text-emerald-800'
                     }`}
                   />
-                  {!collapsed && <span className="truncate">{item.name}</span>}
+                  {!collapsed && <span className="truncate min-w-0">{item.name}</span>}
                 </Link>
               ) : (
                 <div
@@ -323,15 +329,18 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
               <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-700 flex items-center justify-center font-bold shrink-0 border border-emerald-300/40">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
               </div>
-              <div className="overflow-hidden text-left">
-                <p className="text-[11px] font-black truncate text-emerald-950">
-                  {isOwner && t('ownerPortal')}
-                  {userRole === 'MANAGER' && t('managerPortal')}
-                  {userRole === 'RECEPTION_STAFF' && t('receptionPortal')}
-                  {userRole === 'VIEWER' && t('viewerPortal')}
+              <div className="overflow-hidden text-left min-w-0 flex-1">
+                <p className="text-[11px] font-black truncate text-emerald-950 capitalize">
+                  {userName || (isOwner ? t('ownerPortal') : userRole)}
                 </p>
-                <p className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> {t('liveActive')}
+                <p className="text-[10px] font-bold text-emerald-700 flex items-center gap-1 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="truncate">
+                    {isOwner && t('ownerPortal')}
+                    {userRole === 'MANAGER' && t('managerPortal')}
+                    {userRole === 'RECEPTION_STAFF' && t('receptionPortal')}
+                    {userRole === 'VIEWER' && t('viewerPortal')}
+                  </span>
                 </p>
               </div>
             </div>

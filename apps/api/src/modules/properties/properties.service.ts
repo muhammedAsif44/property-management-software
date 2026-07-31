@@ -153,12 +153,11 @@ export class PropertiesService {
         },
       });
 
-      if (!owner.defaultPropertyId) {
-        await tx.owner.update({
-          where: { id: owner.id },
-          data: { defaultPropertyId: createdProp.id },
-        });
-      }
+      // ALWAYS switch to the newly created property
+      await tx.owner.update({
+        where: { id: owner.id },
+        data: { defaultPropertyId: createdProp.id },
+      });
 
       return createdProp;
     });
@@ -167,7 +166,7 @@ export class PropertiesService {
       message: 'Property created successfully',
       property: {
         ...property,
-        isActive: !owner.defaultPropertyId || owner.defaultPropertyId === property.id,
+        isActive: true,
       },
     };
   }

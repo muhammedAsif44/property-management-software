@@ -36,7 +36,13 @@ export class StaffService {
       throw new NotFoundException('User profile not found');
     }
 
-    let targetPropertyId = requestedPropertyId || user.owner?.defaultPropertyId;
+    let targetPropertyId =
+      requestedPropertyId &&
+      requestedPropertyId !== 'undefined' &&
+      requestedPropertyId !== 'null' &&
+      requestedPropertyId.trim() !== ''
+        ? requestedPropertyId
+        : user.owner?.defaultPropertyId;
 
     if (!targetPropertyId) {
       const prop = await this.prisma.property.findFirst({
@@ -89,10 +95,19 @@ export class StaffService {
    * 1. Get Staff Directory (Owner & Manager)
    */
   async getStaffDirectory(userId: string, propertyId?: string) {
-    const { property } = await this.resolveCallerProperty(userId, propertyId);
+    const { property, isOwner } = await this.resolveCallerProperty(userId, propertyId);
 
     const staffMembers = await this.prisma.staffMember.findMany({
-      where: { propertyId: property.id },
+      where:
+        isOwner && property.organizationId
+          ? {
+              OR: [
+                { propertyId: property.id },
+                { property: { organizationId: property.organizationId } },
+                { invitedByOwner: { userId } },
+              ],
+            }
+          : { propertyId: property.id },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -113,7 +128,7 @@ export class StaffService {
           },
         },
         invitedByOwner: {
-          select: { fullName: true },
+          select: { id: true, fullName: true, user: { select: { email: true } } },
         },
       },
     });

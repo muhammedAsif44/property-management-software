@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AnalyticsService {
@@ -9,25 +10,41 @@ export class AnalyticsService {
    * Resolve effective propertyId for the current user (Owner/Staff)
    */
   private async resolvePropertyId(userId: string, requestedPropertyId?: string): Promise<string> {
-    if (requestedPropertyId) {
+    if (
+      requestedPropertyId &&
+      requestedPropertyId !== 'undefined' &&
+      requestedPropertyId !== 'null' &&
+      requestedPropertyId.trim() !== ''
+    ) {
       return requestedPropertyId;
     }
 
-    const owner = await this.prisma.owner.findUnique({
-      where: { userId },
-      select: { defaultPropertyId: true, id: true },
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        organizationId: true,
+        owner: { select: { defaultPropertyId: true } },
+        staffMemberships: { select: { propertyId: true }, take: 1 },
+      },
     });
 
-    if (owner?.defaultPropertyId) {
-      return owner.defaultPropertyId;
+    if (user?.owner?.defaultPropertyId) {
+      return user.owner.defaultPropertyId;
     }
 
-    // Fallback to first available property owned by user or where user is staff
+    if (user?.staffMemberships && user.staffMemberships.length > 0) {
+      return user.staffMemberships[0].propertyId;
+    }
+
+    // Fallback to first available property owned by user, staff member, or organization
     const firstProp = await this.prisma.property.findFirst({
       where: {
         OR: [
           { owner: { userId } },
-          { staffMembers: { some: { userId } } },
+          { staffMembers: { some: { OR: [{ userId: user?.id }, { user: { email: user?.email } }] } } },
+          ...(user?.organizationId ? [{ organizationId: user.organizationId }] : []),
         ],
         deletedAt: null,
       },
@@ -206,14 +223,20 @@ export class AnalyticsService {
       }),
     ]);
 
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    const isReception = user?.role === UserRole.RECEPTION_STAFF;
+
     const totalRooms = totalRoomsCount._sum.totalUnits || 0;
     const occupancyRate = totalRooms > 0 ? Math.min(100, Math.round((occupiedRoomsCount / totalRooms) * 100)) : 0;
 
     return {
       property: propertyInfo,
       metrics: {
-        todayRevenue: Number(todayPaymentsAgg._sum.amount || 0),
-        monthlyRevenue: Number(monthlyPaymentsAgg._sum.amount || 0),
+        todayRevenue: isReception ? 0 : Number(todayPaymentsAgg._sum.amount || 0),
+        monthlyRevenue: isReception ? 0 : Number(monthlyPaymentsAgg._sum.amount || 0),
         todayCheckIns: todayCheckInsCount,
         todayCheckOuts: todayCheckOutsCount,
         totalRooms,

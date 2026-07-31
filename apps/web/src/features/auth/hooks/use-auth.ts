@@ -1,13 +1,35 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { authService } from '../services/auth.service';
+import { useAuthStore } from '../store/use-auth-store';
 import {
   LoginPayload,
   LoginResponse,
   OwnerSignupPayload,
   OwnerSignupResponse,
 } from '../types/auth.types';
+
+export function useAuthProfileQuery() {
+  const setUser = useAuthStore((state) => state.setUser);
+
+  return useQuery({
+    queryKey: ['auth', 'profile'],
+    queryFn: async () => {
+      const data = await authService.getProfile();
+      const userObj = data?.user || data?.data?.user || data;
+      if (userObj) {
+        setUser(userObj);
+      }
+      return data;
+    },
+    staleTime: 1000 * 60 * 30, // 30 mins stale caching
+    gcTime: 1000 * 60 * 60, // 1 hour garbage collection
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+}
 
 export function useAuth() {
   const [loading, setLoading] = useState(false);

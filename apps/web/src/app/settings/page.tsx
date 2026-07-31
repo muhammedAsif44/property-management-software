@@ -47,8 +47,7 @@ function SettingsHubContent() {
   const { t } = useTranslation();
 
   // Category Tab State ('account' | 'property')
-  const initialCategory = searchParams.get('tab') === 'property' ? 'property' : 'account';
-  const [activeCategory, setActiveCategory] = useState<'account' | 'property'>(initialCategory);
+  const [activeCategory, setActiveCategory] = useState<'account' | 'property'>('account');
 
   // User Profile State
   const [user, setUser] = useState<any>(null);
@@ -93,17 +92,34 @@ function SettingsHubContent() {
     saveStep,
   } = usePropertyOnboarding();
 
+  // Derive role from fetched user profile
+  const userRole = user?.role || '';
+  const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN';
+
   // Fetch Profile & Active Property
   useEffect(() => {
     const initData = async () => {
       try {
         const res = await authService.getProfile();
-        setUser(res.user);
-        setEmailData((prev) => ({ ...prev, newEmail: res.user?.email || '' }));
+        const userObj = res.user || res.data?.user || res;
+        setUser(userObj);
+        setEmailData((prev) => ({ ...prev, newEmail: userObj?.email || '' }));
 
-        const propRes = await propertyService.getActiveProperty();
-        if (propRes.activeProperty) {
-          loadPropertyData(propRes.activeProperty.id);
+        const fetchedRole = userObj?.role || '';
+        const fetchedIsOwner = fetchedRole === 'OWNER' || fetchedRole === 'SUPER_ADMIN';
+
+        // Set initial tab based on URL param, but only allow property tab for owners
+        const requestedTab = searchParams.get('tab');
+        if (requestedTab === 'property' && fetchedIsOwner) {
+          setActiveCategory('property');
+        }
+
+        // Only load property data for owners
+        if (fetchedIsOwner) {
+          const propRes = await propertyService.getActiveProperty();
+          if (propRes.activeProperty) {
+            loadPropertyData(propRes.activeProperty.id);
+          }
         }
       } catch (err) {
         // Suppress unauth redirect if handled by guards
@@ -112,7 +128,7 @@ function SettingsHubContent() {
       }
     };
     initData();
-  }, [loadPropertyData]);
+  }, [loadPropertyData, searchParams]);
 
   // Handle Change Password
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -238,7 +254,9 @@ function SettingsHubContent() {
               </div>
               <div className="truncate min-w-0">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-sm font-extrabold text-slate-900 truncate">{user?.email}</h1>
+                  <h1 className="text-sm font-extrabold text-slate-900 truncate capitalize">
+                    {user?.owner?.fullName || user?.fullName || user?.email}
+                  </h1>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase shrink-0">
                     {user?.role || 'User'}
                   </span>
@@ -250,7 +268,7 @@ function SettingsHubContent() {
               </div>
             </div>
 
-            {/* Category Tabs */}
+            {/* Category Tabs — Property Configuration tab visible ONLY to Owner/Super Admin */}
             <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 gap-1 shrink-0">
               <button
                 onClick={() => setActiveCategory('account')}
@@ -264,17 +282,19 @@ function SettingsHubContent() {
                 {t('accountAndSecurity')}
               </button>
 
-              <button
-                onClick={() => setActiveCategory('property')}
-                className={`py-1.5 px-3 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeCategory === 'property'
-                    ? 'bg-white text-emerald-950 shadow-xs border border-emerald-200 font-black'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5 text-emerald-700" />
-                {t('propertyConfiguration')}
-              </button>
+              {isOwner && (
+                <button
+                  onClick={() => setActiveCategory('property')}
+                  className={`py-1.5 px-3 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeCategory === 'property'
+                      ? 'bg-white text-emerald-950 shadow-xs border border-emerald-200 font-black'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-emerald-700" />
+                  {t('propertyConfiguration')}
+                </button>
+              )}
             </div>
           </div>
 

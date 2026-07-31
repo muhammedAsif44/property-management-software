@@ -19,8 +19,11 @@ export const authService = {
   staffSignup: (data: { name: string; email: string; password: string; phone?: string }) =>
     httpClient.post<LoginResponse>('/auth/signup/staff', data),
 
-  // Get current user profile
-  getProfile: () => httpClient.get<{ user: any }>('/auth/me'),
+  // Get current user profile (Unwraps NestJS global ResponseInterceptor payload)
+  getProfile: async () => {
+    const raw = await httpClient.get<any>('/auth/me');
+    return raw.data || raw;
+  },
 
   // Secure Logout (Clears session on server and revokes refresh_token)
   logout: () => httpClient.post<{ message: string }>('/auth/logout'),

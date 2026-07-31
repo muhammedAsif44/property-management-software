@@ -40,6 +40,10 @@ export interface PropertyItem {
     price: number | string;
     icon?: string;
   }>;
+  _count?: {
+    roomTypes?: number;
+    amenities?: number;
+  };
 }
 
 export interface PropertiesResponse {
@@ -57,19 +61,25 @@ export interface InvoiceTemplateItem {
 
 export const propertyService = {
   // Get all properties owned by current Owner
-  getMyProperties: () => httpClient.get<PropertiesResponse>('/properties'),
+  getMyProperties: async () => {
+    const raw = await httpClient.get<any>('/properties');
+    return (raw?.data || raw) as PropertiesResponse;
+  },
 
   // Get current active property
-  getActiveProperty: () => httpClient.get<{ activeProperty: PropertyItem | null }>('/properties/active'),
+  getActiveProperty: async () => {
+    const raw = await httpClient.get<any>('/properties/active');
+    return (raw?.data || raw) as { activeProperty: PropertyItem | null };
+  },
 
   // Get full onboarding & property settings data
-  getOnboardingData: (propertyId: string) =>
-    httpClient.get<{ property: PropertyItem; invoiceTemplates: InvoiceTemplateItem[] }>(
-      `/properties/${propertyId}/onboarding`,
-    ),
+  getOnboardingData: async (propertyId: string) => {
+    const raw = await httpClient.get<any>(`/properties/${propertyId}/onboarding`);
+    return (raw?.data || raw) as { property: PropertyItem; invoiceTemplates: InvoiceTemplateItem[] };
+  },
 
   // Create a new property
-  createProperty: (data: {
+  createProperty: async (data: {
     name: string;
     address?: string;
     city?: string;
@@ -77,19 +87,20 @@ export const propertyService = {
     country?: string;
     currency?: string;
     timezone?: string;
-  }) =>
-    httpClient.post<{ message: string; property: PropertyItem }>('/properties', data),
+  }) => {
+    const raw = await httpClient.post<any>('/properties', data);
+    return (raw?.data || raw) as { message: string; property: PropertyItem };
+  },
 
   // Save progress for any of the 6 onboarding steps
-  saveOnboardingStep: (propertyId: string, payload: any) =>
-    httpClient.post<{ message: string; property: PropertyItem }>(
-      `/properties/${propertyId}/onboarding/step`,
-      payload,
-    ),
+  saveOnboardingStep: async (propertyId: string, payload: any) => {
+    const raw = await httpClient.post<any>(`/properties/${propertyId}/onboarding/step`, payload);
+    return (raw?.data || raw) as { message: string; property: PropertyItem };
+  },
 
   // Switch default active property (Instagram-style switcher)
-  switchActiveProperty: (propertyId: string) =>
-    httpClient.patch<{ message: string; activeProperty: PropertyItem }>(
-      `/properties/switch/${propertyId}`,
-    ),
+  switchActiveProperty: async (propertyId: string) => {
+    const raw = await httpClient.patch<any>(`/properties/switch/${propertyId}`);
+    return (raw?.data || raw) as { message: string; activeProperty: PropertyItem };
+  },
 };

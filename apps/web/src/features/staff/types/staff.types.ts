@@ -20,7 +20,11 @@ export interface StaffItem {
   createdAt: string;
   user: StaffUser;
   invitedByOwner: {
+    id?: string;
     fullName: string;
+    user?: {
+      email: string;
+    };
   } | null;
 }
 

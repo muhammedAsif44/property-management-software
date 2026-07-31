@@ -7,42 +7,48 @@ export class StaffService {
    */
   async getStaffDirectory(propertyId?: string): Promise<StaffDirectoryResponse> {
     const query = propertyId ? `?propertyId=${encodeURIComponent(propertyId)}` : '';
-    return httpClient.get<StaffDirectoryResponse>(`/staff${query}`);
+    const raw = await httpClient.get<any>(`/staff${query}`);
+    return raw?.data || raw;
   }
 
   /**
    * Invite new staff member by email
    */
   async inviteStaff(payload: InviteStaffPayload): Promise<{ message: string; staff: any }> {
-    return httpClient.post<{ message: string; staff: any }>('/staff/invite', payload);
+    const raw = await httpClient.post<any>('/staff/invite', payload);
+    return raw?.data || raw;
   }
 
   /**
    * Update staff role
    */
   async updateStaffRole(staffId: string, role: StaffRole): Promise<{ message: string }> {
-    return httpClient.patch<{ message: string }>(`/staff/${staffId}/role`, { role });
+    const raw = await httpClient.patch<any>(`/staff/${staffId}/role`, { role });
+    return raw?.data || raw;
   }
 
   /**
    * Suspend staff member
    */
   async suspendStaff(staffId: string): Promise<{ message: string; staffId: string }> {
-    return httpClient.patch<{ message: string; staffId: string }>(`/staff/${staffId}/suspend`);
+    const raw = await httpClient.patch<any>(`/staff/${staffId}/suspend`);
+    return raw?.data || raw;
   }
 
   /**
    * Reactivate staff member
    */
   async reactivateStaff(staffId: string): Promise<{ message: string; staffId: string }> {
-    return httpClient.patch<{ message: string; staffId: string }>(`/staff/${staffId}/reactivate`);
+    const raw = await httpClient.patch<any>(`/staff/${staffId}/reactivate`);
+    return raw?.data || raw;
   }
 
   /**
    * Permanently delete staff member (Owner only)
    */
   async deleteStaffPermanently(staffId: string): Promise<{ message: string; staffId: string }> {
-    return httpClient.delete<{ message: string; staffId: string }>(`/staff/${staffId}`);
+    const raw = await httpClient.delete<any>(`/staff/${staffId}`);
+    return raw?.data || raw;
   }
 }
 

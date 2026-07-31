@@ -113,6 +113,23 @@ export function useCheckOutMutation() {
   });
 }
 
+export function useRevertStatusMutation() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'CONFIRMED' | 'CHECKED_IN' }) =>
+      bookingService.updateStatus(id, status),
+    onSuccess: (_, variables) => {
+      toast.success(`Booking status reverted to ${variables.status.replace('_', ' ')}`, 'Status Reverted');
+      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to revert status', 'Error');
+    },
+  });
+}
+
 export function useDeleteBookingMutation() {
   const queryClient = useQueryClient();
   const toast = useToast();

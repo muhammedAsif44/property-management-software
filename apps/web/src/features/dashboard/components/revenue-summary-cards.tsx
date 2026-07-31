@@ -1,16 +1,14 @@
-import React from 'react';
-import { DashboardMetrics } from '../types/dashboard.types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from '@/lib/i18n';
 import {
+  ArrowUpRight,
   BedDouble,
-  TrendingUp,
-  DollarSign,
-  UserCheck,
   Calendar,
   Clock,
-  ArrowUpRight,
+  DollarSign,
+  UserCheck
 } from 'lucide-react';
-import { useTranslation } from '@/lib/i18n';
+import { DashboardMetrics } from '../types/dashboard.types';
 
 interface RevenueSummaryCardsProps {
   metrics?: DashboardMetrics;

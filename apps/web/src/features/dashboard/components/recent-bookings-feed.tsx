@@ -1,8 +1,7 @@
-import React from 'react';
-import { RecentBookingItem } from '../types/dashboard.types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, User, Phone, ArrowUpRight } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import { Calendar, Phone } from 'lucide-react';
+import { RecentBookingItem } from '../types/dashboard.types';
 
 interface RecentBookingsFeedProps {
   bookings?: RecentBookingItem[];

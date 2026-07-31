@@ -1,9 +1,8 @@
-import React from 'react';
-import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
 import { authService } from '@/features/auth';
-import { Users, RefreshCw, Sparkles, Building2 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import { useQuery } from '@tanstack/react-query';
+import { RefreshCw, Sparkles, Users } from 'lucide-react';
+import Link from 'next/link';
 
 interface QuickActionsStripProps {
   onTriggerAutoCheckout?: () => void;

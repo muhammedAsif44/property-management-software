@@ -16,7 +16,8 @@ export function useDashboardAnalyticsQuery(propertyId?: string) {
     queryFn: () => dashboardService.getDashboardAnalytics(propertyId),
     refetchInterval: 30000, // Auto-refresh analytics every 30 seconds
     refetchIntervalInBackground: false, // Pause when tab is hidden
-    staleTime: 10000,
+    staleTime: 30000,
+    placeholderData: (previousData) => previousData,
     retry: (failureCount, error: any) => {
       // Do not retry if the error is 401 Unauthorized
       if (error?.statusCode === 401) return false;

@@ -17,10 +17,11 @@ import {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 emerald-radial-bg flex flex-col justify-between relative overflow-hidden font-sans">
       {/* Ambient Emerald Glow Elements */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[450px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <AuthHeader currentTab="login" />
 
@@ -62,7 +63,7 @@ export default function HomePage() {
         <div className="flex flex-col sm:flex-row items-center gap-4 mt-8 w-full sm:w-auto">
           <Link
             href="/signup/owner"
-            className="w-full sm:w-auto py-4 px-8 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold text-sm tracking-wide shadow-xl shadow-emerald-500/25 transition-all duration-200 flex items-center justify-center gap-2"
+            className="w-full sm:w-auto py-4 px-8 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 active:scale-95 text-white font-bold text-sm tracking-wide shadow-xl shadow-emerald-700/25 transition-all duration-200 flex items-center justify-center gap-2"
           >
             Register Organization <ArrowRight className="w-4 h-4" />
           </Link>

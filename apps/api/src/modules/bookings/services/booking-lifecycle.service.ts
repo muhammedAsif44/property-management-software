@@ -207,10 +207,13 @@ export class BookingLifecycleService {
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    // Validate transitions
+    // Validate transitions (supports status reversal for accidental status changes)
     const validTransitions: Record<string, BookingStatus[]> = {
       [BookingStatus.CONFIRMED]: [BookingStatus.CHECKED_IN, BookingStatus.CANCELLED],
-      [BookingStatus.CHECKED_IN]: [BookingStatus.CHECKED_OUT],
+      [BookingStatus.CHECKED_IN]: [BookingStatus.CHECKED_OUT, BookingStatus.CONFIRMED],
+      [BookingStatus.CHECKED_OUT]: [BookingStatus.CHECKED_IN, BookingStatus.CONFIRMED],
+      [BookingStatus.CANCELLED]: [BookingStatus.CONFIRMED],
+      [BookingStatus.NO_SHOW]: [BookingStatus.CONFIRMED],
     };
 
     const allowed = validTransitions[booking.status];

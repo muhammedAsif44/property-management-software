@@ -56,6 +56,11 @@ export class BookingService {
     return raw?.data || raw;
   }
 
+  async updateStatus(id: string, status: string): Promise<Booking> {
+    const raw = await httpClient.post<any>(`/bookings/${id}/status`, { status });
+    return raw?.data || raw;
+  }
+
   async softDeleteBooking(id: string): Promise<any> {
     const raw = await httpClient.delete<any>(`/bookings/${id}`);
     return raw?.data || raw;

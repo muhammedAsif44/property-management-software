@@ -1,7 +1,6 @@
-import React from 'react';
-import { PendingTacAgency } from '../types/dashboard.types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Briefcase, AlertCircle } from 'lucide-react';
+import { AlertCircle, Briefcase } from 'lucide-react';
+import { PendingTacAgency } from '../types/dashboard.types';
 
 interface PendingTacWidgetProps {
   agencies?: PendingTacAgency[];

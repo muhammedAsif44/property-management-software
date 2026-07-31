@@ -13,6 +13,14 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-manrope)', 'sans-serif'],
       },
+      fontSize: {
+        '2xs': ['0.75rem', { lineHeight: '1rem' }],        // 12px
+        'xs': ['0.8125rem', { lineHeight: '1.25rem' }],   // 13px (increased from 12px)
+        'sm': ['0.9375rem', { lineHeight: '1.375rem' }],   // 15px (increased from 14px)
+        'base': ['1.0625rem', { lineHeight: '1.625rem' }], // 17px (increased from 16px)
+        'lg': ['1.1875rem', { lineHeight: '1.75rem' }],    // 19px (increased from 18px)
+        'xl': ['1.375rem', { lineHeight: '1.875rem' }],    // 22px
+      },
       colors: {
         emerald: {
           50: '#eefcf6',

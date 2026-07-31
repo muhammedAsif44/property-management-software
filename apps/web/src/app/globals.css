@@ -8,10 +8,18 @@
   --primary-emerald: #0B6E4F;
 }
 
+html {
+  font-size: 15.5px;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
-  font-family: var(--font-manrope), var(--font-noto-malayalam), system-ui, sans-serif;
+  font-family: var(--font-manrope), var(--font-noto-malayalam), system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 @keyframes fadeInUp {

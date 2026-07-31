@@ -66,6 +66,13 @@ export default function DashboardPage() {
     refetch,
   } = useDashboardAnalyticsQuery(activeProperty?.id);
 
+  // Instant fallback active property initialization if store was uninitialized
+  useEffect(() => {
+    if (analyticsData?.property && !activeProperty) {
+      usePropertyStore.getState().setActiveProperty(analyticsData.property as any);
+    }
+  }, [analyticsData, activeProperty]);
+
   // Auto-checkout mutation
   const autoCheckoutMutation = useAutoCheckoutMutation(activeProperty?.id);
 

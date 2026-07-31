@@ -91,6 +91,7 @@ export class AnalyticsService {
       recentBookings,
       pendingTacAgencies,
       pendingTacBookings,
+      user,
     ] = await Promise.all([
       // Property Info
       this.prisma.property.findUnique({
@@ -227,12 +228,14 @@ export class AnalyticsService {
           agency: { select: { name: true } },
         },
       }),
+
+      // User Role Query
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      }),
     ]);
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
     const isReception = user?.role === UserRole.RECEPTION_STAFF;
 
     const totalRooms = totalRoomsCount._sum.totalUnits || 0;

@@ -122,6 +122,20 @@ export class BookingsController {
   }
 
   /**
+   * POST /api/v1/bookings/:id/status
+   * Revert or update booking status (supports accidental status change reversal)
+   */
+  @Post(':id/status')
+  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.SUPER_ADMIN)
+  async updateStatus(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body('status') status: BookingStatus,
+  ) {
+    return this.bookingsService.updateBookingStatus(req.user.id, id, status);
+  }
+
+  /**
    * DELETE /api/v1/bookings/:id
    * Soft delete booking (Owner/Manager/SuperAdmin only)
    */

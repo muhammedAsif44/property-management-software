@@ -14,7 +14,7 @@ html {
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  background: #f8fafc;
   font-family: var(--font-manrope), var(--font-noto-malayalam), system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -22,10 +22,19 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-@keyframes fadeInUp {
+/* ═══════════════════════════════════════════════════
+   LIGHTWEIGHT PERFORMANCE ANIMATIONS
+   ═══════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
@@ -33,78 +42,85 @@ body {
   }
 }
 
-@keyframes floatSmooth {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
+@keyframes modalBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-@keyframes pulseSlow {
-  0%, 100% {
-    opacity: 0.15;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.25;
-    transform: scale(1.05);
-  }
-}
-
-@keyframes toastSpringIn {
-  0% {
+@keyframes modalCardIn {
+  from {
     opacity: 0;
-    transform: translateY(-14px) scale(0.94);
+    transform: translateY(8px);
   }
-  70% {
-    transform: translateY(2px) scale(1.01);
-  }
-  100% {
+  to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
 }
 
-.animate-float {
-  animation: floatSmooth 6s ease-in-out infinite;
+.animate-slideDown {
+  animation: slideDown 0.2s ease-out forwards;
 }
 
-.animate-pulse-slow {
-  animation: pulseSlow 8s ease-in-out infinite;
+.modal-backdrop-enter {
+  animation: modalBackdropIn 0.2s ease-out forwards;
 }
 
-.animate-toast-spring {
-  animation: toastSpringIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  will-change: transform, opacity;
+.modal-card-enter {
+  animation: modalCardIn 0.2s ease-out forwards;
 }
+
+/* ═══════════════════════════════════════════════════
+   FAST SKELETON LOADING
+   ═══════════════════════════════════════════════════ */
+
+.skeleton {
+  background: #e2e8f0;
+  border-radius: 0.5rem;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ═══════════════════════════════════════════════════
+   CLEAN UTILITIES & SURFACES
+   ═══════════════════════════════════════════════════ */
 
 @layer utilities {
-  .glass-card {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(226, 232, 240, 0.9);
+  .glass-card-premium {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
 
-  .emerald-glow {
-    box-shadow: 0 10px 40px -10px rgba(11, 110, 79, 0.3);
+  .btn-press {
+    transition: transform 0.1s ease, background-color 0.15s ease;
+  }
+  .btn-press:active {
+    transform: scale(0.97);
   }
 
-  .emerald-gradient {
-    background: linear-gradient(135deg, #0B6E4F 0%, #063125 100%);
+  /* Focus Ring — Accessibility */
+  .focus-ring-emerald:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #0B6E4F;
+    border-color: #0B6E4F;
   }
 
-  .emerald-radial-bg {
-    background: radial-gradient(circle at 50% -10%, rgba(11, 110, 79, 0.18) 0%, rgba(248, 250, 252, 1) 75%);
+  .focus-ring-rose:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #e11d48;
+    border-color: #e11d48;
   }
 
-  .emerald-subtle-bg {
-    background: radial-gradient(circle at 50% 0%, rgba(11, 110, 79, 0.1) 0%, rgba(248, 250, 252, 0) 75%);
+  /* Scrollbar hide */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }

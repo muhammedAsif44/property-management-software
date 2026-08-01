@@ -1,6 +1,6 @@
 import React from 'react';
 import { StaffRole } from '../types/staff.types';
-import { ShieldCheck, UserCheck, Eye, Crown } from 'lucide-react';
+import { ShieldCheck, UserCheck, Eye, Crown, Sparkles } from 'lucide-react';
 
 interface StaffRoleBadgeProps {
   role: StaffRole | 'OWNER' | string;
@@ -24,6 +24,12 @@ export function StaffRoleBadge({ role }: StaffRoleBadgeProps) {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 border border-blue-300 text-[10px] font-black uppercase tracking-wider">
           <UserCheck className="w-3 h-3 text-blue-700" /> Reception Staff
+        </span>
+      );
+    case 'HOUSEKEEPING':
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-black uppercase tracking-wider">
+          <Sparkles className="w-3 h-3 text-purple-700" /> Housekeeper
         </span>
       );
     case 'VIEWER':

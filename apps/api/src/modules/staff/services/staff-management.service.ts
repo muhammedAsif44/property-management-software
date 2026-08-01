@@ -28,6 +28,8 @@ export class StaffManagementService {
         ? UserRole.MANAGER
         : dto.role === StaffRole.RECEPTION_STAFF
         ? UserRole.RECEPTION_STAFF
+        : dto.role === StaffRole.HOUSEKEEPING
+        ? UserRole.HOUSEKEEPING
         : UserRole.VIEWER;
 
     await this.prisma.$transaction([

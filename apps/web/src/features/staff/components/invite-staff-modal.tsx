@@ -129,6 +129,23 @@ export function InviteStaffModal({
                 <input
                   type="radio"
                   name="role"
+                  value="HOUSEKEEPING"
+                  checked={role === 'HOUSEKEEPING'}
+                  onChange={() => setRole('HOUSEKEEPING')}
+                  className="mt-0.5 accent-emerald-600"
+                />
+                <div>
+                  <div className="text-xs font-bold text-slate-900">{t('housekeeperRole') || 'Housekeeper / Room Attendant'}</div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    Mobile & web portal to view room cleanliness, update room statuses (Clean/Dirty), and report maintenance issues.
+                  </div>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 hover:border-emerald-300 transition-all cursor-pointer">
+                <input
+                  type="radio"
+                  name="role"
                   value="VIEWER"
                   checked={role === 'VIEWER'}
                   onChange={() => setRole('VIEWER')}

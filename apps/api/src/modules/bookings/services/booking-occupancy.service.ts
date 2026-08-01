@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { BookingHelperService } from './booking-helper.service';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, CleanlinessStatus } from '@prisma/client';
 
 @Injectable()
 export class BookingOccupancyService {
@@ -12,12 +12,17 @@ export class BookingOccupancyService {
 
   /**
    * High-Performance Occupancy Tape Chart Calculation
-   * Optimized to O(B + R * D) using indexed Map buckets instead of O(R * D * B) nested filtering.
+   * Optimized to O(B + R * D) using indexed Map buckets with timezone-safe UTC date boundaries.
    */
   async getOccupancy(userId: string, propertyId: string, fromDate: string, toDate: string) {
     const resolvedPropertyId = await this.helper.resolvePropertyId(userId, propertyId);
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
+
+    // Normalize date strings to UTC midnight boundaries to prevent timezone offset shifts
+    const fromStr = fromDate.includes('T') ? fromDate.split('T')[0] : fromDate;
+    const toStr = toDate.includes('T') ? toDate.split('T')[0] : toDate;
+
+    const from = new Date(`${fromStr}T00:00:00.000Z`);
+    const to = new Date(`${toStr}T00:00:00.000Z`);
 
     // Get all active room types for property
     const roomTypes = await this.prisma.roomType.findMany({
@@ -57,26 +62,43 @@ export class BookingOccupancyService {
     const timestamps: number[] = [];
     const cursor = new Date(from);
     while (cursor < to) {
-      dates.push(cursor.toISOString().split('T')[0]);
-      timestamps.push(cursor.getTime());
-      cursor.setDate(cursor.getDate() + 1);
+      const dateStr = cursor.toISOString().split('T')[0];
+      dates.push(dateStr);
+      timestamps.push(new Date(`${dateStr}T00:00:00.000Z`).getTime());
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    // Get Out of Order units count per room type
+    const oooUnits = await this.prisma.roomUnit.groupBy({
+      by: ['roomTypeId'],
+      where: { propertyId: resolvedPropertyId, cleanlinessStatus: CleanlinessStatus.OUT_OF_ORDER },
+      _count: { _all: true },
+    });
+    const oooMap = new Map<string, number>();
+    for (const o of oooUnits) {
+      oooMap.set(o.roomTypeId, o._count._all);
     }
 
     // Build occupancy map
-    const occupancy: Record<string, Record<string, { booked: number; total: number; bookings: any[] }>> = {};
+    const occupancy: Record<string, Record<string, { booked: number; total: number; outOfOrder: number; available: number; bookings: any[] }>> = {};
 
     for (const rt of roomTypes) {
       occupancy[rt.id] = {};
       const roomBookings = bookingsByRoomType.get(rt.id) || [];
+      const oooCount = oooMap.get(rt.id) || 0;
 
-      // Pre-convert booking dates to timestamps for fast numeric comparisons
-      const parsedBookings = roomBookings.map((b) => ({
-        id: b.id,
-        guestName: b.guest.fullName,
-        status: b.status,
-        checkInTs: new Date(b.checkInDate).getTime(),
-        checkOutTs: new Date(b.checkOutDate).getTime(),
-      }));
+      // Pre-convert booking dates to UTC timestamps for fast numeric comparisons
+      const parsedBookings = roomBookings.map((b) => {
+        const inStr = b.checkInDate.toISOString().split('T')[0];
+        const outStr = b.checkOutDate.toISOString().split('T')[0];
+        return {
+          id: b.id,
+          guestName: b.guest.fullName,
+          status: b.status,
+          checkInTs: new Date(`${inStr}T00:00:00.000Z`).getTime(),
+          checkOutTs: new Date(`${outStr}T00:00:00.000Z`).getTime(),
+        };
+      });
 
       for (let i = 0; i < dates.length; i++) {
         const dateStr = dates[i];
@@ -86,9 +108,14 @@ export class BookingOccupancyService {
           (b) => b.checkInTs <= dayTs && b.checkOutTs > dayTs,
         );
 
+        const booked = dayBookings.length;
+        const available = Math.max(0, rt.totalUnits - booked - oooCount);
+
         occupancy[rt.id][dateStr] = {
-          booked: dayBookings.length,
+          booked,
           total: rt.totalUnits,
+          outOfOrder: oooCount,
+          available,
           bookings: dayBookings.map((b) => ({
             id: b.id,
             guestName: b.guestName,

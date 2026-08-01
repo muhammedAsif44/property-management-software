@@ -76,6 +76,10 @@ export class CreateBookingDto {
   notes?: string;
 
   @IsOptional()
+  @IsUUID()
+  roomUnitId?: string;
+
+  @IsOptional()
   @IsString()
   propertyId?: string;
 }

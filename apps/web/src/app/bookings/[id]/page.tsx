@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
-import { useBookingDetailQuery, useCheckInMutation, useCheckOutMutation, useCancelBookingMutation } from '@/features/bookings/api/use-bookings';
+import { useBookingDetailQuery, useCheckInMutation, useCheckOutMutation } from '@/features/bookings/api/use-bookings';
 import { useTranslation } from '@/lib/i18n';
 import {
   ArrowLeft,
@@ -21,14 +21,56 @@ import {
   Loader2,
   Globe2,
   UtensilsCrossed,
+  IndianRupee,
+  CalendarDays,
+  Users as UsersIcon,
+  Baby,
+  Utensils,
+  Building2,
+  ArrowRight,
+  AlertTriangle,
 } from 'lucide-react';
 
-const STATUS_COLORS: Record<string, string> = {
-  CONFIRMED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  CHECKED_IN: 'bg-blue-100 text-blue-800 border-blue-200',
-  CHECKED_OUT: 'bg-gray-100 text-gray-600 border-gray-200',
-  CANCELLED: 'bg-red-100 text-red-800 border-red-200',
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
+  CONFIRMED: { label: 'Confirmed', color: 'text-emerald-800', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
+  CHECKED_IN: { label: 'Checked In', color: 'text-blue-800', bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-500' },
+  CHECKED_OUT: { label: 'Checked Out', color: 'text-slate-600', bg: 'bg-slate-100 border-slate-300', dot: 'bg-slate-400' },
+  CANCELLED: { label: 'Cancelled', color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200', dot: 'bg-rose-500' },
 };
+
+/* ─── Skeleton Detail Page ─── */
+function DetailSkeleton() {
+  return (
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 skeleton rounded-lg" />
+            <div className="h-5 w-36 skeleton rounded" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[0, 1, 2, 3].map((j) => (
+              <div key={j} className="space-y-2">
+                <div className="h-3 w-16 skeleton rounded" />
+                <div className="h-4 w-24 skeleton rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Info Field ─── */
+function InfoField({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">{label}</span>
+      <p className="font-extrabold text-slate-900 text-xs min-w-0 truncate">{value || '—'}</p>
+    </div>
+  );
+}
 
 export default function BookingDetailPage() {
   const router = useRouter();
@@ -42,10 +84,21 @@ export default function BookingDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex min-h-screen bg-slate-100 text-slate-900 font-sans antialiased">
         <DashboardSidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+        <main className="flex-1 min-w-0 overflow-y-auto bg-slate-100">
+          <div className="sticky top-0 z-10 bg-white border-b border-slate-200">
+            <div className="px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-8 h-8 skeleton rounded-lg" />
+                <div className="space-y-2">
+                  <div className="h-4 w-40 skeleton rounded" />
+                  <div className="h-3 w-24 skeleton rounded" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DetailSkeleton />
         </main>
       </div>
     );
@@ -53,38 +106,49 @@ export default function BookingDetailPage() {
 
   if (!booking) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex min-h-screen bg-slate-100 text-slate-900 font-sans antialiased">
         <DashboardSidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-xl font-bold text-gray-700">{t('bookingNotFound')}</h2>
-            <button onClick={() => router.push('/bookings')} className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm">{t('backToBookings')}</button>
+        <main className="flex-1 flex items-center justify-center bg-slate-100">
+          <div className="text-center space-y-4">
+            <Calendar className="w-10 h-10 text-slate-300 mx-auto" />
+            <h2 className="text-xl font-bold text-slate-800">{t('bookingNotFound')}</h2>
+            <button
+              onClick={() => router.push('/bookings')}
+              className="px-4 py-2 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800 transition-colors"
+            >
+              {t('backToBookings')}
+            </button>
           </div>
         </main>
       </div>
     );
   }
 
+  const statusCfg = STATUS_CONFIG[booking.status] || STATUS_CONFIG.CONFIRMED;
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
   const formatCurrency = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
 
-  return (
-    <div className="flex h-screen bg-slate-50/90 text-slate-900 font-sans antialiased relative overflow-hidden">
-      {/* Ambient Rich Emerald Glow Elements */}
-      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
-      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
+  const totalAmount = Number(booking.totalAmount) || 0;
+  const advancePaid = Number(booking.advancePaid) || 0;
+  const paidPct = totalAmount > 0 ? Math.min(Math.round((advancePaid / totalAmount) * 100), 100) : 0;
 
+  return (
+    <div className="flex min-h-screen bg-slate-100 text-slate-900 font-sans antialiased">
       <DashboardSidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto relative z-10">
-        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-gray-200/60">
+      <main className="flex-1 min-w-0 overflow-y-auto bg-slate-100">
+        {/* ═══ Header ═══ */}
+        <div className="sticky top-0 z-10 bg-white border-b border-slate-200">
           <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button onClick={() => router.push('/bookings')} className="p-2 hover:bg-gray-100 rounded-xl transition-all">
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push('/bookings')}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-700 transition-colors cursor-pointer btn-press"
+              >
+                <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">{t('bookingDetails')}</h1>
-                <p className="text-sm text-gray-500">ID: {booking.id.slice(0, 8)}...</p>
+                <h1 className="text-sm font-black text-slate-900 tracking-tight">{t('bookingDetails')}</h1>
+                <p className="text-[11px] font-bold text-slate-500 font-mono">ID: {booking.id.slice(0, 10)}...</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -92,97 +156,164 @@ export default function BookingDetailPage() {
                 <button
                   onClick={() => checkInMutation.mutate(booking.id)}
                   disabled={checkInMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg bg-emerald-700 text-white text-xs font-bold hover:bg-emerald-800 disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer btn-press shadow-xs"
                 >
-                  <LogIn className="w-4 h-4" /> {t('checkIn')}
+                  {checkInMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                  {t('checkIn')}
                 </button>
               )}
               {booking.status === 'CHECKED_IN' && (
                 <button
                   onClick={() => checkOutMutation.mutate(booking.id)}
                   disabled={checkOutMutation.isPending}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg bg-indigo-700 text-white text-xs font-bold hover:bg-indigo-800 disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer btn-press shadow-xs"
                 >
-                  <LogOut className="w-4 h-4" /> {t('checkOut')}
+                  {checkOutMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+                  {t('checkOut')}
                 </button>
               )}
-              <span className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${STATUS_COLORS[booking.status] || ''}`}>
-                {booking.status}
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${statusCfg.bg} ${statusCfg.color}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+                {statusCfg.label}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
-          {/* Guest Info */}
-          <div className="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6">
-            <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 mb-4">
-              <User className="w-5 h-5 text-emerald-600" /> {t('guestInformation')}
+        {/* ═══ Content Cards ═══ */}
+        <div className="max-w-4xl mx-auto p-6 space-y-5 pb-20">
+          {/* Guest Information */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 border-l-4 border-l-emerald-600">
+            <h3 className="text-xs font-black text-slate-800 flex items-center gap-2 mb-4 uppercase tracking-wider">
+              <User className="w-4 h-4 text-emerald-700" />
+              {t('guestInformation')}
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-              <div><span className="text-gray-500">{t('guestName')}</span><p className="font-semibold text-gray-900 min-w-0 truncate">{booking.guest?.fullName}</p></div>
-              <div><span className="text-gray-500">{t('phoneNumber')}</span><p className="font-semibold text-gray-900">{booking.guest?.phone || '—'}</p></div>
-              <div><span className="text-gray-500">{t('email')}</span><p className="font-semibold text-gray-900 min-w-0 truncate">{booking.guest?.email || '—'}</p></div>
-              <div><span className="text-gray-500">{t('totalVisits')}</span><p className="font-semibold text-gray-900">{booking.guest?.totalVisits || 1}</p></div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <InfoField label={t('guestName')} value={booking.guest?.fullName} />
+              <InfoField label={t('phoneNumber')} value={booking.guest?.phone} />
+              <InfoField label={t('email')} value={booking.guest?.email} />
+              <InfoField label={t('totalVisits')} value={
+                <span className="inline-flex items-center gap-1 text-emerald-700">
+                  {booking.guest?.totalVisits || 1}
+                  {(booking.guest?.totalVisits || 1) > 1 && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Returning</span>}
+                </span>
+              } />
             </div>
           </div>
 
           {/* Stay Details */}
-          <div className="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6">
-            <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 mb-4">
-              <BedDouble className="w-5 h-5 text-emerald-600" /> {t('stayDetails')}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 border-l-4 border-l-blue-600">
+            <h3 className="text-xs font-black text-slate-800 flex items-center gap-2 mb-4 uppercase tracking-wider">
+              <BedDouble className="w-4 h-4 text-blue-700" />
+              {t('stayDetails')}
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-              <div><span className="text-gray-500">{t('roomType')}</span><p className="font-semibold text-gray-900">{booking.roomType?.name}</p></div>
-              <div><span className="text-gray-500">{t('channel')}</span><p className="font-semibold text-gray-900">{booking.channel}</p></div>
-              <div><span className="text-gray-500">{t('checkInDate')}</span><p className="font-semibold text-gray-900">{formatDate(booking.checkInDate)}</p></div>
-              <div><span className="text-gray-500">{t('checkOutDate')}</span><p className="font-semibold text-gray-900">{formatDate(booking.checkOutDate)}</p></div>
-              <div><span className="text-gray-500">{t('adults')}</span><p className="font-semibold text-gray-900">{booking.adults}</p></div>
-              <div><span className="text-gray-500">{t('children')}</span><p className="font-semibold text-gray-900">{booking.children}</p></div>
-              <div><span className="text-gray-500">{t('mealPlan')}</span><p className="font-semibold text-gray-900">{booking.mealPlan || 'None'}</p></div>
-              {booking.agency && <div><span className="text-gray-500">{t('agency')}</span><p className="font-semibold text-gray-900">{booking.agency.name}</p></div>}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <InfoField label={t('roomType')} value={booking.roomType?.name} />
+              <InfoField label={t('channel')} value={booking.channel?.replace('_', ' ')} />
+              <InfoField label={t('checkInDate')} value={formatDate(booking.checkInDate)} />
+              <InfoField label={t('checkOutDate')} value={formatDate(booking.checkOutDate)} />
+              <InfoField label={t('adults')} value={booking.adults} />
+              <InfoField label={t('children')} value={booking.children} />
+              <InfoField label={t('mealPlan')} value={booking.mealPlan || 'EP'} />
+              {booking.agency && <InfoField label={t('agency')} value={booking.agency.name} />}
             </div>
           </div>
 
           {/* Payment Summary */}
-          <div className="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6">
-            <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 mb-4">
-              <CreditCard className="w-5 h-5 text-emerald-600" /> {t('paymentSummary')}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 border-l-4 border-l-amber-600">
+            <h3 className="text-xs font-black text-slate-800 flex items-center gap-2 mb-4 uppercase tracking-wider">
+              <CreditCard className="w-4 h-4 text-amber-700" />
+              {t('paymentSummary')}
             </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-gray-500">{t('baseAmount')}</span><span className="font-semibold">{formatCurrency(booking.baseAmount)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">{t('gstAmount')}</span><span className="font-semibold">{formatCurrency(booking.gstAmount)}</span></div>
+            <div className="space-y-2.5 text-xs font-semibold">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">{t('baseAmount')}</span>
+                <span className="font-bold text-slate-900">{formatCurrency(booking.baseAmount)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">{t('gstAmount')}</span>
+                <span className="font-bold text-slate-900">{formatCurrency(booking.gstAmount)}</span>
+              </div>
+
               {booking.bookingFacilities && booking.bookingFacilities.length > 0 && (
                 <div>
-                  <p className="text-gray-500 mb-1">{t('facilities')}:</p>
-                  {booking.bookingFacilities.map((f, i) => (
-                    <div key={i} className="flex justify-between ml-4"><span className="text-gray-600">{f.amenity?.name}</span><span>{formatCurrency(f.priceAtBooking)}</span></div>
-                  ))}
+                  <p className="text-slate-500 font-medium mb-1.5">{t('facilities')}:</p>
+                  <div className="flex flex-wrap gap-2 ml-2">
+                    {booking.bookingFacilities.map((f: any, i: number) => (
+                      <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 rounded text-slate-800 font-bold">
+                        {f.amenity?.name}
+                        <span className="text-emerald-700">{formatCurrency(f.priceAtBooking)}</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
-              <hr className="border-gray-200" />
-              <div className="flex justify-between text-base"><span className="font-bold text-gray-800">{t('totalAmount')}</span><span className="font-bold text-emerald-700">{formatCurrency(booking.totalAmount)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">{t('advancePaid')}</span><span className="font-semibold text-emerald-600">{formatCurrency(booking.advancePaid)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">{t('balanceDue')}</span><span className="font-bold text-red-600">{formatCurrency(booking.balanceDue)}</span></div>
-              {booking.tacStatus && (
-                <div className="flex justify-between"><span className="text-gray-500">TAC Status</span><span className={`font-semibold ${booking.tacStatus === 'PENDING' ? 'text-amber-600' : 'text-emerald-600'}`}>{booking.tacStatus}</span></div>
-              )}
+
+              <hr className="border-slate-200 my-1" />
+
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-black text-slate-900">{t('totalAmount')}</span>
+                <span className="font-black text-emerald-700">{formatCurrency(booking.totalAmount)}</span>
+              </div>
+
+              {/* Payment Progress Bar */}
+              <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-emerald-700">{t('advancePaid')}: {formatCurrency(booking.advancePaid)}</span>
+                  <span className="text-slate-400">{paidPct}% paid</span>
+                </div>
+                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-600 rounded-full transition-all duration-300"
+                    style={{ width: `${paidPct}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-slate-500">{t('balanceDue')}</span>
+                  <span className={`font-black ${Number(booking.balanceDue) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {formatCurrency(booking.balanceDue)}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Audit */}
-          <div className="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6">
-            <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 mb-4">
-              <Clock className="w-5 h-5 text-emerald-600" /> {t('auditTrail')}
+          {/* Audit Trail */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 border-l-4 border-l-slate-400">
+            <h3 className="text-xs font-black text-slate-800 flex items-center gap-2 mb-4 uppercase tracking-wider">
+              <Clock className="w-4 h-4 text-slate-600" />
+              {t('auditTrail')}
             </h3>
-            <div className="text-sm space-y-1">
-              <div className="flex justify-between"><span className="text-gray-500">{t('createdBy')}</span><span className="font-medium text-gray-700">{booking.createdByUser?.email}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">{t('createdAt')}</span><span className="font-medium text-gray-700">{formatDate(booking.createdAt)}</span></div>
+
+            <div className="relative pl-5 space-y-3 text-xs">
+              <div className="absolute left-1.5 top-1 bottom-1 w-0.5 bg-slate-200" />
+
+              <div className="relative">
+                <div className="absolute -left-3.5 top-1 w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-medium">{t('createdBy')}</span>
+                  <span className="font-bold text-slate-800">{booking.createdByUser?.email}</span>
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="absolute -left-3.5 top-1 w-2.5 h-2.5 rounded-full bg-blue-500" />
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-medium">{t('createdAt')}</span>
+                  <span className="font-bold text-slate-800">{formatDate(booking.createdAt)}</span>
+                </div>
+              </div>
+
               {booking.cancellationReason && (
-                <div className="mt-2 p-3 bg-red-50 rounded-xl border border-red-200">
-                  <p className="text-xs font-semibold text-red-700">{t('cancellationReason')}:</p>
-                  <p className="text-sm text-red-600">{booking.cancellationReason}</p>
-                  {booking.refundAmount && <p className="text-xs text-red-500 mt-1">{t('refundAmount')}: {formatCurrency(booking.refundAmount)}</p>}
+                <div className="relative">
+                  <div className="absolute -left-3.5 top-1 w-2.5 h-2.5 rounded-full bg-rose-500" />
+                  <div className="mt-2 p-3 bg-rose-50 rounded-lg border border-rose-200 space-y-1">
+                    <p className="font-black text-rose-700">{t('cancellationReason')}:</p>
+                    <p className="text-rose-600 font-medium">{booking.cancellationReason}</p>
+                    {booking.refundAmount && (
+                      <p className="text-rose-500 font-bold">{t('refundAmount')}: {formatCurrency(booking.refundAmount)}</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

@@ -8,7 +8,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import { GuestService } from './guest.service';
 import { BookingHelperService } from './booking-helper.service';
 import { CreateBookingDto } from '../dto/create-booking.dto';
-import { BookingStatus, TacStatus, Prisma } from '@prisma/client';
+import { BookingStatus, TacStatus, CleanlinessStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class BookingCreationService {
@@ -39,9 +39,18 @@ export class BookingCreationService {
     });
     if (!roomType) throw new NotFoundException('Room type not found or inactive');
 
-    // Validate agency if channel is AGENCY
+    // Validate agency if channel is AGENCY or agencyId provided
     if (dto.channel === 'AGENCY' && !dto.agencyId) {
       throw new BadRequestException('Agency ID is required for agency channel bookings');
+    }
+
+    if (dto.agencyId) {
+      const agency = await this.prisma.agency.findFirst({
+        where: { id: dto.agencyId, propertyId, isActive: true },
+      });
+      if (!agency) {
+        throw new BadRequestException('Selected agency is not valid or active for this property');
+      }
     }
 
     const checkIn = new Date(dto.checkInDate);
@@ -122,12 +131,39 @@ export class BookingCreationService {
       // TAC status for agency bookings
       const tacStatus = dto.channel === 'AGENCY' ? TacStatus.PENDING : null;
 
+      // Physical Room Unit Validation if roomUnitId is specified
+      if (dto.roomUnitId) {
+        const unit = await tx.roomUnit.findFirst({
+          where: { id: dto.roomUnitId, propertyId, roomTypeId: dto.roomTypeId },
+        });
+        if (!unit) {
+          throw new NotFoundException('Selected room unit not found or does not match room category');
+        }
+        if (unit.cleanlinessStatus === CleanlinessStatus.OUT_OF_ORDER) {
+          throw new ConflictException(`Selected room unit ${unit.unitNumber} is currently Out of Order for maintenance`);
+        }
+        const unitOverlap = await tx.booking.count({
+          where: {
+            propertyId,
+            roomUnitId: dto.roomUnitId,
+            status: { in: [BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN] },
+            deletedAt: null,
+            checkInDate: { lt: checkOut },
+            checkOutDate: { gt: checkIn },
+          },
+        });
+        if (unitOverlap > 0) {
+          throw new ConflictException(`Selected room unit ${unit.unitNumber} is already booked for these dates`);
+        }
+      }
+
       // Create booking
       const booking = await tx.booking.create({
         data: {
           propertyId,
           guestId: guest.id,
           roomTypeId: dto.roomTypeId,
+          roomUnitId: dto.roomUnitId || null,
           agencyId: dto.agencyId || null,
           channel: dto.channel,
           status: BookingStatus.CONFIRMED,

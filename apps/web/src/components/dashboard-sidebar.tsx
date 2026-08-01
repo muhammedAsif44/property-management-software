@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   Menu,
   X,
+  Sparkles,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -52,7 +53,9 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
 
   const userRole = profileData?.user?.role || profileData?.data?.user?.role || 'OWNER';
   const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN';
-  const isManagerOrOwner = isOwner || userRole === 'MANAGER';
+  const isManager = userRole === 'MANAGER';
+  const isManagerOrOwner = isOwner || isManager;
+  const isHousekeeping = userRole === 'HOUSEKEEPING';
 
   const rawNavigationItems = [
     {
@@ -60,28 +63,35 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       href: '/dashboard',
       icon: LayoutDashboard,
       active: pathname === '/dashboard',
-      visible: true,
+      visible: !isHousekeeping,
+    },
+    {
+      name: t('housekeeping') || 'Housekeeping',
+      href: '/housekeeping',
+      icon: Sparkles,
+      active: pathname.startsWith('/housekeeping'),
+      visible: isHousekeeping,
     },
     {
       name: t('properties'),
       href: '/properties',
       icon: Building2,
       active: pathname.startsWith('/properties'),
-      visible: isOwner,
+      visible: isOwner && !isHousekeeping,
     },
     {
       name: t('staffDirectory'),
       href: '/settings/staff',
       icon: Users,
       active: pathname.startsWith('/settings/staff'),
-      visible: isManagerOrOwner,
+      visible: isManagerOrOwner && !isHousekeeping,
     },
     {
       name: t('bookings'),
       href: '/bookings',
       icon: Calendar,
       active: pathname.startsWith('/bookings'),
-      visible: true,
+      visible: !isHousekeeping,
     },
     {
       name: t('roomsAndUnits'),
@@ -89,7 +99,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       icon: BedDouble,
       active: pathname.startsWith('/rooms'),
       badge: t('comingSoon'),
-      visible: true,
+      visible: !isHousekeeping,
     },
     {
       name: t('guests'),
@@ -97,7 +107,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       icon: Users,
       active: pathname.startsWith('/guests'),
       badge: t('comingSoon'),
-      visible: true,
+      visible: !isHousekeeping,
     },
     {
       name: t('invoicesAndBilling'),
@@ -105,14 +115,14 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       icon: Receipt,
       active: pathname.startsWith('/invoices'),
       badge: t('comingSoon'),
-      visible: true,
+      visible: !isHousekeeping,
     },
     {
       name: t('settings'),
       href: '/settings',
       icon: Settings,
       active: pathname === '/settings',
-      visible: true,
+      visible: !isHousekeeping,
     },
   ];
 

@@ -25,6 +25,9 @@ export class BookingDeletionService {
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
+    // Verify property ownership/membership
+    await this.helper.resolvePropertyId(userId, booking.propertyId);
+
     return this.prisma.booking.update({
       where: { id: bookingId },
       data: { deletedAt: new Date() },
@@ -39,6 +42,9 @@ export class BookingDeletionService {
       where: { id: bookingId, deletedAt: null },
     });
     if (!booking) throw new NotFoundException('Booking not found');
+
+    // Verify property ownership/membership
+    await this.helper.resolvePropertyId(userId, booking.propertyId);
 
     // Check for existing pending request
     const existingRequest = await this.prisma.bookingDeletionRequest.findFirst({
@@ -68,11 +74,15 @@ export class BookingDeletionService {
   async approveDeletion(userId: string, requestId: string) {
     const request = await this.prisma.bookingDeletionRequest.findUnique({
       where: { id: requestId },
+      include: { booking: { select: { propertyId: true } } },
     });
     if (!request) throw new NotFoundException('Deletion request not found');
     if (request.status !== DeletionRequestStatus.PENDING) {
       throw new BadRequestException('This request has already been decided');
     }
+
+    // Verify property ownership/membership for approving user
+    await this.helper.resolvePropertyId(userId, request.booking.propertyId);
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.bookingDeletionRequest.update({
@@ -103,11 +113,15 @@ export class BookingDeletionService {
   async rejectDeletion(userId: string, requestId: string) {
     const request = await this.prisma.bookingDeletionRequest.findUnique({
       where: { id: requestId },
+      include: { booking: { select: { propertyId: true } } },
     });
     if (!request) throw new NotFoundException('Deletion request not found');
     if (request.status !== DeletionRequestStatus.PENDING) {
       throw new BadRequestException('This request has already been decided');
     }
+
+    // Verify property ownership/membership for rejecting user
+    await this.helper.resolvePropertyId(userId, request.booking.propertyId);
 
     return this.prisma.bookingDeletionRequest.update({
       where: { id: requestId },

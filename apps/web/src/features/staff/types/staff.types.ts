@@ -1,4 +1,4 @@
-export type StaffRole = 'MANAGER' | 'RECEPTION_STAFF' | 'VIEWER';
+export type StaffRole = 'MANAGER' | 'RECEPTION_STAFF' | 'HOUSEKEEPING' | 'VIEWER';
 export type StaffStatus = 'INVITED' | 'ACTIVE' | 'REMOVED';
 
 export interface StaffUser {

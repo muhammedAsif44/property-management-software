@@ -5,7 +5,7 @@ export class InviteStaffDto {
   @IsEmail({}, { message: 'Please enter a valid email address' })
   email!: string;
 
-  @IsEnum(StaffRole, { message: 'Role must be MANAGER, RECEPTION_STAFF, or VIEWER' })
+  @IsEnum(StaffRole, { message: 'Role must be MANAGER, RECEPTION_STAFF, HOUSEKEEPING, or VIEWER' })
   role!: StaffRole;
 
   @IsOptional()

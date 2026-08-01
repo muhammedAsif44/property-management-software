@@ -9,7 +9,7 @@ import { useCreateBookingMutation } from '@/features/bookings/api/use-bookings';
 import { useTranslation } from '@/lib/i18n';
 import { httpClient } from '@/lib/api/http-client';
 import { CreateBookingPayload, BookingChannel, MealPlan } from '@/features/bookings/types/booking.types';
-import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2, ArrowRight, ChevronLeft } from 'lucide-react';
 import {
   BookingStepperHeader,
   StepGuestDetails,
@@ -29,6 +29,7 @@ export default function NewBookingPage() {
   const createMutation = useCreateBookingMutation();
 
   const [step, setStep] = useState(1);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [form, setForm] = useState<Partial<CreateBookingPayload>>({
     adults: 1,
     children: 0,
@@ -131,7 +132,10 @@ export default function NewBookingPage() {
       propertyId: activeProperty.id,
     };
     createMutation.mutate(payload, {
-      onSuccess: () => router.push('/bookings'),
+      onSuccess: () => {
+        setShowSuccess(true);
+        setTimeout(() => router.push('/bookings'), 1500);
+      },
     });
   };
 
@@ -140,71 +144,104 @@ export default function NewBookingPage() {
     return true;
   };
 
-  return (
-    <div className="flex min-h-screen bg-slate-50/90 text-slate-900 font-sans antialiased relative overflow-hidden">
-      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
-      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
+  // Success overlay
+  if (showSuccess) {
+    return (
+      <div className="flex min-h-screen bg-slate-100 text-slate-900 font-sans antialiased">
+        <DashboardSidebar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="w-20 h-20 mx-auto rounded-2xl bg-emerald-700 flex items-center justify-center shadow-lg text-white">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+            <h2 className="text-xl font-extrabold text-slate-900">{t('bookingCreatedSuccess') || 'Booking Created Successfully!'}</h2>
+            <p className="text-xs text-slate-500 font-semibold">Redirecting to bookings list...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
+  return (
+    <div className="flex min-h-screen bg-slate-100 text-slate-900 font-sans antialiased">
       <DashboardSidebar />
-      <main className="flex-1 min-w-0 transition-all duration-300 relative z-10">
-        <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 px-6 flex items-center justify-between shadow-xs">
+      <main className="flex-1 min-w-0 flex flex-col min-h-screen bg-slate-100">
+        {/* ═══ Header with Mini Progress ═══ */}
+        <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-30 px-6 flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="p-2 hover:bg-emerald-50 rounded-xl text-slate-700 hover:text-emerald-900 transition-all cursor-pointer">
+            <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-lg text-slate-700 transition-colors cursor-pointer btn-press">
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
               <h1 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
                 {t('newBooking')}
               </h1>
-              <p className="text-[11px] font-bold text-emerald-700/80 flex items-center gap-1 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <p className="text-xs font-bold text-slate-500 flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 {activeProperty?.name || t('activeManagementHub')}
               </p>
             </div>
           </div>
+
+          {/* Mini progress in header */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500">Step {step} of 4</span>
+            <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-700 rounded-full transition-all duration-300"
+                style={{ width: `${(step / 4) * 100}%` }}
+              />
+            </div>
+          </div>
         </header>
 
-        <div className="max-w-4xl mx-auto p-6 sm:p-8 w-full space-y-6 pb-20">
+        <div className="max-w-4xl mx-auto p-6 sm:p-8 w-full space-y-6 pb-20 flex-1">
           <BookingStepperHeader step={step} setStep={setStep} />
 
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl border border-emerald-200/90 shadow-lg p-6 sm:p-8 space-y-6">
-            {step === 1 && <StepGuestDetails form={form} onChange={handleChange} />}
-            {step === 2 && (
-              <StepRoomDates
-                form={form}
-                roomTypes={roomTypes}
-                agencies={agencies}
-                onChange={handleChange}
-              />
-            )}
-            {step === 3 && (
-              <StepPricingFacilities
-                form={form}
-                amenities={amenities}
-                selectedRoom={selectedRoom}
-                onChange={handleChange}
-                toggleFacility={toggleFacility}
-              />
-            )}
-            {step === 4 && (
-              <StepReviewConfirm
-                form={form}
-                selectedRoom={selectedRoom}
-                baseAmount={baseAmount}
-                facilityTotal={facilityTotal}
-                advancePaid={advancePaid}
-                totalEstimate={totalEstimate}
-                balanceDue={balanceDue}
-              />
-            )}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
+            {/* Step Content */}
+            <div>
+              {step === 1 && <StepGuestDetails form={form} onChange={handleChange} />}
+              {step === 2 && (
+                <StepRoomDates
+                  form={form}
+                  roomTypes={roomTypes}
+                  agencies={agencies}
+                  onChange={handleChange}
+                />
+              )}
+              {step === 3 && (
+                <StepPricingFacilities
+                  form={form}
+                  amenities={amenities}
+                  selectedRoom={selectedRoom}
+                  onChange={handleChange}
+                  toggleFacility={toggleFacility}
+                />
+              )}
+              {step === 4 && (
+                <StepReviewConfirm
+                  form={form}
+                  selectedRoom={selectedRoom}
+                  baseAmount={baseAmount}
+                  facilityTotal={facilityTotal}
+                  advancePaid={advancePaid}
+                  totalEstimate={totalEstimate}
+                  balanceDue={balanceDue}
+                  onEditStep={setStep}
+                />
+              )}
+            </div>
 
+            {/* ═══ Navigation Buttons ═══ */}
             <div className="flex items-center justify-between pt-5 border-t border-slate-100">
               {step > 1 ? (
                 <button
                   type="button"
                   onClick={() => setStep(step - 1)}
-                  className="px-5 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors cursor-pointer btn-press inline-flex items-center gap-1.5"
                 >
+                  <ChevronLeft className="w-4 h-4" />
                   {t('back')}
                 </button>
               ) : <div />}
@@ -214,16 +251,17 @@ export default function NewBookingPage() {
                   type="button"
                   onClick={() => setStep(step + 1)}
                   disabled={!canProceed(step)}
-                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 active:scale-95 text-white text-xs font-black transition-all duration-200 shadow-md shadow-emerald-700/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="px-5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer btn-press inline-flex items-center gap-1.5 shadow-xs"
                 >
                   {t('next')}
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handleSubmit}
                   disabled={createMutation.isPending}
-                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 active:scale-95 text-white text-xs font-black transition-all duration-200 shadow-md shadow-emerald-700/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer btn-press shadow-xs"
                 >
                   {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                   <span>{createMutation.isPending ? t('creating') : t('confirmBooking')}</span>

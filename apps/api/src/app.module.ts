@@ -9,6 +9,7 @@ import { PropertiesModule } from './modules/properties/properties.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
+import { HousekeepingModule } from './modules/housekeeping/housekeeping.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -32,6 +33,7 @@ import { AppService } from './app.service';
     AnalyticsModule,
     StaffModule,
     BookingsModule,
+    HousekeepingModule,
   ],
   controllers: [AppController],
   providers: [

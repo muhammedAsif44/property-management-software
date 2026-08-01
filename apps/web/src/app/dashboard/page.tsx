@@ -55,7 +55,15 @@ export default function DashboardPage() {
   const isManager = userRole === 'MANAGER';
   const isReception = userRole === 'RECEPTION_STAFF';
   const isViewer = userRole === 'VIEWER';
+  const isHousekeeper = userRole === 'HOUSEKEEPING';
   const isManagerOrOwner = isOwner || isManager;
+
+  // Auto-redirect housekeepers to dedicated housekeeping portal
+  useEffect(() => {
+    if (userRole === 'HOUSEKEEPING') {
+      router.replace('/housekeeping');
+    }
+  }, [userRole, router]);
 
   // TanStack Query live analytics refetch
   const {

@@ -48,6 +48,8 @@ export class StaffInvitationService {
         ? UserRole.MANAGER
         : dto.role === StaffRole.RECEPTION_STAFF
         ? UserRole.RECEPTION_STAFF
+        : dto.role === StaffRole.HOUSEKEEPING
+        ? UserRole.HOUSEKEEPING
         : UserRole.VIEWER;
 
     const targetUser = await this.prisma.user.findUnique({

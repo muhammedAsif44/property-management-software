@@ -26,19 +26,19 @@ export class PropertiesController {
   ) {}
 
   @Get()
-  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.VIEWER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.VIEWER, UserRole.SUPER_ADMIN)
   async getMyProperties(@Req() req: any) {
     return this.propertiesService.getMyProperties(req.user.id);
   }
 
   @Get('active')
-  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.VIEWER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.VIEWER, UserRole.SUPER_ADMIN)
   async getActiveProperty(@Req() req: any) {
     return this.propertiesService.getActiveProperty(req.user.id);
   }
 
   @Get(':id/onboarding')
-  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.SUPER_ADMIN)
   async getOnboardingData(@Req() req: any, @Param('id') id: string) {
     return this.onboardingService.getOnboardingData(req.user.id, id);
   }

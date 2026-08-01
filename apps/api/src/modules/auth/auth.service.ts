@@ -192,6 +192,12 @@ export class AuthService {
             data: { approvalStatus: ApprovalStatus.APPROVED },
           });
           user.approvalStatus = ApprovalStatus.APPROVED;
+
+          // Activate pending staff memberships on login
+          await this.prisma.staffMember.updateMany({
+            where: { userId: user.id, status: StaffStatus.INVITED },
+            data: { status: StaffStatus.ACTIVE, joinedAt: new Date() },
+          });
         } else {
           throw new UnauthorizedException(
             'Your account is pending admin approval. Please wait for a Super Admin to review your registration.',

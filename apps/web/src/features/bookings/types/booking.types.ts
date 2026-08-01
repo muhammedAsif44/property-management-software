@@ -117,6 +117,7 @@ export interface CreateBookingPayload {
   facilityIds?: string[];
   notes?: string;
   propertyId?: string;
+  roomUnitId?: string;
 }
 
 export interface CancelBookingPayload {

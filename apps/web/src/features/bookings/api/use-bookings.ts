@@ -11,6 +11,13 @@ export const bookingKeys = {
   occupancy: (propertyId: string, from: string, to: string) => ['bookings', 'occupancy', propertyId, from, to] as const,
 };
 
+function invalidateBookingRelatedQueries(queryClient: any) {
+  queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+  queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  queryClient.invalidateQueries({ queryKey: ['guests'] });
+  queryClient.invalidateQueries({ queryKey: ['analytics'] });
+}
+
 export function useBookingsQuery(filters: BookingFilters) {
   return useQuery({
     queryKey: bookingKeys.list(filters),
@@ -39,7 +46,7 @@ export function useCreateBookingMutation() {
     },
     onSuccess: () => {
       toast.success('Booking created successfully', 'Booking Created');
-      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+      invalidateBookingRelatedQueries(queryClient);
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to create booking', 'Booking Error');
@@ -56,7 +63,7 @@ export function useUpdateBookingMutation(bookingId: string) {
       bookingService.updateBooking(bookingId, payload),
     onSuccess: () => {
       toast.success('Booking updated successfully', 'Booking Updated');
-      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+      invalidateBookingRelatedQueries(queryClient);
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to update booking', 'Update Error');
@@ -73,7 +80,7 @@ export function useCancelBookingMutation() {
       bookingService.cancelBooking(id, payload),
     onSuccess: () => {
       toast.success('Booking cancelled', 'Cancelled');
-      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+      invalidateBookingRelatedQueries(queryClient);
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to cancel booking', 'Cancel Error');
@@ -89,7 +96,7 @@ export function useCheckInMutation() {
     mutationFn: (id: string) => bookingService.checkIn(id),
     onSuccess: () => {
       toast.success('Guest checked in', 'Check-In');
-      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+      invalidateBookingRelatedQueries(queryClient);
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Check-in failed', 'Error');
@@ -105,7 +112,7 @@ export function useCheckOutMutation() {
     mutationFn: (id: string) => bookingService.checkOut(id),
     onSuccess: () => {
       toast.success('Guest checked out', 'Check-Out');
-      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+      invalidateBookingRelatedQueries(queryClient);
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Check-out failed', 'Error');
@@ -122,7 +129,7 @@ export function useRevertStatusMutation() {
       bookingService.updateStatus(id, status),
     onSuccess: (_, variables) => {
       toast.success(`Booking status reverted to ${variables.status.replace('_', ' ')}`, 'Status Reverted');
-      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+      invalidateBookingRelatedQueries(queryClient);
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to revert status', 'Error');
@@ -138,7 +145,7 @@ export function useDeleteBookingMutation() {
     mutationFn: (id: string) => bookingService.softDeleteBooking(id),
     onSuccess: () => {
       toast.success('Booking deleted', 'Deleted');
-      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+      invalidateBookingRelatedQueries(queryClient);
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to delete', 'Error');
@@ -155,7 +162,7 @@ export function useRequestDeletionMutation() {
       bookingService.requestDeletion(id, reason),
     onSuccess: () => {
       toast.success('Deletion request submitted', 'Request Sent');
-      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+      invalidateBookingRelatedQueries(queryClient);
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to request deletion', 'Error');
@@ -179,7 +186,7 @@ export function useApproveDeletionMutation() {
     mutationFn: (requestId: string) => bookingService.approveDeletion(requestId),
     onSuccess: () => {
       toast.success('Deletion approved', 'Approved');
-      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+      invalidateBookingRelatedQueries(queryClient);
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to approve', 'Error');
@@ -195,7 +202,7 @@ export function useRejectDeletionMutation() {
     mutationFn: (requestId: string) => bookingService.rejectDeletion(requestId),
     onSuccess: () => {
       toast.success('Deletion rejected', 'Rejected');
-      queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+      invalidateBookingRelatedQueries(queryClient);
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to reject', 'Error');

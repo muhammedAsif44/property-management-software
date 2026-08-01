@@ -82,6 +82,7 @@ model User {
   auditLogs         AuditLog[]
   deletionRequestsCreated  BookingDeletionRequest[] @relation("DeletionRequestedBy")
   deletionRequestsDecided  BookingDeletionRequest[] @relation("DeletionDecidedBy")
+  housekeepingTasksAssigned HousekeepingTask[]       @relation("HousekeepingTaskAssignedTo")
 
   @@map("users")
 }
@@ -91,6 +92,7 @@ enum UserRole {
   OWNER
   MANAGER
   RECEPTION_STAFF
+  HOUSEKEEPING
   VIEWER
 }
 
@@ -156,6 +158,8 @@ model Property {
   guests           Guest[]
   bookings         Booking[]
   agencies         Agency[]
+  roomUnits        RoomUnit[]
+  housekeepingTasks HousekeepingTask[]
   notifications    Notification[]    @relation("NotificationTargetProperty")
   backupLogs       BackupLog[]
   featureFlags     FeatureFlag[]
@@ -201,6 +205,7 @@ model StaffMember {
 enum StaffRole {
   MANAGER
   RECEPTION_STAFF
+  HOUSEKEEPING
   VIEWER
 }
 
@@ -249,8 +254,9 @@ model RoomType {
   sortOrder    Int      @default(0) @map("sort_order")
 
   // Relations
-  property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  bookings Booking[]
+  property  Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bookings  Booking[]
+  roomUnits RoomUnit[]
 
   @@index([propertyId, isActive])
   @@map("room_types")
@@ -331,6 +337,7 @@ model Booking {
   refundAmount       Decimal?          @map("refund_amount") @db.Decimal(10, 2)
   idempotencyKey     String?           @unique @map("idempotency_key")
   createdByUserId    String            @map("created_by_user_id")
+  roomUnitId         String?           @map("room_unit_id")
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
   deletedAt          DateTime?         @map("deleted_at")
@@ -339,6 +346,7 @@ model Booking {
   property           Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   guest              Guest             @relation(fields: [guestId], references: [id])
   roomType           RoomType          @relation(fields: [roomTypeId], references: [id])
+  roomUnit           RoomUnit?         @relation(fields: [roomUnitId], references: [id], onDelete: SetNull)
   agency             Agency?           @relation(fields: [agencyId], references: [id], onDelete: SetNull)
   createdByUser      User              @relation("BookingCreatedBy", fields: [createdByUserId], references: [id])
   bookingFacilities  BookingFacility[]
@@ -845,3 +853,62 @@ enum DeletionRequestStatus {
   APPROVED
   REJECTED
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 27. Room Units & Housekeeping Operations
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model RoomUnit {
+  id                String            @id @default(uuid())
+  propertyId        String            @map("property_id")
+  roomTypeId        String            @map("room_type_id")
+  unitNumber        String            @map("unit_number")
+  floor             String?
+  cleanlinessStatus CleanlinessStatus @default(CLEAN) @map("cleanliness_status")
+  notes             String?           @db.Text
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  property          Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  roomType          RoomType          @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  bookings          Booking[]
+  tasks             HousekeepingTask[]
+
+  @@unique([propertyId, unitNumber])
+  @@index([propertyId, cleanlinessStatus])
+  @@map("room_units")
+}
+
+enum CleanlinessStatus {
+  CLEAN
+  DIRTY
+  INSPECTED
+  OUT_OF_ORDER
+}
+
+model HousekeepingTask {
+  id               String            @id @default(uuid())
+  propertyId       String            @map("property_id")
+  roomUnitId       String            @map("room_unit_id")
+  assignedToUserId String?           @map("assigned_to_user_id")
+  status           TaskStatus        @default(PENDING)
+  reportedIssue    String?           @map("reported_issue") @db.Text
+  createdAt        DateTime          @default(now()) @map("created_at")
+  completedAt      DateTime?         @map("completed_at")
+
+  // Relations
+  property         Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  roomUnit         RoomUnit          @relation(fields: [roomUnitId], references: [id], onDelete: Cascade)
+  assignedToUser   User?             @relation("HousekeepingTaskAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId, status])
+  @@map("housekeeping_tasks")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+

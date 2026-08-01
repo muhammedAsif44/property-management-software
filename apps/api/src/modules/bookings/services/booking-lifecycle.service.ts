@@ -5,16 +5,20 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
+import { BookingHelperService } from './booking-helper.service';
 import { UpdateBookingDto } from '../dto/update-booking.dto';
 import { CancelBookingDto, RefundType } from '../dto/cancel-booking.dto';
-import { BookingStatus, TacStatus, Prisma } from '@prisma/client';
+import { BookingStatus, TacStatus, CleanlinessStatus, TaskStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class BookingLifecycleService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly helper: BookingHelperService,
+  ) {}
 
   /**
-   * Update Booking
+   * Update Booking (SERIALIZABLE transaction for race condition prevention)
    */
   async updateBooking(userId: string, bookingId: string, dto: UpdateBookingDto) {
     const booking = await this.prisma.booking.findFirst({
@@ -29,119 +33,124 @@ export class BookingLifecycleService {
       throw new BadRequestException('Cannot edit a checked-out booking');
     }
 
-    const updateData: any = {};
+    // Verify property ownership/membership
+    await this.helper.resolvePropertyId(userId, booking.propertyId);
 
-    // If guest info changed, update guest record
-    if (dto.guestName || dto.guestPhone || dto.guestEmail || dto.guestNationality) {
-      await this.prisma.guest.update({
-        where: { id: booking.guestId },
-        data: {
-          ...(dto.guestName && { fullName: dto.guestName }),
-          ...(dto.guestPhone && { phone: dto.guestPhone }),
-          ...(dto.guestEmail && { email: dto.guestEmail }),
-          ...(dto.guestNationality && { nationality: dto.guestNationality }),
-        },
-      });
-    }
+    return this.prisma.$transaction(async (tx) => {
+      const updateData: any = {};
 
-    // If dates or room type changed, re-run conflict check
-    const newCheckIn = dto.checkInDate ? new Date(dto.checkInDate) : booking.checkInDate;
-    const newCheckOut = dto.checkOutDate ? new Date(dto.checkOutDate) : booking.checkOutDate;
-    const newRoomTypeId = dto.roomTypeId || booking.roomTypeId;
-
-    if (dto.checkInDate || dto.checkOutDate || dto.roomTypeId) {
-      if (newCheckOut <= newCheckIn) {
-        throw new BadRequestException('Check-out date must be after check-in date');
-      }
-
-      const roomType = await this.prisma.roomType.findFirst({
-        where: { id: newRoomTypeId, propertyId: booking.propertyId, isActive: true },
-      });
-      if (!roomType) throw new NotFoundException('Room type not found');
-
-      const overlapping = await this.prisma.booking.count({
-        where: {
-          propertyId: booking.propertyId,
-          roomTypeId: newRoomTypeId,
-          id: { not: bookingId },
-          status: { in: [BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN] },
-          deletedAt: null,
-          checkInDate: { lt: newCheckOut },
-          checkOutDate: { gt: newCheckIn },
-        },
-      });
-
-      if (overlapping >= roomType.totalUnits) {
-        throw new ConflictException('No available units for the updated dates');
-      }
-
-      updateData.checkInDate = newCheckIn;
-      updateData.checkOutDate = newCheckOut;
-      updateData.roomTypeId = newRoomTypeId;
-    }
-
-    if (dto.adults !== undefined) updateData.adults = dto.adults;
-    if (dto.children !== undefined) updateData.children = dto.children;
-    if (dto.mealPlan !== undefined) updateData.mealPlan = dto.mealPlan;
-    if (dto.channel !== undefined) updateData.channel = dto.channel;
-
-    // Recalculate amounts if baseAmount changed
-    if (dto.baseAmount !== undefined) {
-      const settings = await this.prisma.propertySettings.findUnique({
-        where: { propertyId: booking.propertyId },
-      });
-
-      const baseAmount = new Prisma.Decimal(dto.baseAmount);
-      let gstAmount = new Prisma.Decimal(0);
-      if (settings?.gstEnabled && settings.gstRate) {
-        gstAmount = baseAmount.mul(settings.gstRate).div(100);
-      }
-
-      const advancePaid = dto.advancePaid !== undefined
-        ? new Prisma.Decimal(dto.advancePaid)
-        : booking.advancePaid;
-
-      updateData.baseAmount = baseAmount;
-      updateData.gstAmount = gstAmount;
-      updateData.totalAmount = baseAmount.add(gstAmount);
-      updateData.advancePaid = advancePaid;
-      updateData.balanceDue = baseAmount.add(gstAmount).sub(advancePaid);
-    } else if (dto.advancePaid !== undefined) {
-      const advancePaid = new Prisma.Decimal(dto.advancePaid);
-      updateData.advancePaid = advancePaid;
-      updateData.balanceDue = booking.totalAmount.sub(advancePaid);
-    }
-
-    // Update facilities if provided
-    if (dto.facilityIds) {
-      await this.prisma.bookingFacility.deleteMany({ where: { bookingId } });
-
-      if (dto.facilityIds.length > 0) {
-        const amenities = await this.prisma.amenity.findMany({
-          where: { id: { in: dto.facilityIds }, propertyId: booking.propertyId, isActive: true },
-        });
-        await this.prisma.bookingFacility.createMany({
-          data: amenities.map((a) => ({
-            bookingId,
-            amenityId: a.id,
-            quantity: 1,
-            priceAtBooking: a.price,
-          })),
+      // If guest info changed, update guest record
+      if (dto.guestName || dto.guestPhone || dto.guestEmail || dto.guestNationality) {
+        await tx.guest.update({
+          where: { id: booking.guestId },
+          data: {
+            ...(dto.guestName && { fullName: dto.guestName }),
+            ...(dto.guestPhone && { phone: dto.guestPhone }),
+            ...(dto.guestEmail && { email: dto.guestEmail }),
+            ...(dto.guestNationality && { nationality: dto.guestNationality }),
+          },
         });
       }
-    }
 
-    return this.prisma.booking.update({
-      where: { id: bookingId },
-      data: updateData,
-      include: {
-        guest: true,
-        roomType: true,
-        bookingFacilities: { include: { amenity: true } },
-        agency: true,
-        createdByUser: { select: { id: true, email: true, role: true } },
-      },
-    });
+      // If dates or room type changed, re-run conflict check
+      const newCheckIn = dto.checkInDate ? new Date(dto.checkInDate) : booking.checkInDate;
+      const newCheckOut = dto.checkOutDate ? new Date(dto.checkOutDate) : booking.checkOutDate;
+      const newRoomTypeId = dto.roomTypeId || booking.roomTypeId;
+
+      if (dto.checkInDate || dto.checkOutDate || dto.roomTypeId) {
+        if (newCheckOut <= newCheckIn) {
+          throw new BadRequestException('Check-out date must be after check-in date');
+        }
+
+        const roomType = await tx.roomType.findFirst({
+          where: { id: newRoomTypeId, propertyId: booking.propertyId, isActive: true },
+        });
+        if (!roomType) throw new NotFoundException('Room type not found');
+
+        const overlapping = await tx.booking.count({
+          where: {
+            propertyId: booking.propertyId,
+            roomTypeId: newRoomTypeId,
+            id: { not: bookingId },
+            status: { in: [BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN] },
+            deletedAt: null,
+            checkInDate: { lt: newCheckOut },
+            checkOutDate: { gt: newCheckIn },
+          },
+        });
+
+        if (overlapping >= roomType.totalUnits) {
+          throw new ConflictException('No available units for the updated dates');
+        }
+
+        updateData.checkInDate = newCheckIn;
+        updateData.checkOutDate = newCheckOut;
+        updateData.roomTypeId = newRoomTypeId;
+      }
+
+      if (dto.adults !== undefined) updateData.adults = dto.adults;
+      if (dto.children !== undefined) updateData.children = dto.children;
+      if (dto.mealPlan !== undefined) updateData.mealPlan = dto.mealPlan;
+      if (dto.channel !== undefined) updateData.channel = dto.channel;
+
+      // Recalculate amounts if baseAmount changed
+      if (dto.baseAmount !== undefined) {
+        const settings = await tx.propertySettings.findUnique({
+          where: { propertyId: booking.propertyId },
+        });
+
+        const baseAmount = new Prisma.Decimal(dto.baseAmount);
+        let gstAmount = new Prisma.Decimal(0);
+        if (settings?.gstEnabled && settings.gstRate) {
+          gstAmount = baseAmount.mul(settings.gstRate).div(100);
+        }
+
+        const advancePaid = dto.advancePaid !== undefined
+          ? new Prisma.Decimal(dto.advancePaid)
+          : booking.advancePaid;
+
+        updateData.baseAmount = baseAmount;
+        updateData.gstAmount = gstAmount;
+        updateData.totalAmount = baseAmount.add(gstAmount);
+        updateData.advancePaid = advancePaid;
+        updateData.balanceDue = baseAmount.add(gstAmount).sub(advancePaid);
+      } else if (dto.advancePaid !== undefined) {
+        const advancePaid = new Prisma.Decimal(dto.advancePaid);
+        updateData.advancePaid = advancePaid;
+        updateData.balanceDue = booking.totalAmount.sub(advancePaid);
+      }
+
+      // Update facilities if provided
+      if (dto.facilityIds) {
+        await tx.bookingFacility.deleteMany({ where: { bookingId } });
+
+        if (dto.facilityIds.length > 0) {
+          const amenities = await tx.amenity.findMany({
+            where: { id: { in: dto.facilityIds }, propertyId: booking.propertyId, isActive: true },
+          });
+          await tx.bookingFacility.createMany({
+            data: amenities.map((a) => ({
+              bookingId,
+              amenityId: a.id,
+              quantity: 1,
+              priceAtBooking: a.price,
+            })),
+          });
+        }
+      }
+
+      return tx.booking.update({
+        where: { id: bookingId },
+        data: updateData,
+        include: {
+          guest: true,
+          roomType: true,
+          bookingFacilities: { include: { amenity: true } },
+          agency: true,
+          createdByUser: { select: { id: true, email: true, role: true } },
+        },
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   /**
@@ -159,6 +168,9 @@ export class BookingLifecycleService {
     if (booking.status === BookingStatus.CHECKED_OUT) {
       throw new BadRequestException('Cannot cancel a checked-out booking');
     }
+
+    // Verify property ownership/membership
+    await this.helper.resolvePropertyId(userId, booking.propertyId);
 
     const refundAmount = dto.refundType === RefundType.REFUND
       ? booking.advancePaid
@@ -198,16 +210,19 @@ export class BookingLifecycleService {
   }
 
   /**
-   * Update Status (CHECKED_IN / CHECKED_OUT)
+   * Update Status (CHECKED_IN / CHECKED_OUT / REVERT) with accurate stats & TAC accounting
    */
   async updateBookingStatus(userId: string, bookingId: string, newStatus: BookingStatus) {
     const booking = await this.prisma.booking.findFirst({
       where: { id: bookingId, deletedAt: null },
-      include: { guest: true },
+      include: { guest: true, agency: true },
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    // Validate transitions (supports status reversal for accidental status changes)
+    // Verify property ownership/membership
+    await this.helper.resolvePropertyId(userId, booking.propertyId);
+
+    // Validate status transitions
     const validTransitions: Record<string, BookingStatus[]> = {
       [BookingStatus.CONFIRMED]: [BookingStatus.CHECKED_IN, BookingStatus.CANCELLED],
       [BookingStatus.CHECKED_IN]: [BookingStatus.CHECKED_OUT, BookingStatus.CONFIRMED],
@@ -223,28 +238,114 @@ export class BookingLifecycleService {
       );
     }
 
-    const updateData: any = { status: newStatus };
+    return this.prisma.$transaction(async (tx) => {
+      // Check if trying to check in to an OUT_OF_ORDER room
+      if (newStatus === BookingStatus.CHECKED_IN && booking.roomUnitId) {
+        const assignedUnit = await tx.roomUnit.findUnique({
+          where: { id: booking.roomUnitId },
+          select: { unitNumber: true, cleanlinessStatus: true },
+        });
 
-    // On checkout, update guest stats
-    if (newStatus === BookingStatus.CHECKED_OUT) {
-      await this.prisma.guest.update({
-        where: { id: booking.guestId },
+        if (assignedUnit && assignedUnit.cleanlinessStatus === CleanlinessStatus.OUT_OF_ORDER) {
+          throw new BadRequestException(
+            `Cannot check in guest: Room "${assignedUnit.unitNumber}" is currently OUT OF ORDER for maintenance.`,
+          );
+        }
+      }
+      // 1. If transitioning TO CHECKED_OUT (and wasn't already checked out), increment guest total spend
+      if (newStatus === BookingStatus.CHECKED_OUT && booking.status !== BookingStatus.CHECKED_OUT) {
+        await tx.guest.update({
+          where: { id: booking.guestId },
+          data: {
+            lastStayAt: new Date(),
+            totalSpend: { increment: booking.totalAmount },
+          },
+        });
+      }
+
+      // 2. If REVERTING FROM CHECKED_OUT, decrement guest total spend to avoid duplicate inflation
+      if (booking.status === BookingStatus.CHECKED_OUT && newStatus !== BookingStatus.CHECKED_OUT) {
+        await tx.guest.update({
+          where: { id: booking.guestId },
+          data: {
+            totalSpend: { decrement: booking.totalAmount },
+          },
+        });
+      }
+
+      // 3. If REVERTING FROM CANCELLED back to CONFIRMED (restore pending TAC for agency bookings)
+      let restoredTacStatus = booking.tacStatus;
+      if (booking.status === BookingStatus.CANCELLED && newStatus === BookingStatus.CONFIRMED && booking.agencyId) {
+        const agency = await tx.agency.findUnique({ where: { id: booking.agencyId } });
+        if (agency?.defaultTacRate) {
+          const tacAmount = booking.baseAmount.mul(agency.defaultTacRate).div(100);
+          await tx.agency.update({
+            where: { id: booking.agencyId },
+            data: {
+              totalTac: { increment: tacAmount },
+              pendingTac: { increment: tacAmount },
+            },
+          });
+          restoredTacStatus = TacStatus.PENDING;
+        }
+      }
+
+      // 4. If transitioning TO CHECKED_OUT, resolve target roomUnitId, auto-mark room unit as DIRTY & create housekeeping task
+      if (newStatus === BookingStatus.CHECKED_OUT) {
+        let targetUnitId = booking.roomUnitId;
+
+        if (!targetUnitId) {
+          let unit = await tx.roomUnit.findFirst({
+            where: { propertyId: booking.propertyId, roomTypeId: booking.roomTypeId },
+          });
+
+          if (!unit) {
+            unit = await tx.roomUnit.create({
+              data: {
+                propertyId: booking.propertyId,
+                roomTypeId: booking.roomTypeId,
+                unitNumber: `101`,
+                cleanlinessStatus: CleanlinessStatus.DIRTY,
+              },
+            });
+          }
+          targetUnitId = unit.id;
+
+          // Link unit to booking
+          await tx.booking.update({
+            where: { id: bookingId },
+            data: { roomUnitId: targetUnitId },
+          });
+        }
+
+        await tx.roomUnit.update({
+          where: { id: targetUnitId },
+          data: { cleanlinessStatus: CleanlinessStatus.DIRTY },
+        });
+
+        await tx.housekeepingTask.create({
+          data: {
+            propertyId: booking.propertyId,
+            roomUnitId: targetUnitId,
+            status: TaskStatus.PENDING,
+            reportedIssue: `Auto-generated cleaning task on guest check-out (${booking.guest.fullName})`,
+          },
+        });
+      }
+
+      return tx.booking.update({
+        where: { id: bookingId },
         data: {
-          lastStayAt: new Date(),
-          totalSpend: { increment: booking.totalAmount },
+          status: newStatus,
+          tacStatus: restoredTacStatus,
+        },
+        include: {
+          guest: true,
+          roomType: true,
+          agency: true,
+          createdByUser: { select: { id: true, email: true, role: true } },
         },
       });
-    }
-
-    return this.prisma.booking.update({
-      where: { id: bookingId },
-      data: updateData,
-      include: {
-        guest: true,
-        roomType: true,
-        agency: true,
-        createdByUser: { select: { id: true, email: true, role: true } },
-      },
     });
   }
 }

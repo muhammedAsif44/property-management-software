@@ -53,7 +53,7 @@ export const translations = {
     // Dashboard Cards & Summaries
     todayRevenue: "Today's Revenue",
     monthlyRevenue: 'Monthly Revenue',
-    occupancyRate: 'Occupancy Rate',
+    occupancyRate: 'Booked Rate',
     todayCheckIns: "Today's Check-Ins",
     todayCheckOuts: "Today's Check-Outs",
 
@@ -180,11 +180,34 @@ export const translations = {
     switchActiveWorkspace: 'Set Active Workspace',
     currentWorkspace: 'Current Workspace',
 
+    // View Mode & Data Table Headers
+    tableView: 'Table View',
+    gridView: 'Grid Cards',
+    propertyNameHeader: 'Property & Location',
+    onboardingStatusHeader: 'Progress & Status',
+    policyHeader: 'Policy Times',
+    specsHeader: 'Rooms & Setup',
+    paymentsHeader: 'Banking & Payments',
+    actionsHeader: 'Actions',
+
+    // SaaS Bulk Actions & Presets
+    selected: 'Selected',
+    bulkMakeActive: 'Make Active Batch',
+    exportCSV: 'Export CSV',
+    undoAction: 'Undo',
+    actionReverted: 'Action undone successfully!',
+    markSelectedClean: 'Mark Selected Clean',
+    markSelectedDirty: 'Mark Selected Dirty',
+    batchStatusUpdated: 'Batch room statuses updated!',
+    roomDetailDrawerTitle: 'Room Unit Details',
+    floorLabel: 'Floor',
+    cleanlinessStatusLabel: 'Cleanliness Status',
+
     // Booking Management
     bookingManagement: 'Booking Management',
     newBooking: 'New Booking',
     createFirstBooking: 'Create First Booking',
-    occupancyCalendar: 'Occupancy Calendar',
+    occupancyCalendar: 'Room Calendar',
     approvalQueue: 'Approval Queue',
     searchGuestPlaceholder: 'Search by guest name, phone, or email...',
     allStatuses: 'All Statuses',
@@ -344,6 +367,35 @@ export const translations = {
     markDirty: 'Mark Dirty',
     reportIssue: 'Report Issue',
     reportOutOfOrder: 'Report Out of Order',
+
+    // Calendar & Occupancy View
+    tapChart: 'Tape Chart',
+    bookingPreview: 'Booking Preview',
+    guestNameLabel: 'Guest',
+    stayDates: 'Stay Dates',
+    conflictDetected: 'Conflict Detected',
+    overbooked: 'Overbooked',
+    todayLabel: 'Today',
+    shiftWeekBack: 'Previous Week',
+    shiftWeekForward: 'Next Week',
+    closePreview: 'Close Preview',
+    outOfOrderUnits: 'Out of Order',
+    viewFullBooking: 'View Booking',
+    noBookingsThisDay: 'No bookings this day',
+    occupancyOverview: 'Real-time room availability & booking density',
+    conflictWarning: 'Booking exceeds room capacity!',
+    units: 'unit(s)',
+
+    // Quick Help Drawer
+    quickHelpTitle: 'Quick Workflow Guide',
+    quickHelpSubtitle: 'Simple steps to manage room occupancy & bookings',
+    helpGuideStep1Title: 'Create New Booking',
+    helpGuideStep1Desc: 'Click "+ New Booking" to allocate guest stays.',
+    helpGuideStep2Title: 'Check Occupancy Details',
+    helpGuideStep2Desc: 'Click any colored cell on the grid to view guest details.',
+    helpGuideStep3Title: 'Switch Date Views',
+    helpGuideStep3Desc: 'Toggle between 14 Days and 30 Days (Month) views.',
+    quickHelpDrawerTooltip: 'Help & Workflow Guide',
   },
   ml: {
     // Top Bar & App Header
@@ -397,7 +449,7 @@ export const translations = {
     // Dashboard Cards & Summaries
     todayRevenue: 'ഇന്നത്തെ വരുമാനം',
     monthlyRevenue: 'പ്രതിമാസ വരുമാനം',
-    occupancyRate: 'ഓക്യുപെൻസി നിരക്ക്',
+    occupancyRate: 'ബുക്ക് ചെയ്ത നിരക്ക്',
     todayCheckIns: 'ഇന്നത്തെ ചെക്ക്-ഇന്നുകൾ',
     todayCheckOuts: 'ഇന്നത്തെ ചെക്ക്-ഔട്ടുകൾ',
 
@@ -528,7 +580,7 @@ export const translations = {
     bookingManagement: 'ബുക്കിംഗ് മാനേജ്മെന്റ്',
     newBooking: 'പുതിയ ബുക്കിംഗ്',
     createFirstBooking: 'ആദ്യ ബുക്കിംഗ് സൃഷ്ടിക്കുക',
-    occupancyCalendar: 'ഒക്യുപൻസി കലണ്ടർ',
+    occupancyCalendar: 'റൂം കലണ്ടർ',
     approvalQueue: 'അനുമതി ക്യൂ',
     searchGuestPlaceholder: 'അതിഥി പേര്, ഫോൺ, അല്ലെങ്കിൽ ഇമെയിൽ തിരയുക...',
     allStatuses: 'എല്ലാ സ്റ്റാറ്റസുകളും',
@@ -684,6 +736,58 @@ export const translations = {
     markDirty: 'ഡർട്ടി ആക്കുക',
     reportIssue: 'പരാതി നൽകുക',
     reportOutOfOrder: 'പ്രവർത്തനരഹിതമാക്കുക',
+
+    // View Mode & Data Table Headers
+    tableView: 'പട്ടിക രൂപം',
+    gridView: 'ഗ്രിഡ് കാർഡുകൾ',
+    propertyNameHeader: 'പ്രോപ്പർട്ടിയും സ്ഥലവും',
+    onboardingStatusHeader: 'പുരോഗതിയും സ്ഥിതിയും',
+    policyHeader: 'സമയ ക്രമീകരണം',
+    specsHeader: 'മുറികളും ക്രമീകരണവും',
+    paymentsHeader: 'ബാങ്കിംഗും പേയ്‌മെന്റും',
+    actionsHeader: 'നടപടികൾ',
+
+    // SaaS Bulk Actions & Presets
+    selected: 'തിരഞ്ഞെടുത്തു',
+    bulkMakeActive: 'ബാച്ച് ആക്ടീവ് ആക്കുക',
+    exportCSV: 'CSV എക്സ്പോർട്ട്',
+    undoAction: 'പഴയപടിയാക്കുക',
+    actionReverted: 'പ്രവർത്തനം വിജയകരമായി പഴയപടിയാക്കി!',
+    markSelectedClean: 'തിരഞ്ഞെടുത്തവ ശുദ്ധമാക്കുക',
+    markSelectedDirty: 'തിരഞ്ഞെടുത്തവ ഡർട്ടി ആക്കുക',
+    batchStatusUpdated: 'ബാച്ച് മുറി അവസ്ഥകൾ അപ്ഡേറ്റ് ചെയ്തു!',
+    roomDetailDrawerTitle: 'മുറി വിശദാശംങ്ങൾ',
+    floorLabel: 'നില',
+    cleanlinessStatusLabel: 'ശുചിത്വ അവസ്ഥ',
+
+    // Calendar & Occupancy View
+    tapChart: 'ടേപ്പ് ചാർട്ട്',
+    bookingPreview: 'ബുക്കിംഗ് പ്രിവ്യൂ',
+    guestNameLabel: 'അതിഥി',
+    stayDates: 'താമസ തീയതികൾ',
+    conflictDetected: 'വൈരുദ്ധ്യം കണ്ടെത്തി',
+    overbooked: 'ഓവർബുക്ക്',
+    todayLabel: 'ഇന്ന്',
+    shiftWeekBack: 'കഴിഞ്ഞ ആഴ്ച',
+    shiftWeekForward: 'അടുത്ത ആഴ്ച',
+    closePreview: 'പ്രിവ്യൂ അടയ്ക്കുക',
+    outOfOrderUnits: 'പ്രവർത്തനരഹിതം',
+    viewFullBooking: 'ബുക്കിംഗ് കാണുക',
+    noBookingsThisDay: 'ഈ ദിവസം ബുക്കിംഗുകൾ ഇല്ല',
+    occupancyOverview: 'തത്സമയ മുറി ലഭ്യതയും ബുക്കിംഗ് സാന്ദ്രതയും',
+    conflictWarning: 'ബുക്കിംഗ് മുറി ശേഷിയേക്കാൾ കൂടുതൽ!',
+    units: 'യൂണിറ്റ്(കൾ)',
+
+    // Quick Help Drawer
+    quickHelpTitle: 'ദ്രുത സഹായ വഴികാട്ടി',
+    quickHelpSubtitle: 'മുറികളുടെ ലഭ്യതയും ബുക്കിംഗുകളും എളുപ്പത്തിൽ കൈകാര്യം ചെയ്യാനുള്ള വഴികൾ',
+    helpGuideStep1Title: 'പുതിയ ബുക്കിംഗ് ഉണ്ടാക്കുക',
+    helpGuideStep1Desc: 'അതിഥികളുടെ താമസം ചേർക്കാൻ "+ പുതിയ ബുക്കിംഗ്" ക്ലിക്ക് ചെയ്യുക.',
+    helpGuideStep2Title: 'ബുക്കിംഗ് വിവരങ്ങൾ പരിശോധിക്കുക',
+    helpGuideStep2Desc: 'അതിഥിയുടെ വിവരങ്ങൾ കാണാൻ ഗ്രിഡിലെ ഏത് കളർ സെല്ലിലും ക്ലിക്ക് ചെയ്യുക.',
+    helpGuideStep3Title: 'തീയതി കാഴ്ചകൾ മാറ്റുക',
+    helpGuideStep3Desc: '14 ദിവസത്തെയും 30 ദിവസത്തെയും (മാസം) കാഴ്ചകൾ തമ്മിൽ എളുപ്പത്തിൽ മാറ്റുക.',
+    quickHelpDrawerTooltip: 'സഹായവും വഴികാട്ടിയും',
   },
 };
 

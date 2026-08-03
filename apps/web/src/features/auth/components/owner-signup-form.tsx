@@ -9,7 +9,7 @@ import { Alert } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '../hooks/use-auth';
 import { PendingApprovalCard } from './pending-approval-card';
-import { Building, User, Mail, Phone, Lock, ArrowRight, ShieldCheck, Users, Sparkles } from 'lucide-react';
+import { Building, User, Mail, Phone, Lock, ArrowRight, ShieldCheck, Users, Star } from 'lucide-react';
 
 import { LanguageSwitcher } from '@/lib/i18n';
 

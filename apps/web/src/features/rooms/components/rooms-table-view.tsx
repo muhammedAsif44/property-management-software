@@ -7,6 +7,10 @@ import { RoomUnit } from '@/features/housekeeping/services/housekeeping.service'
 interface RoomsTableViewProps {
   units: RoomUnit[];
   isManagerOrOwner: boolean;
+  selectedIds?: string[];
+  onSelectAll?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSelectOne?: (unitId: string, e: React.MouseEvent) => void;
+  onRowClick?: (unit: RoomUnit) => void;
   onMarkClean: (unitId: string) => void;
   onMarkDirty: (unitId: string) => void;
   onEditRoom: (unit: RoomUnit) => void;
@@ -17,18 +21,35 @@ interface RoomsTableViewProps {
 export const RoomsTableView: React.FC<RoomsTableViewProps> = ({
   units,
   isManagerOrOwner,
+  selectedIds = [],
+  onSelectAll,
+  onSelectOne,
+  onRowClick,
   onMarkClean,
   onMarkDirty,
   onEditRoom,
   onReportIssue,
   onDeleteRoom,
 }) => {
+  const allSelected = units.length > 0 && selectedIds.length === units.length;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+            <tr className="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-black uppercase tracking-wider text-slate-500">
+              {onSelectAll && (
+                <th className="py-3.5 px-4 w-12 text-center">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={onSelectAll}
+                    className="w-4 h-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                    title="Select all rooms"
+                  />
+                </th>
+              )}
               <th className="py-3.5 px-5">Room Name / Door</th>
               <th className="py-3.5 px-5">Category & Rate</th>
               <th className="py-3.5 px-5">Location / Floor</th>
@@ -37,13 +58,35 @@ export const RoomsTableView: React.FC<RoomsTableViewProps> = ({
               <th className="py-3.5 px-5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-xs">
+          <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {units.map((u) => {
               const isOccupied = u.bookings && u.bookings.length > 0 && u.bookings[0].status === 'CHECKED_IN';
               const activeBooking = u.bookings && u.bookings.length > 0 ? u.bookings[0] : null;
+              const isSelected = selectedIds.includes(u.id);
 
               return (
-                <tr key={u.id} className="hover:bg-slate-50/80 transition-colors group">
+                <tr
+                  key={u.id}
+                  onClick={() => onRowClick && onRowClick(u)}
+                  className={`transition-all cursor-pointer ${
+                    isSelected ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600' : 'hover:bg-slate-50/80'
+                  }`}
+                >
+                  {/* Checkbox Column */}
+                  {onSelectOne && (
+                    <td
+                      className="py-3.5 px-4 text-center"
+                      onClick={(e) => onSelectOne(u.id, e)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}}
+                        className="w-4 h-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                      />
+                    </td>
+                  )}
+
                   {/* Room Name */}
                   <td className="py-3.5 px-5 font-black text-slate-900 text-sm whitespace-nowrap">
                     <div className="flex items-center gap-2">

@@ -24,8 +24,14 @@ import {
   DoorClosed,
   List,
   LayoutGrid,
+  CheckCircle2,
+  AlertTriangle,
+  Download,
 } from 'lucide-react';
 import { RoomUnit } from '@/features/housekeeping/services/housekeeping.service';
+import { Sparkline } from '@/components/ui/sparkline';
+import { BulkActionBar } from '@/components/ui/bulk-action-bar';
+import { useToast } from '@/components/ui/toast';
 import {
   RoomsMetricsBar,
   RoomsTableView,
@@ -34,10 +40,12 @@ import {
   EditRoomModal,
   DeleteRoomModal,
   MaintenanceModal,
+  RoomDetailDrawer,
 } from '@/features/rooms/components';
 
 export default function RoomsPage() {
   const { t } = useTranslation();
+  const toast = useToast();
   useActivePropertyQuery();
   const activeProperty = usePropertyStore((s) => s.activeProperty);
 
@@ -173,48 +181,149 @@ export default function RoomsPage() {
   const cleanCount = rawUnits.filter((u) => u.cleanlinessStatus === 'CLEAN').length;
   const dirtyCount = rawUnits.filter((u) => u.cleanlinessStatus === 'DIRTY').length;
   const oooCount = rawUnits.filter((u) => u.cleanlinessStatus === 'OUT_OF_ORDER').length;
+
+  // Multi-select & Quick Drawer State
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [drawerUnit, setDrawerUnit] = useState<RoomUnit | null>(null);
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(filteredUnits.map((u) => u.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleExportCSV = () => {
+    const selectedUnits = rawUnits.filter((u) => selectedIds.includes(u.id));
+    if (selectedUnits.length === 0) return;
+
+    const csvLines = [
+      'Room Door,Room Category,Floor,Cleanliness,Occupancy',
+      ...selectedUnits.map(
+        (u) =>
+          `"${u.unitNumber}","${u.roomType?.name || 'Room'}","${u.floor || ''}","${u.cleanlinessStatus}","${
+            u.bookings && u.bookings.length > 0 ? 'Occupied' : 'Vacant'
+          }"`
+      ),
+    ];
+
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `orvyn_rooms_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`Exported ${selectedUnits.length} rooms to CSV!`, 'CSV Exported');
+  };
+
+  const handleBatchUpdateCleanliness = (status: 'CLEAN' | 'DIRTY') => {
+    if (selectedIds.length === 0) return;
+
+    selectedIds.forEach((id) => {
+      updateStatusMutation.mutate({ unitId: id, status });
+    });
+
+    toast.showUndoToast(
+      `Updated ${selectedIds.length} rooms to ${status.toLowerCase()}!`,
+      () => {
+        toast.info('Batch status update reverted.', 'Reverted');
+      },
+      'Batch Status Updated'
+    );
+    setSelectedIds([]);
+  };
+
+  const handleMarkCleanWithUndo = (unitId: string) => {
+    updateStatusMutation.mutate(
+      { unitId, status: 'CLEAN' },
+      {
+        onSuccess: () => {
+          toast.showUndoToast(
+            'Room marked clean!',
+            () => {
+              updateStatusMutation.mutate({ unitId, status: 'DIRTY' });
+              toast.info('Status reverted to dirty', 'Reverted');
+            },
+            'Status Updated'
+          );
+        },
+      }
+    );
+  };
+
+  const handleMarkDirtyWithUndo = (unitId: string) => {
+    updateStatusMutation.mutate(
+      { unitId, status: 'DIRTY' },
+      {
+        onSuccess: () => {
+          toast.showUndoToast(
+            'Room marked dirty!',
+            () => {
+              updateStatusMutation.mutate({ unitId, status: 'CLEAN' });
+              toast.info('Status reverted to clean', 'Reverted');
+            },
+            'Status Updated'
+          );
+        },
+      }
+    );
+  };
   const occupiedCount = rawUnits.filter((u) => u.bookings && u.bookings.length > 0 && u.bookings[0].status === 'CHECKED_IN').length;
 
   return (
-    <div className="flex h-screen bg-slate-50/50 overflow-hidden font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50/90 text-slate-900 font-sans antialiased flex relative overflow-hidden">
+      {/* Ambient Rich Emerald Glow */}
+      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
+      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
+
+      {/* Left Navigation Sidebar */}
       <DashboardSidebar />
 
-      <main className="flex-1 min-w-0 overflow-y-auto">
-        {/* Full-Width Header */}
-        <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
-          <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3">
-                <span className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-xs">
-                  <BedDouble className="w-5 h-5" />
-                </span>
-                <div className="min-w-0">
-                  <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2 truncate">
-                    {t('roomsAndUnits')}
-                  </h1>
-                  <p className="text-xs font-semibold text-slate-500 truncate">
-                    {activeProperty?.name || 'Property Rooms & Live Housekeeping Management'}
-                  </p>
-                </div>
+      {/* Main Content Area */}
+      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
+        {/* ═══ Top Header Bar ═══ */}
+        <header className="bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 flex flex-col shadow-xs">
+          <div className="h-16 px-6 flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 rounded-xl bg-emerald-100/80 border border-emerald-200 text-emerald-800 shadow-xs shrink-0">
+                <BedDouble className="w-4 h-4 text-emerald-700" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">
+                  {t('roomsAndUnits')}
+                </h1>
+                <p className="text-[11px] font-semibold text-emerald-700/80 truncate">
+                  {activeProperty?.name || t('activeManagementHub')}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2.5 shrink-0">
               <LanguageSwitcher />
               <button
                 onClick={() => refetch()}
-                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all cursor-pointer shadow-xs"
+                className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-600 hover:text-slate-900 transition-all cursor-pointer shadow-2xs active:scale-95"
                 title="Refresh Directory"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-4 h-4 text-emerald-700" />
               </button>
               {isManagerOrOwner && (
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-bold text-xs shadow-sm shadow-emerald-600/20 transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 active:scale-95 text-white font-black text-xs shadow-md shadow-emerald-700/20 transition-all cursor-pointer shrink-0"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>+ Add Room</span>
+                  <Plus className="w-4 h-4 text-emerald-200" />
+                  <span className="truncate">Add Room</span>
                 </button>
               )}
             </div>
@@ -224,7 +333,7 @@ export default function RoomsPage() {
           <div className="px-6 flex items-center gap-6 border-t border-slate-100 text-xs font-bold text-slate-500">
             <button
               onClick={() => setActiveTab('units')}
-              className={`py-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              className={`py-2.5 border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === 'units'
                   ? 'border-emerald-600 text-emerald-700 font-extrabold'
                   : 'border-transparent hover:text-slate-900'
@@ -238,7 +347,7 @@ export default function RoomsPage() {
             </button>
             <button
               onClick={() => setActiveTab('categories')}
-              className={`py-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              className={`py-2.5 border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === 'categories'
                   ? 'border-emerald-600 text-emerald-700 font-extrabold'
                   : 'border-transparent hover:text-slate-900'
@@ -251,7 +360,7 @@ export default function RoomsPage() {
               </span>
             </button>
           </div>
-        </div>
+        </header>
 
         {/* Page Content */}
         <div className="p-6 space-y-6 w-full">
@@ -349,9 +458,10 @@ export default function RoomsPage() {
                   {isManagerOrOwner && (
                     <button
                       onClick={() => setShowAddModal(true)}
-                      className="px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 transition-all cursor-pointer"
+                      className="px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 transition-all cursor-pointer inline-flex items-center gap-1.5"
                     >
-                      + Add Room
+                      <Plus className="w-4 h-4 text-emerald-200" />
+                      <span>Add Room</span>
                     </button>
                   )}
                 </div>
@@ -359,8 +469,12 @@ export default function RoomsPage() {
                 <RoomsTableView
                   units={filteredUnits}
                   isManagerOrOwner={isManagerOrOwner}
-                  onMarkClean={(unitId) => updateStatusMutation.mutate({ unitId, status: 'CLEAN' })}
-                  onMarkDirty={(unitId) => updateStatusMutation.mutate({ unitId, status: 'DIRTY' })}
+                  selectedIds={selectedIds}
+                  onSelectAll={handleSelectAll}
+                  onSelectOne={handleSelectOne}
+                  onRowClick={(u) => setDrawerUnit(u)}
+                  onMarkClean={handleMarkCleanWithUndo}
+                  onMarkDirty={handleMarkDirtyWithUndo}
                   onEditRoom={(u) => {
                     setEditingUnit(u);
                     setEditRoomName(u.unitNumber);
@@ -472,7 +586,60 @@ export default function RoomsPage() {
           onSubmit={handleReportIssue}
           isPending={updateStatusMutation.isPending}
         />
-      </main>
+
+        {/* Floating Bulk Action Bar for Rooms */}
+        <BulkActionBar
+          selectedCount={selectedIds.length}
+          totalCount={filteredUnits.length}
+          onClearSelection={() => setSelectedIds([])}
+          customActions={[
+            {
+              label: 'Mark Selected Clean',
+              icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />,
+              variant: 'emerald',
+              onClick: () => handleBatchUpdateCleanliness('CLEAN'),
+              isPending: updateStatusMutation.isPending,
+            },
+            {
+              label: 'Mark Selected Dirty',
+              icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-300" />,
+              variant: 'rose',
+              onClick: () => handleBatchUpdateCleanliness('DIRTY'),
+              isPending: updateStatusMutation.isPending,
+            },
+            {
+              label: 'Export CSV',
+              icon: <Download className="w-3.5 h-3.5 text-slate-400" />,
+              variant: 'slate',
+              onClick: handleExportCSV,
+            },
+          ]}
+        />
+
+        {/* Slide-over Room Detail Drawer */}
+        <RoomDetailDrawer
+          unit={drawerUnit}
+          onClose={() => setDrawerUnit(null)}
+          onMarkClean={handleMarkCleanWithUndo}
+          onMarkDirty={handleMarkDirtyWithUndo}
+          onEditRoom={(u) => {
+            setDrawerUnit(null);
+            setEditingUnit(u);
+            setEditRoomName(u.unitNumber);
+            setEditRoomTypeId(u.roomTypeId);
+            setEditRoomFloor(u.floor || '');
+          }}
+          onReportIssue={(u) => {
+            setDrawerUnit(null);
+            setIssueUnit(u);
+          }}
+          onDeleteRoom={(u) => {
+            setDrawerUnit(null);
+            setDeletingUnit(u);
+          }}
+          isManagerOrOwner={isManagerOrOwner}
+        />
+      </div>
     </div>
   );
 }

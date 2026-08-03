@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { BookingHelperService } from './booking-helper.service';
 import { BookingStatus, CleanlinessStatus } from '@prisma/client';
@@ -16,6 +16,10 @@ export class BookingOccupancyService {
    */
   async getOccupancy(userId: string, propertyId: string, fromDate: string, toDate: string) {
     const resolvedPropertyId = await this.helper.resolvePropertyId(userId, propertyId);
+
+    if (!fromDate || !toDate) {
+      throw new BadRequestException('fromDate and toDate are required query parameters');
+    }
 
     // Normalize date strings to UTC midnight boundaries to prevent timezone offset shifts
     const fromStr = fromDate.includes('T') ? fromDate.split('T')[0] : fromDate;
@@ -80,7 +84,7 @@ export class BookingOccupancyService {
     }
 
     // Build occupancy map
-    const occupancy: Record<string, Record<string, { booked: number; total: number; outOfOrder: number; available: number; bookings: any[] }>> = {};
+    const occupancy: Record<string, Record<string, { booked: number; total: number; outOfOrder: number; available: number; hasConflict: boolean; bookings: any[] }>> = {};
 
     for (const rt of roomTypes) {
       occupancy[rt.id] = {};
@@ -94,7 +98,10 @@ export class BookingOccupancyService {
         return {
           id: b.id,
           guestName: b.guest.fullName,
+          guestPhone: b.guest.phone || null,
           status: b.status,
+          checkInDate: inStr,
+          checkOutDate: outStr,
           checkInTs: new Date(`${inStr}T00:00:00.000Z`).getTime(),
           checkOutTs: new Date(`${outStr}T00:00:00.000Z`).getTime(),
         };
@@ -110,16 +117,21 @@ export class BookingOccupancyService {
 
         const booked = dayBookings.length;
         const available = Math.max(0, rt.totalUnits - booked - oooCount);
+        const hasConflict = booked > rt.totalUnits;
 
         occupancy[rt.id][dateStr] = {
           booked,
           total: rt.totalUnits,
           outOfOrder: oooCount,
           available,
+          hasConflict,
           bookings: dayBookings.map((b) => ({
             id: b.id,
             guestName: b.guestName,
+            guestPhone: b.guestPhone,
             status: b.status,
+            checkInDate: b.checkInDate,
+            checkOutDate: b.checkOutDate,
           })),
         };
       }

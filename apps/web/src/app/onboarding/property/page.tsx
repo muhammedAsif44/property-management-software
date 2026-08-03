@@ -19,7 +19,7 @@ import {
   Building2,
   Clock,
   BedDouble,
-  Sparkles,
+  Star,
   FileText,
   CreditCard,
   CheckCircle2,
@@ -133,7 +133,7 @@ function OnboardingWizardContent() {
     { num: 1, label: t('step1Identity'), icon: Building2 },
     { num: 2, label: t('step2TimesTerms'), icon: Clock },
     { num: 3, label: t('step3Rooms'), icon: BedDouble },
-    { num: 4, label: t('step4Amenities'), icon: Sparkles },
+    { num: 4, label: t('step4Amenities'), icon: Star },
     { num: 5, label: t('step5InvoiceTheme'), icon: FileText },
     { num: 6, label: t('step6BankDetails'), icon: CreditCard },
   ];

@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Building2,
   Calendar,
+  CalendarDays,
   BedDouble,
   Users,
   Receipt,
@@ -23,7 +24,7 @@ import {
   ShieldCheck,
   Menu,
   X,
-  Sparkles,
+  Droplets,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -68,7 +69,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
     {
       name: t('housekeeping') || 'Housekeeping',
       href: '/housekeeping',
-      icon: Sparkles,
+      icon: Droplets,
       active: pathname.startsWith('/housekeeping'),
       visible: isHousekeeping,
     },
@@ -90,7 +91,14 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       name: t('bookings'),
       href: '/bookings',
       icon: Calendar,
-      active: pathname.startsWith('/bookings'),
+      active: pathname === '/bookings',
+      visible: !isHousekeeping,
+    },
+    {
+      name: t('occupancyCalendar'),
+      href: '/bookings/room-calendar',
+      icon: CalendarDays,
+      active: pathname.startsWith('/bookings/room-calendar'),
       visible: !isHousekeeping,
     },
     {

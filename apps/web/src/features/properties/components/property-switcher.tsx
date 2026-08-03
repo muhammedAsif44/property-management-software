@@ -19,7 +19,7 @@ import {
   Plus,
   Hotel,
   MapPin,
-  Sparkles,
+  Star,
   X,
   RefreshCw,
 } from 'lucide-react';
@@ -169,27 +169,23 @@ export const PropertySwitcher: React.FC<{ onPropertyChange?: (prop: PropertyItem
         <ChevronDown className={`w-4 h-4 text-emerald-700 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Instagram-Style Dropdown Modal */}
+      {/* Instagram-Style Dropdown Panel */}
       {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsOpen(false)} />
-          
-          <div className="absolute left-0 top-full mt-2 w-full min-w-[240px] max-w-[280px] bg-white rounded-2xl border border-slate-200 shadow-2xl p-3 z-[100] animate-in fade-in zoom-in-95 duration-150 space-y-2.5">
-            
-            <div className="flex items-center justify-between px-1 pt-0.5 border-b border-slate-100 pb-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 truncate">
-                  {t('switchProperty')} ({properties.length})
-                </span>
-              </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 cursor-pointer shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+        <div className="mt-2 w-full bg-white rounded-2xl border border-emerald-200/90 shadow-xl p-3 z-30 animate-in fade-in slide-in-from-top-2 duration-150 space-y-2.5">
+          <div className="flex items-center justify-between px-1 pt-0.5 border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Star className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 truncate">
+                {t('switchProperty')} ({properties.length})
+              </span>
             </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 cursor-pointer shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
             {/* List of Owned Properties */}
             <div className="space-y-1 max-h-56 overflow-y-auto pr-0.5">
@@ -247,8 +243,7 @@ export const PropertySwitcher: React.FC<{ onPropertyChange?: (prop: PropertyItem
               )}
             </div>
           </div>
-        </>
-      )}
+        )}
 
       {/* Add Property Onboarding Modal rendered via Portal */}
       {isAddModalOpen && mounted && createPortal(

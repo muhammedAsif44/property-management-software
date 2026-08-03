@@ -28,11 +28,12 @@ import {
   ArrowRight,
   RefreshCw,
   Building2,
+  Globe,
   Key,
   User,
   Clock,
   BedDouble,
-  Sparkles,
+  Star,
   FileText,
   CreditCard,
   ArrowLeft,
@@ -198,11 +199,14 @@ function SettingsHubContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased flex flex-col justify-between">
-      
-      <div>
+    <div className="min-h-screen bg-slate-50/90 text-slate-900 font-sans antialiased flex flex-col justify-between relative overflow-hidden">
+      {/* Ambient Rich Emerald Glow */}
+      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
+      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
+
+      <div className="relative z-10">
         {/* Compact Header Bar */}
-        <header className="border-b border-slate-200/80 bg-white sticky top-0 z-40 shadow-2xs">
+        <header className="border-b border-emerald-200/80 bg-white/90 backdrop-blur-xl sticky top-0 z-40 shadow-xs">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-5">
               <Link href="/dashboard" className="transition-transform hover:scale-105 shrink-0" title="Back to Dashboard">
@@ -357,6 +361,27 @@ function SettingsHubContent() {
                 </form>
               </div>
 
+              {/* System Language Preference Card */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <Globe className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <div>
+                      <h2 className="text-xs font-extrabold uppercase tracking-wide">System Language / ഭാഷാ ക്രമീകരണം</h2>
+                      <p className="text-slate-400 text-[10px]">Select your preferred interface language for the entire PMS.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-black text-slate-800">Interface Language</p>
+                    <p className="text-[11px] font-semibold text-slate-500">English / മലയാളം</p>
+                  </div>
+                  <LanguageSwitcher />
+                </div>
+              </div>
+
               {/* Change Email Card */}
               <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
@@ -420,7 +445,7 @@ function SettingsHubContent() {
                   { key: 'identity', label: '1. Identity', icon: Building2 },
                   { key: 'times', label: '2. Times & Terms', icon: Clock },
                   { key: 'rooms', label: '3. Room Types', icon: BedDouble },
-                  { key: 'amenities', label: '4. Amenities', icon: Sparkles },
+                  { key: 'amenities', label: '4. Amenities', icon: Star },
                   { key: 'invoices', label: '5. Invoice Themes', icon: FileText },
                   { key: 'bank', label: '6. Bank & Payment', icon: CreditCard },
                 ].map((tab) => {

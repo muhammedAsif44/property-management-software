@@ -93,6 +93,42 @@ export class BookingLifecycleService {
       if (dto.mealPlan !== undefined) updateData.mealPlan = dto.mealPlan;
       if (dto.channel !== undefined) updateData.channel = dto.channel;
 
+      // Handle room assignment and validation
+      if (dto.roomUnitId !== undefined) {
+        if (dto.roomUnitId === null) {
+          updateData.roomUnitId = null;
+        } else {
+          const unit = await tx.roomUnit.findFirst({
+            where: { id: dto.roomUnitId, propertyId: booking.propertyId, roomTypeId: newRoomTypeId },
+          });
+          if (!unit) {
+            throw new NotFoundException('Selected room unit not found or does not match room category');
+          }
+          if (unit.cleanlinessStatus === CleanlinessStatus.OUT_OF_ORDER) {
+            throw new ConflictException(`Selected room unit ${unit.unitNumber} is currently Out of Order for maintenance`);
+          }
+          if (unit.cleanlinessStatus === CleanlinessStatus.DIRTY && booking.status === BookingStatus.CHECKED_IN) {
+            throw new ConflictException(`Cannot assign a dirty room (${unit.unitNumber}) to a checked-in booking`);
+          }
+
+          const unitOverlap = await tx.booking.count({
+            where: {
+              propertyId: booking.propertyId,
+              roomUnitId: dto.roomUnitId,
+              id: { not: bookingId },
+              status: { in: [BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN] },
+              deletedAt: null,
+              checkInDate: { lt: newCheckOut },
+              checkOutDate: { gt: newCheckIn },
+            },
+          });
+          if (unitOverlap > 0) {
+            throw new ConflictException(`Selected room unit ${unit.unitNumber} is already booked for these dates`);
+          }
+          updateData.roomUnitId = dto.roomUnitId;
+        }
+      }
+
       // Recalculate amounts if baseAmount changed
       if (dto.baseAmount !== undefined) {
         const settings = await tx.propertySettings.findUnique({
@@ -239,17 +275,28 @@ export class BookingLifecycleService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // Check if trying to check in to an OUT_OF_ORDER room
-      if (newStatus === BookingStatus.CHECKED_IN && booking.roomUnitId) {
+      // Validate check-in room assignment and status
+      if (newStatus === BookingStatus.CHECKED_IN) {
+        if (!booking.roomUnitId) {
+          throw new BadRequestException('Guest must be assigned a room unit before check-in.');
+        }
+
         const assignedUnit = await tx.roomUnit.findUnique({
           where: { id: booking.roomUnitId },
           select: { unitNumber: true, cleanlinessStatus: true },
         });
 
-        if (assignedUnit && assignedUnit.cleanlinessStatus === CleanlinessStatus.OUT_OF_ORDER) {
-          throw new BadRequestException(
-            `Cannot check in guest: Room "${assignedUnit.unitNumber}" is currently OUT OF ORDER for maintenance.`,
-          );
+        if (assignedUnit) {
+          if (assignedUnit.cleanlinessStatus === CleanlinessStatus.OUT_OF_ORDER) {
+            throw new BadRequestException(
+              `Cannot check in guest: Room "${assignedUnit.unitNumber}" is currently OUT OF ORDER for maintenance.`,
+            );
+          }
+          if (assignedUnit.cleanlinessStatus === CleanlinessStatus.DIRTY) {
+            throw new BadRequestException(
+              `Cannot check in guest: Room "${assignedUnit.unitNumber}" is currently DIRTY and must be cleaned first.`,
+            );
+          }
         }
       }
       // 1. If transitioning TO CHECKED_OUT (and wasn't already checked out), increment guest total spend
@@ -290,33 +337,13 @@ export class BookingLifecycleService {
         }
       }
 
-      // 4. If transitioning TO CHECKED_OUT, resolve target roomUnitId, auto-mark room unit as DIRTY & create housekeeping task
+      // 4. If transitioning TO CHECKED_OUT, mark room unit as DIRTY & create housekeeping task
       if (newStatus === BookingStatus.CHECKED_OUT) {
-        let targetUnitId = booking.roomUnitId;
-
-        if (!targetUnitId) {
-          let unit = await tx.roomUnit.findFirst({
-            where: { propertyId: booking.propertyId, roomTypeId: booking.roomTypeId },
-          });
-
-          if (!unit) {
-            unit = await tx.roomUnit.create({
-              data: {
-                propertyId: booking.propertyId,
-                roomTypeId: booking.roomTypeId,
-                unitNumber: `101`,
-                cleanlinessStatus: CleanlinessStatus.DIRTY,
-              },
-            });
-          }
-          targetUnitId = unit.id;
-
-          // Link unit to booking
-          await tx.booking.update({
-            where: { id: bookingId },
-            data: { roomUnitId: targetUnitId },
-          });
+        if (!booking.roomUnitId) {
+          throw new BadRequestException('Cannot check-out a booking that has no room unit assigned.');
         }
+
+        const targetUnitId = booking.roomUnitId;
 
         await tx.roomUnit.update({
           where: { id: targetUnitId },

@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react';
 import { AmenityItem } from '../types/property-onboarding.types';
-import { ArrowRight, Sparkles, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, Star, Plus, Trash2 } from 'lucide-react';
 
 interface Props {
   amenities: AmenityItem[];
@@ -40,7 +40,7 @@ export const Step4Amenities: React.FC<Props> = memo(({
       <div className="flex items-center justify-between border-b border-slate-100 pb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-[#0B6E4F] flex items-center justify-center font-bold">
-            <Sparkles className="w-5 h-5" />
+            <Star className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-xl font-extrabold text-slate-900">

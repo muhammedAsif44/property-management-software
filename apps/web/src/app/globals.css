@@ -115,6 +115,11 @@ body {
     border-color: #e11d48;
   }
 
+  /* Auth Hero Banner Gradient */
+  .emerald-gradient {
+    background: linear-gradient(135deg, #064e3b 0%, #047857 50%, #065f46 100%);
+  }
+
   /* Scrollbar hide */
   .scrollbar-none {
     -ms-overflow-style: none;

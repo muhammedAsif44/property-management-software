@@ -136,12 +136,26 @@ export interface BookingFilters {
   limit?: number;
 }
 
+export interface OccupancyCellBooking {
+  id: string;
+  guestName: string;
+  guestPhone?: string | null;
+  status: BookingStatus;
+  checkInDate: string;
+  checkOutDate: string;
+}
+
+export interface OccupancyCell {
+  booked: number;
+  total: number;
+  outOfOrder: number;
+  available: number;
+  hasConflict: boolean;
+  bookings: OccupancyCellBooking[];
+}
+
 export interface OccupancyData {
   roomTypes: BookingRoomType[];
   dates: string[];
-  occupancy: Record<string, Record<string, {
-    booked: number;
-    total: number;
-    bookings: { id: string; guestName: string; status: BookingStatus }[];
-  }>>;
+  occupancy: Record<string, Record<string, OccupancyCell>>;
 }

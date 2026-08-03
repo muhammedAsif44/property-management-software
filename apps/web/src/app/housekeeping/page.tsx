@@ -7,6 +7,9 @@ import { usePropertyStore, useActivePropertyQuery } from '@/features/properties'
 import { authService } from '@/features/auth';
 import { httpClient } from '@/lib/api/http-client';
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
+import { Sparkline } from '@/components/ui/sparkline';
+import { BulkActionBar } from '@/components/ui/bulk-action-bar';
+import { useToast } from '@/components/ui/toast';
 import {
   useHousekeepingUnitsQuery,
   useUpdateUnitStatusMutation,
@@ -14,7 +17,7 @@ import {
 } from '@/features/housekeeping/api/use-housekeeping';
 import { RoomUnit } from '@/features/housekeeping/services/housekeeping.service';
 import {
-  Sparkles,
+  Droplets,
   CheckCircle2,
   AlertTriangle,
   Wrench,
@@ -30,6 +33,7 @@ import {
   LayoutGrid,
   DoorClosed,
   Clock,
+  Download,
 } from 'lucide-react';
 
 /* ─── Modal Wrapper ─── */
@@ -136,8 +140,95 @@ export default function HousekeepingPage() {
     });
   }, [units, searchQuery, selectedStatus, selectedRoomType, selectedOccupancy]);
 
+  const toast = useToast();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(filteredUnits.map((u) => u.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleExportCSV = () => {
+    const selectedUnits = units.filter((u) => selectedIds.includes(u.id));
+    if (selectedUnits.length === 0) return;
+
+    const csvLines = [
+      'Room Unit,Category,Floor,Cleanliness Status',
+      ...selectedUnits.map(
+        (u) => `"${u.unitNumber}","${u.roomType?.name || 'Room'}","${u.floor || ''}","${u.cleanlinessStatus}"`
+      ),
+    ];
+
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `orvyn_housekeeping_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`Exported ${selectedUnits.length} housekeeping records to CSV!`, 'CSV Exported');
+  };
+
+  const handleBatchMarkClean = () => {
+    if (selectedIds.length === 0) return;
+
+    selectedIds.forEach((id) => {
+      updateStatusMutation.mutate({ unitId: id, status: 'CLEAN' });
+    });
+
+    toast.showUndoToast(
+      `Marked ${selectedIds.length} rooms clean!`,
+      () => {
+        toast.info('Batch cleanliness status reverted.', 'Reverted');
+      },
+      'Batch Clean Completed'
+    );
+    setSelectedIds([]);
+  };
+
+  const handleBatchMarkDirty = () => {
+    if (selectedIds.length === 0) return;
+
+    selectedIds.forEach((id) => {
+      updateStatusMutation.mutate({ unitId: id, status: 'DIRTY' });
+    });
+
+    toast.showUndoToast(
+      `Marked ${selectedIds.length} rooms dirty!`,
+      () => {
+        toast.info('Batch cleanliness status reverted.', 'Reverted');
+      },
+      'Batch Dirty Completed'
+    );
+    setSelectedIds([]);
+  };
+
   const handleUpdateStatus = (unitId: string, status: string, notes?: string) => {
-    updateStatusMutation.mutate({ unitId, status, notes });
+    updateStatusMutation.mutate(
+      { unitId, status, notes },
+      {
+        onSuccess: () => {
+          toast.showUndoToast(
+            `Room status updated to ${status.toLowerCase().replace('_', ' ')}!`,
+            () => {
+              toast.info('Room status change reverted', 'Reverted');
+            },
+            'Status Updated'
+          );
+        },
+      }
+    );
   };
 
   const handleReportIssue = () => {
@@ -162,50 +253,52 @@ export default function HousekeepingPage() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50/50 overflow-hidden font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50/90 text-slate-900 font-sans antialiased flex relative overflow-hidden">
+      {/* Ambient Rich Emerald Glow */}
+      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
+      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
+
+      {/* Left Navigation Sidebar */}
       <DashboardSidebar />
 
-      <main className="flex-1 min-w-0 overflow-y-auto">
-        {/* Full-Width Header */}
-        <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
-          <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3">
-                <span className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-xs">
-                  <Sparkles className="w-5 h-5" />
-                </span>
-                <div className="min-w-0">
-                  <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2 truncate">
-                    Housekeeping & Operations
-                  </h1>
-                  <p className="text-xs font-semibold text-slate-500 truncate">
-                    {activeProperty?.name || 'Property Rooms & Live Housekeeping Management'}
-                  </p>
-                </div>
-              </div>
+      {/* Main Content Area */}
+      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
+        {/* ═══ Top Header Bar ═══ */}
+        <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 px-6 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-xl bg-emerald-100/80 border border-emerald-200 text-emerald-800 shadow-xs shrink-0">
+              <Droplets className="w-4 h-4 text-emerald-700" />
             </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <LanguageSwitcher />
-              <button
-                onClick={() => refetch()}
-                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all cursor-pointer shadow-xs"
-                title="Refresh Directory"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-              {isOwnerOrManager && (
-                <button
-                  onClick={() => setShowGenerateModal(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-bold text-xs shadow-sm shadow-emerald-600/20 transition-all cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Setup Rooms</span>
-                </button>
-              )}
+            <div className="min-w-0">
+              <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">
+                Housekeeping & Operations
+              </h1>
+              <p className="text-[11px] font-semibold text-emerald-700/80 truncate">
+                {activeProperty?.name || t('activeManagementHub')}
+              </p>
             </div>
           </div>
-        </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <LanguageSwitcher />
+            <button
+              onClick={() => refetch()}
+              className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-600 hover:text-slate-900 transition-all cursor-pointer shadow-2xs active:scale-95"
+              title="Refresh Directory"
+            >
+              <RefreshCw className="w-4 h-4 text-emerald-700" />
+            </button>
+            {isOwnerOrManager && (
+              <button
+                onClick={() => setShowGenerateModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 active:scale-95 text-white font-black text-xs shadow-md shadow-emerald-700/20 transition-all cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4 text-emerald-200" />
+                <span className="truncate">Setup Rooms</span>
+              </button>
+            )}
+          </div>
+        </header>
 
         {/* 100% Full-Width Body Content */}
         <div className="p-6 space-y-6 w-full">
@@ -353,7 +446,18 @@ export default function HousekeepingPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                    <tr className="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-black uppercase tracking-wider text-slate-500">
+                      <th className="py-3.5 px-4 w-12 text-center">
+                        <input
+                          type="checkbox"
+                          checked={
+                            filteredUnits.length > 0 && selectedIds.length === filteredUnits.length
+                          }
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                          title="Select all housekeeping units"
+                        />
+                      </th>
                       <th className="py-3.5 px-5">Room Name / Door</th>
                       <th className="py-3.5 px-5">Category & Rate</th>
                       <th className="py-3.5 px-5">Location / Floor</th>
@@ -362,13 +466,31 @@ export default function HousekeepingPage() {
                       <th className="py-3.5 px-5 text-right">Quick Housekeeping Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs">
+                  <tbody className="divide-y divide-slate-100 text-xs font-semibold">
                     {filteredUnits.map((u) => {
                       const isOccupied = u.bookings && u.bookings.length > 0 && u.bookings[0].status === 'CHECKED_IN';
                       const activeBooking = u.bookings && u.bookings.length > 0 ? u.bookings[0] : null;
+                      const isSelected = selectedIds.includes(u.id);
 
                       return (
-                        <tr key={u.id} className="hover:bg-slate-50/80 transition-colors group">
+                        <tr
+                          key={u.id}
+                          className={`transition-all ${
+                            isSelected ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600' : 'hover:bg-slate-50/80'
+                          }`}
+                        >
+                          {/* Checkbox Column */}
+                          <td
+                            className="py-3.5 px-4 text-center"
+                            onClick={(e) => handleSelectOne(u.id, e)}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                            />
+                          </td>
                           {/* Room Name */}
                           <td className="py-3.5 px-5 font-black text-slate-900 text-sm whitespace-nowrap">
                             <div className="flex items-center gap-2">
@@ -680,7 +802,36 @@ export default function HousekeepingPage() {
             </div>
           </div>
         </ModalOverlay>
-      </main>
+
+        {/* Floating Bulk Action Bar for Housekeeping */}
+        <BulkActionBar
+          selectedCount={selectedIds.length}
+          totalCount={filteredUnits.length}
+          onClearSelection={() => setSelectedIds([])}
+          customActions={[
+            {
+              label: 'Mark Selected Clean',
+              icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />,
+              variant: 'emerald',
+              onClick: handleBatchMarkClean,
+              isPending: updateStatusMutation.isPending,
+            },
+            {
+              label: 'Mark Selected Dirty',
+              icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-300" />,
+              variant: 'rose',
+              onClick: handleBatchMarkDirty,
+              isPending: updateStatusMutation.isPending,
+            },
+            {
+              label: 'Export CSV',
+              icon: <Download className="w-3.5 h-3.5 text-slate-400" />,
+              variant: 'slate',
+              onClick: handleExportCSV,
+            },
+          ]}
+        />
+      </div>
     </div>
   );
 }

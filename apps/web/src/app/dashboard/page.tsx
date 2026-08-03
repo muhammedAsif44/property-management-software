@@ -18,7 +18,7 @@ import {
 } from '@/features/dashboard';
 import {
   Building2,
-  Sparkles,
+  Zap,
   Settings,
   ChevronRight,
   Plus,

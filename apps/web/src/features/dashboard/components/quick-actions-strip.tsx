@@ -1,7 +1,7 @@
 import { authService } from '@/features/auth';
 import { useTranslation } from '@/lib/i18n';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, Sparkles, Users } from 'lucide-react';
+import { RefreshCw, Zap, Users } from 'lucide-react';
 import Link from 'next/link';
 
 interface QuickActionsStripProps {
@@ -31,7 +31,7 @@ export function QuickActionsStrip({
     <div className="p-4 bg-white/95 backdrop-blur-xl rounded-2xl border border-emerald-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div className="flex items-center gap-2">
         <div className="p-2 rounded-xl bg-emerald-100/80 border border-emerald-200 text-emerald-800">
-          <Sparkles className="w-4 h-4 text-emerald-700" />
+          <Zap className="w-4 h-4 text-emerald-700" />
         </div>
         <div>
           <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">{t('quickActionsAndWorkflows')}</h3>

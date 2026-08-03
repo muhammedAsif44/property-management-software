@@ -23,7 +23,7 @@ import {
   Settings,
   Hotel,
   MapPin,
-  Sparkles,
+  Star,
   Search,
   Clock,
   CreditCard,
@@ -34,17 +34,25 @@ import {
   AlertCircle,
   ExternalLink,
   ChevronRight,
+  LayoutGrid,
+  Table as TableIcon,
 } from 'lucide-react';
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
+import { Sparkline } from '@/components/ui/sparkline';
+import { BulkActionBar } from '@/components/ui/bulk-action-bar';
+import { QuickDrawer } from '@/components/ui/quick-drawer';
 
 export default function PropertiesPage() {
   const router = useRouter();
   const toast = useToast();
   const { t } = useTranslation();
 
-  // Search & Filter State
+  // View Mode, Selection & Search Filter State
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'live' | 'setup'>('all');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [drawerProperty, setDrawerProperty] = useState<PropertyItem | null>(null);
 
   // Active property & properties portfolio queries
   const { isLoading: propertiesLoading } = useMyPropertiesQuery();
@@ -99,13 +107,65 @@ export default function PropertiesPage() {
     });
   }, [properties, activeProperty, searchQuery, statusFilter]);
 
-  // Handle Switch Property
+  // Multi-select handlers
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(filteredProperties.map((p) => p.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // CSV Export handler
+  const handleExportCSV = () => {
+    const selectedProps = properties.filter((p) => selectedIds.includes(p.id));
+    if (selectedProps.length === 0) return;
+
+    const csvLines = [
+      'ID,Property Name,City,Country,Room Types Count,Check-In,Check-Out',
+      ...selectedProps.map(
+        (p) =>
+          `"${p.id}","${p.name.replace(/"/g, '""')}","${p.city || ''}","${p.country || 'IN'}","${
+            p._count?.roomTypes || 0
+          }","${p.settings?.checkInTime || '14:00'}","${p.settings?.checkOutTime || '11:00'}"`
+      ),
+    ];
+
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `orvyn_properties_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`Exported ${selectedProps.length} properties to CSV!`, 'CSV Exported');
+  };
+
+  // Optimistic UI Switch Property with Undo Toast
   const handleSwitch = (property: PropertyItem) => {
     if (property.id === activeProperty?.id) return;
+    const previousActive = activeProperty;
 
     switchMutation.mutate(property.id, {
       onSuccess: () => {
-        toast.success(`Switched active workspace to ${property.name}!`, 'Property Switched');
+        toast.showUndoToast(
+          `Switched active workspace to ${property.name}!`,
+          () => {
+            if (previousActive) {
+              switchMutation.mutate(previousActive.id);
+              toast.info(`Reverted active workspace back to ${previousActive.name}`, 'Reverted');
+            }
+          },
+          'Property Switched'
+        );
       },
       onError: (err: any) => {
         toast.error(err.message || 'Failed to switch property', 'Switch Failed');
@@ -166,23 +226,19 @@ export default function PropertiesPage() {
             <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
             
             <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="space-y-1.5 max-w-2xl min-w-0">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/80 border border-emerald-200 text-emerald-900 text-[10px] font-black uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+              <div className="flex items-center gap-3 flex-wrap min-w-0">
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl bg-emerald-100/80 border border-emerald-200 text-emerald-900 text-xs font-black tracking-tight shadow-2xs">
+                  <Star className="w-4 h-4 text-emerald-700 shrink-0" />
                   <span>{t('propertiesPortfolio')} ({properties.length})</span>
                 </div>
-                <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 truncate">
-                  {t('propertiesPortfolio')}
-                </h2>
-                <p className="text-xs text-slate-600 font-medium leading-relaxed truncate">
-                  {t('propertiesPortfolioSubtitle')}
-                </p>
+                {/* Sparkline Micro Trend Graph */}
+                <Sparkline changePercentage={+12.4} label="occupancy trend" />
               </div>
 
               {isOwner && (
                 <Link
                   href="/onboarding/property?new=true"
-                  className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 text-white font-black text-xs shadow-md shadow-emerald-700/20 transition-all flex items-center gap-2 cursor-pointer shrink-0 active:scale-95"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 text-white font-black text-xs shadow-md shadow-emerald-700/20 transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
                 >
                   <Plus className="w-4 h-4 text-emerald-200" />
                   <span className="truncate">{t('addProperty')}</span>
@@ -250,10 +306,40 @@ export default function PropertiesPage() {
                   {t('filterSetup')}
                 </button>
               </div>
+
+              {/* View Switcher Pill Group */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200/80 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    viewMode === 'table'
+                      ? 'bg-white text-emerald-800 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title={t('tableView')}
+                >
+                  <TableIcon className="w-3.5 h-3.5 text-emerald-700" />
+                  <span className="hidden md:inline truncate">{t('tableView')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    viewMode === 'grid'
+                      ? 'bg-white text-emerald-800 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title={t('gridView')}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5 text-emerald-700" />
+                  <span className="hidden md:inline truncate">{t('gridView')}</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Properties Grid */}
+          {/* Properties Portfolio Display (Table View vs Grid View) */}
           {propertiesLoading || activeLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
@@ -289,6 +375,196 @@ export default function PropertiesPage() {
                   <Plus className="w-4 h-4" /> {t('addProperty')}
                 </Link>
               )}
+            </div>
+          ) : viewMode === 'table' ? (
+            /* Modern B2B SaaS Data Table Format */
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl border border-emerald-200/90 shadow-sm overflow-hidden min-w-0">
+              <div className="overflow-x-auto scrollbar-none">
+                <table className="w-full text-left border-collapse min-w-[750px]">
+                  <thead>
+                    <tr className="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                      <th className="py-3.5 px-4 w-12 text-center min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={
+                            filteredProperties.length > 0 &&
+                            selectedIds.length === filteredProperties.length
+                          }
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                          title="Select all properties"
+                        />
+                      </th>
+                      <th className="py-3.5 px-5 min-w-0">{t('propertyNameHeader')}</th>
+                      <th className="py-3.5 px-4 min-w-0">{t('onboardingStatusHeader')}</th>
+                      <th className="py-3.5 px-4 min-w-0">{t('policyHeader')}</th>
+                      <th className="py-3.5 px-4 min-w-0">{t('specsHeader')}</th>
+                      <th className="py-3.5 px-4 min-w-0">{t('paymentsHeader')}</th>
+                      <th className="py-3.5 px-5 text-right min-w-0">{t('actionsHeader')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+                    {filteredProperties.map((prop) => {
+                      const isActive = prop.id === activeProperty?.id;
+                      const isSelected = selectedIds.includes(prop.id);
+                      const isSwitching = switchMutation.isPending && switchMutation.variables === prop.id;
+                      const stepPct = Math.min(100, Math.round(((prop.onboardingStep || 1) / 6) * 100));
+                      const checkInTime = prop.settings?.checkInTime || '14:00';
+                      const checkOutTime = prop.settings?.checkOutTime || '11:00';
+                      const hasPaymentSetup = !!(prop.settings?.upiId || prop.settings?.bankAccountDetails);
+                      const roomTypesCount = prop._count?.roomTypes ?? (prop.roomTypes?.length || 0);
+
+                      return (
+                        <tr
+                          key={prop.id}
+                          onClick={() => setDrawerProperty(prop)}
+                          className={`transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600'
+                              : isActive
+                              ? 'bg-emerald-50/40'
+                              : 'hover:bg-slate-50/80'
+                          }`}
+                        >
+                          {/* Checkbox Column */}
+                          <td
+                            className="py-4 px-4 text-center min-w-0"
+                            onClick={(e) => handleSelectOne(prop.id, e)}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                            />
+                          </td>
+                          {/* Property Name & Location */}
+                          <td className="py-4 px-5 min-w-0">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-black shrink-0 shadow-2xs ${
+                                  isActive
+                                    ? 'bg-gradient-to-br from-emerald-600 to-emerald-800 text-white shadow-emerald-600/30 ring-2 ring-emerald-500/30'
+                                    : 'bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                {prop.name.charAt(0)}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="font-extrabold text-slate-900 truncate text-sm" title={prop.name}>
+                                    {prop.name}
+                                  </span>
+                                  {isActive && (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[10px] font-black uppercase tracking-wider shrink-0 flex items-center gap-1">
+                                      <Check className="w-3 h-3 text-emerald-700" /> {t('activePropertyBadge')}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] font-medium text-slate-500 flex items-center gap-1 mt-0.5 truncate">
+                                  <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                                  <span className="truncate">
+                                    {prop.address ? `${prop.address}, ` : ''}
+                                    {prop.city ? `${prop.city}, ${prop.country || 'IN'}` : 'Location Unset'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Progress & Onboarding Status */}
+                          <td className="py-4 px-4 min-w-0">
+                            <div className="space-y-1 max-w-[140px] min-w-0">
+                              <div className="flex items-center justify-between text-[10px] font-extrabold">
+                                <span className="text-slate-500 truncate">
+                                  {prop.onboardingStep >= 6 ? t('filterLive') : t('filterSetup')}
+                                </span>
+                                <span className="text-emerald-700 font-black shrink-0">{stepPct}%</span>
+                              </div>
+                              <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-700 transition-all duration-500"
+                                  style={{ width: `${stepPct}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Policy Times */}
+                          <td className="py-4 px-4 min-w-0 whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100/90 border border-slate-200 text-slate-700 font-bold text-[11px]">
+                              <Clock className="w-3 h-3 text-emerald-700 shrink-0" />
+                              <span>{checkInTime} - {checkOutTime}</span>
+                            </div>
+                          </td>
+
+                          {/* Specs (Rooms & Currency) */}
+                          <td className="py-4 px-4 min-w-0">
+                            <div className="flex flex-col gap-1 min-w-0">
+                              <span className="font-extrabold text-slate-800 flex items-center gap-1 text-[11px] truncate">
+                                <BedDouble className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                <span className="truncate">{roomTypesCount} Room Types</span>
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                                {prop.currency || 'INR'} • {prop.timezone || 'Asia/Kolkata'}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Banking & Payments Status */}
+                          <td className="py-4 px-4 min-w-0 whitespace-nowrap">
+                            {hasPaymentSetup ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-extrabold">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span className="truncate">{t('configured')}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-extrabold">
+                                <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                                <span className="truncate">{t('pendingSetup')}</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Quick Action Controls */}
+                          <td className="py-4 px-5 text-right min-w-0 whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleSwitch(prop)}
+                                disabled={isActive || isSwitching}
+                                className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
+                                  isActive
+                                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 opacity-80 cursor-default'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs active:scale-95'
+                                } disabled:opacity-70`}
+                              >
+                                {isSwitching ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : isActive ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-emerald-700" />
+                                    <span className="truncate">{t('currentWorkspace')}</span>
+                                  </>
+                                ) : (
+                                  <span className="truncate">{t('switchActiveWorkspace')}</span>
+                                )}
+                              </button>
+
+                              <Link
+                                href={`/settings/property?id=${prop.id}`}
+                                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 transition-all cursor-pointer shrink-0 active:scale-95"
+                                title={t('viewFullSettings')}
+                              >
+                                <Settings className="w-4 h-4 text-slate-600" />
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             /* Detailed Property Cards Grid */
@@ -465,13 +741,34 @@ export default function PropertiesPage() {
                         <ChevronRight className="w-3.5 h-3.5 text-emerald-700" />
                       </Link>
                     </div>
-
                   </div>
                 );
               })}
             </div>
           )}
 
+          {/* Floating Bulk Action Bar */}
+          <BulkActionBar
+            selectedCount={selectedIds.length}
+            totalCount={filteredProperties.length}
+            onClearSelection={() => setSelectedIds([])}
+            primaryActionLabel="Switch Active Workspace"
+            onExportCSV={handleExportCSV}
+            onMakeActiveBatch={() => {
+              const targetProp = properties.find((p) => selectedIds.includes(p.id) && p.id !== activeProperty?.id);
+              if (targetProp) handleSwitch(targetProp);
+            }}
+            isPending={switchMutation.isPending}
+          />
+
+          {/* Slide-Over Quick Drawer Preview */}
+          <QuickDrawer
+            property={drawerProperty}
+            isActive={drawerProperty?.id === activeProperty?.id}
+            onClose={() => setDrawerProperty(null)}
+            onSwitch={handleSwitch}
+            isSwitching={switchMutation.isPending && switchMutation.variables === drawerProperty?.id}
+          />
         </main>
       </div>
     </div>

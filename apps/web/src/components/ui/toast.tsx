@@ -5,16 +5,23 @@ import { CheckCircle2, XCircle, Info, AlertTriangle, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastItem {
   id: string;
   type: ToastType;
   title?: string;
   message: string;
   duration?: number;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  showToast: (message: string, type?: ToastType, title?: string, duration?: number) => void;
+  showToast: (message: string, type?: ToastType, title?: string, duration?: number, action?: ToastAction) => void;
+  showUndoToast: (message: string, onUndo: () => void, title?: string) => void;
   success: (message: string, title?: string) => void;
   error: (message: string, title?: string) => void;
   info: (message: string, title?: string) => void;
@@ -31,9 +38,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const showToast = useCallback(
-    (message: string, type: ToastType = 'success', title?: string, duration = 4000) => {
+    (message: string, type: ToastType = 'success', title?: string, duration = 4000, action?: ToastAction) => {
       const id = Math.random().toString(36).substring(2, 9);
-      const newToast: ToastItem = { id, message, type, title, duration };
+      const newToast: ToastItem = { id, message, type, title, duration, action };
 
       setToasts((prev) => [...prev.slice(-2), newToast]); // Limit to max 3 active toasts
 
@@ -46,13 +53,20 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [removeToast]
   );
 
+  const showUndoToast = useCallback(
+    (message: string, onUndo: () => void, title = 'Action Complete') => {
+      showToast(message, 'success', title, 6000, { label: 'Undo', onClick: onUndo });
+    },
+    [showToast]
+  );
+
   const success = useCallback((msg: string, title?: string) => showToast(msg, 'success', title), [showToast]);
   const error = useCallback((msg: string, title?: string) => showToast(msg, 'error', title), [showToast]);
   const info = useCallback((msg: string, title?: string) => showToast(msg, 'info', title), [showToast]);
   const warning = useCallback((msg: string, title?: string) => showToast(msg, 'warning', title), [showToast]);
 
   return (
-    <ToastContext.Provider value={{ showToast, success, error, info, warning }}>
+    <ToastContext.Provider value={{ showToast, showUndoToast, success, error, info, warning }}>
       {children}
       
       {/* Compact High-Performance Toast Container */}
@@ -109,6 +123,20 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 {toast.message}
               </p>
             </div>
+
+            {/* Action Button (Undo / Custom Action) */}
+            {toast.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  toast.action?.onClick();
+                  removeToast(toast.id);
+                }}
+                className="px-2.5 py-1 rounded-xl bg-slate-900 text-white text-[11px] font-black hover:bg-slate-800 transition-all shrink-0 active:scale-95 shadow-xs cursor-pointer"
+              >
+                {toast.action.label}
+              </button>
+            )}
 
             {/* Close Button */}
             <button

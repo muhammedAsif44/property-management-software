@@ -16,6 +16,10 @@ import {
   useRevertStatusMutation,
 } from '@/features/bookings/api/use-bookings';
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
+import { QuickHelpDrawer } from '@/components/quick-help-drawer';
+import { Sparkline } from '@/components/ui/sparkline';
+import { BulkActionBar } from '@/components/ui/bulk-action-bar';
+import { useToast } from '@/components/ui/toast';
 import { BookingFilters, BookingStatus, BookingChannel, Booking } from '@/features/bookings/types/booking.types';
 import {
   Calendar,
@@ -48,6 +52,7 @@ import {
   Loader2,
   ArrowRight,
   Moon,
+  Download,
 } from 'lucide-react';
 
 /* ─── Status & Channel Config ─── */
@@ -200,8 +205,81 @@ export default function BookingsPage() {
   const deleteMutation = useDeleteBookingMutation();
   const requestDeletionMutation = useRequestDeletionMutation();
 
-  const bookings = data?.bookings || [];
+  const bookings: Booking[] = data?.bookings || [];
   const pagination = data?.pagination;
+
+  const toast = useToast();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(bookings.map((b: Booking) => b.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleExportCSV = () => {
+    const selectedBookings = bookings.filter((b: Booking) => selectedIds.includes(b.id));
+    if (selectedBookings.length === 0) return;
+
+    const csvLines = [
+      'Booking ID,Guest Name,Channel,Status,Total Amount,Check-In,Check-Out',
+      ...selectedBookings.map(
+        (b: Booking) =>
+          `"${b.id}","${b.guest?.fullName || 'Guest'}","${b.channel}","${b.status}","${
+            b.totalAmount
+          }","${new Date(b.checkInDate).toLocaleDateString()}","${new Date(b.checkOutDate).toLocaleDateString()}"`
+      ),
+    ];
+
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `orvyn_bookings_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`Exported ${selectedBookings.length} reservations to CSV!`, 'CSV Exported');
+  };
+
+  const handleCheckInWithUndo = (id: string) => {
+    checkInMutation.mutate(id, {
+      onSuccess: () => {
+        toast.showUndoToast(
+          'Guest checked in successfully!',
+          () => {
+            revertMutation.mutate({ id, status: 'CONFIRMED' });
+            toast.info('Check-in status reverted to Confirmed', 'Reverted');
+          },
+          'Check-In Complete'
+        );
+      },
+    });
+  };
+
+  const handleCheckOutWithUndo = (id: string) => {
+    checkOutMutation.mutate(id, {
+      onSuccess: () => {
+        toast.showUndoToast(
+          'Guest checked out successfully!',
+          () => {
+            revertMutation.mutate({ id, status: 'CHECKED_IN' });
+            toast.info('Check-out status reverted to Checked In', 'Reverted');
+          },
+          'Check-Out Complete'
+        );
+      },
+    });
+  };
 
   const activeFilterCount = [filters.status, filters.channel, filters.fromDate, filters.toDate, filters.guestSearch].filter(Boolean).length;
 
@@ -247,53 +325,59 @@ export default function BookingsPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-900 font-sans antialiased">
+    <div className="min-h-screen bg-slate-50/90 text-slate-900 font-sans antialiased flex relative overflow-hidden">
+      {/* Ambient Rich Emerald Glow */}
+      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
+      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
+
+      {/* Left Navigation Sidebar */}
       <DashboardSidebar />
-      <main className="flex-1 min-w-0 flex flex-col min-h-screen bg-slate-100">
-        {/* ═══ Header Bar ═══ */}
-        <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-30 px-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800">
+
+      {/* Main Content Area */}
+      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
+        {/* ═══ Top Header Bar ═══ */}
+        <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 px-6 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-xl bg-emerald-100/80 border border-emerald-200 text-emerald-800 shadow-xs shrink-0">
               <Calendar className="w-4 h-4 text-emerald-700" />
             </div>
-            <div>
-              <h1 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <div className="min-w-0">
+              <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">
                 {t('bookingManagement')}
               </h1>
-              <p className="text-xs font-semibold text-slate-500 flex items-center gap-1 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <p className="text-[11px] font-semibold text-emerald-700/80 truncate">
                 {activeProperty?.name || t('activeManagementHub')}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <LanguageSwitcher />
+          <div className="flex items-center gap-2.5 shrink-0">
+            <QuickHelpDrawer />
 
             <button
-              onClick={() => router.push('/bookings/occupancy')}
-              className="px-3.5 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer btn-press"
+              onClick={() => router.push('/bookings/room-calendar')}
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-700 font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs"
             >
               <Building2 className="w-4 h-4 text-emerald-700" />
-              <span className="hidden sm:inline">{t('occupancyCalendar')}</span>
+              <span className="hidden sm:inline truncate">{t('occupancyCalendar')}</span>
             </button>
 
             {isOwnerOrManager && (
               <button
                 onClick={() => router.push('/bookings/approvals')}
-                className="px-3.5 py-2 rounded-lg bg-amber-50 hover:bg-amber-100/80 border border-amber-200 text-amber-900 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer btn-press"
+                className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100/80 border border-amber-200 text-amber-900 font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs"
               >
                 <AlertTriangle className="w-4 h-4 text-amber-600" />
-                <span className="hidden sm:inline">{t('approvalQueue')}</span>
+                <span className="hidden sm:inline truncate">{t('approvalQueue')}</span>
               </button>
             )}
 
             <button
               onClick={() => router.push('/bookings/new')}
-              className="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer btn-press shadow-xs"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-md shadow-emerald-700/20"
             >
-              <Plus className="w-4 h-4 text-white" />
-              <span>{t('newBooking')}</span>
+              <Plus className="w-4 h-4 text-emerald-200" />
+              <span className="truncate">{t('newBooking')}</span>
             </button>
           </div>
         </header>
@@ -410,6 +494,17 @@ export default function BookingsPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    <th className="p-4 w-12 text-center">
+                      <input
+                        type="checkbox"
+                        checked={
+                          bookings.length > 0 && selectedIds.length === bookings.length
+                        }
+                        onChange={handleSelectAll}
+                        className="w-4 h-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                        title="Select all reservations"
+                      />
+                    </th>
                     <th className="p-4 pl-5">Guest Information</th>
                     <th className="p-4">Room & Dates</th>
                     <th className="p-4">Channel</th>
@@ -423,7 +518,7 @@ export default function BookingsPage() {
                     <TableSkeletonRows />
                   ) : isError ? (
                     <tr>
-                      <td colSpan={6} className="p-12 text-center">
+                      <td colSpan={7} className="p-12 text-center">
                         <div className="inline-flex flex-col items-center gap-3">
                           <AlertTriangle className="w-8 h-8 text-amber-600" />
                           <p className="font-extrabold text-slate-800">Unable to load bookings</p>
@@ -438,7 +533,7 @@ export default function BookingsPage() {
                     </tr>
                   ) : bookings.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-16 text-center">
+                      <td colSpan={7} className="p-16 text-center">
                         <div className="inline-flex flex-col items-center gap-3">
                           <Calendar className="w-10 h-10 text-slate-300" />
                           <h3 className="text-base font-extrabold text-slate-800">{t('noBookingsFound')}</h3>
@@ -459,9 +554,27 @@ export default function BookingsPage() {
                       const channelCfg = CHANNEL_CONFIG[b.channel] || CHANNEL_CONFIG.WALK_IN;
                       const ChannelIcon = channelCfg.icon;
                       const nights = calculateNights(b.checkInDate, b.checkOutDate);
+                      const isSelected = selectedIds.includes(b.id);
 
                       return (
-                        <tr key={b.id} className="hover:bg-slate-50/80 transition-colors">
+                        <tr
+                          key={b.id}
+                          className={`transition-all ${
+                            isSelected ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600' : 'hover:bg-slate-50/80'
+                          }`}
+                        >
+                          {/* Checkbox Column */}
+                          <td
+                            className="p-4 text-center"
+                            onClick={(e) => handleSelectOne(b.id, e)}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                            />
+                          </td>
                           {/* 1. Guest Information */}
                           <td className="p-4 pl-5">
                             <div className="flex items-center gap-3 min-w-0">
@@ -531,7 +644,7 @@ export default function BookingsPage() {
                               {/* Primary Action Button */}
                               {b.status === 'CONFIRMED' && (
                                 <button
-                                  onClick={() => checkInMutation.mutate(b.id)}
+                                  onClick={() => handleCheckInWithUndo(b.id)}
                                   disabled={checkInMutation.isPending}
                                   className="h-8 px-3 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer btn-press shadow-2xs shrink-0 disabled:opacity-50"
                                 >
@@ -541,7 +654,7 @@ export default function BookingsPage() {
                               )}
                               {b.status === 'CHECKED_IN' && (
                                 <button
-                                  onClick={() => checkOutMutation.mutate(b.id)}
+                                  onClick={() => handleCheckOutWithUndo(b.id)}
                                   disabled={checkOutMutation.isPending}
                                   className="h-8 px-3 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer btn-press shadow-2xs shrink-0 disabled:opacity-50"
                                 >
@@ -808,7 +921,22 @@ export default function BookingsPage() {
             </div>
           </div>
         </ModalOverlay>
-      </main>
+
+        {/* Floating Bulk Action Bar for Bookings */}
+        <BulkActionBar
+          selectedCount={selectedIds.length}
+          totalCount={bookings.length}
+          onClearSelection={() => setSelectedIds([])}
+          customActions={[
+            {
+              label: 'Export Selected to CSV',
+              icon: <Download className="w-3.5 h-3.5 text-emerald-200" />,
+              variant: 'emerald',
+              onClick: handleExportCSV,
+            },
+          ]}
+        />
+      </div>
     </div>
   );
 }

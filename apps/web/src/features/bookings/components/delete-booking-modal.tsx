@@ -20,8 +20,8 @@ export function DeleteBookingModal({
   const { t } = useTranslation();
   const [deleteReason, setDeleteReason] = useState('');
   
-  const deleteMutation = useDeleteBookingMutation(activePropertyId);
-  const requestDeletionMutation = useRequestDeletionMutation(activePropertyId);
+  const deleteMutation = useDeleteBookingMutation();
+  const requestDeletionMutation = useRequestDeletionMutation();
   
   const overlayRef = useRef<HTMLDivElement>(null);
 

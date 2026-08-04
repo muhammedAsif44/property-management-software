@@ -94,6 +94,21 @@ export class PropertyOnboardingService {
       throw new NotFoundException('Property settings details not found');
     }
 
+    // Auto-seed initial default room types if property has 0 room types in DB
+    if (property.roomTypes.length === 0) {
+      await this.prisma.roomType.createMany({
+        data: [
+          { propertyId: property.id, name: 'Deluxe Room', basePrice: 2500, maxOccupancy: 2, totalUnits: 10, sortOrder: 1 },
+          { propertyId: property.id, name: 'Executive Suite', basePrice: 4500, maxOccupancy: 4, totalUnits: 5, sortOrder: 2 },
+          { propertyId: property.id, name: 'Standard Room', basePrice: 1800, maxOccupancy: 2, totalUnits: 12, sortOrder: 3 },
+        ],
+      });
+      property.roomTypes = await this.prisma.roomType.findMany({
+        where: { propertyId: property.id, isActive: true },
+        orderBy: { sortOrder: 'asc' },
+      });
+    }
+
     return {
       property,
       invoiceTemplates,

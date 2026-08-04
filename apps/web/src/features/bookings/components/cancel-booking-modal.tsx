@@ -18,7 +18,7 @@ export function CancelBookingModal({
   const { t } = useTranslation();
   const [cancelReason, setCancelReason] = useState('');
   const [refundType, setRefundType] = useState<'REFUND' | 'FORFEIT'>('REFUND');
-  const cancelMutation = useCancelBookingMutation(activePropertyId);
+  const cancelMutation = useCancelBookingMutation();
   
   const overlayRef = useRef<HTMLDivElement>(null);
 

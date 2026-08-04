@@ -55,6 +55,9 @@ import {
   ArrowRight,
   Moon,
   Download,
+  CreditCard,
+  FileText,
+  MoreHorizontal,
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -68,6 +71,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 const CancelBookingModal = dynamic(() => import('@/features/bookings/components/cancel-booking-modal').then(m => m.CancelBookingModal), { ssr: false });
 const DeleteBookingModal = dynamic(() => import('@/features/bookings/components/delete-booking-modal').then(m => m.DeleteBookingModal), { ssr: false });
 const RevertStatusModal = dynamic(() => import('@/features/bookings/components/revert-status-modal').then(m => m.RevertStatusModal), { ssr: false });
+const PaymentEntryModal = dynamic(() => import('@/features/payments/components/payment-entry-modal').then(m => m.PaymentEntryModal), { ssr: false });
+const InvoicePreviewModal = dynamic(() => import('@/features/invoices/components/invoice-preview-modal').then(m => m.InvoicePreviewModal), { ssr: false });
 
 const CHANNEL_CONFIG: Record<string, { label: string; icon: any }> = {
   WALK_IN: { label: 'Walk-In', icon: Users },
@@ -166,6 +171,16 @@ export default function BookingsPage() {
   const [showCancelModal, setShowCancelModal] = useState<Booking | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<Booking | null>(null);
   const [showRevertModal, setShowRevertModal] = useState<{ booking: Booking; targetStatus: 'CONFIRMED' | 'CHECKED_IN' } | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState<Booking | null>(null);
+  const [showInvoicePreviewModal, setShowInvoicePreviewModal] = useState<Booking | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  // Close open dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = () => setOpenDropdownId(null);
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   const activeFilters = useMemo(() => ({
     ...filters,
@@ -180,8 +195,11 @@ export default function BookingsPage() {
   const deleteMutation = useDeleteBookingMutation();
   const requestDeletionMutation = useRequestDeletionMutation();
 
-  const bookings: Booking[] = data?.bookings || [];
-  const pagination = data?.pagination;
+  const resData: any = data;
+  const bookings: Booking[] = Array.isArray(resData)
+    ? resData
+    : (resData?.bookings || resData?.data?.bookings || (Array.isArray(resData?.data) ? resData.data : []));
+  const pagination = resData?.pagination || resData?.data?.pagination;
 
   const toast = useToast();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -446,8 +464,8 @@ export default function BookingsPage() {
           </div>
 
           {/* ═══ MODERN BOOKINGS DATA TABLE ═══ */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs min-h-[380px]">
+            <div className="overflow-x-auto pb-32">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
@@ -506,7 +524,8 @@ export default function BookingsPage() {
                       </td>
                     </tr>
                   ) : (
-                    bookings.map((b) => {
+                    bookings.map((b, idx) => {
+                      const isBottomRow = bookings.length > 3 && idx >= bookings.length - 2;
                       const statusCfg = STATUS_CONFIG[b.status] || STATUS_CONFIG.CONFIRMED;
                       const channelCfg = CHANNEL_CONFIG[b.channel] || CHANNEL_CONFIG.WALK_IN;
                       const ChannelIcon = channelCfg.icon;
@@ -595,81 +614,137 @@ export default function BookingsPage() {
                             </div>
                           </td>
 
-                          {/* 6. Actions — Modern Clean SaaS Alignment */}
-                          <td className="p-4 pr-5 text-right">
-                            <div className="inline-flex items-center justify-end gap-2 shrink-0">
-                              {/* Primary Action Button */}
+                          {/* 6. Actions — Enterprise SaaS Action Dropdown & Labeled Buttons */}
+                          <td className="p-4 pr-5 text-right relative">
+                            <div className="inline-flex items-center justify-end gap-1.5 shrink-0">
+                              {/* Check-In / Check-Out Badge Button */}
                               {b.status === 'CONFIRMED' && (
                                 <button
                                   onClick={() => handleCheckInWithUndo(b.id)}
                                   disabled={checkInMutation.isPending}
-                                  className="h-8 px-3 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer btn-press shadow-2xs shrink-0 disabled:opacity-50"
+                                  className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all flex items-center gap-1 cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
                                 >
-                                  {checkInMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
-                                  {t('checkIn')}
+                                  {checkInMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <LogIn className="w-3 h-3" />}
+                                  <span>{t('checkIn')}</span>
                                 </button>
                               )}
                               {b.status === 'CHECKED_IN' && (
                                 <button
                                   onClick={() => handleCheckOutWithUndo(b.id)}
                                   disabled={checkOutMutation.isPending}
-                                  className="h-8 px-3 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer btn-press shadow-2xs shrink-0 disabled:opacity-50"
+                                  className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all flex items-center gap-1 cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
                                 >
-                                  {checkOutMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
-                                  {t('checkOut')}
+                                  {checkOutMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <LogOut className="w-3 h-3" />}
+                                  <span>{t('checkOut')}</span>
                                 </button>
                               )}
 
-                              {/* Secondary Action Toolbar */}
-                              <div className="flex items-center gap-0.5 p-0.5 bg-slate-100/90 border border-slate-200/90 rounded-lg shrink-0">
+                              {/* Labeled Quick Action 1: Record Payment */}
+                              <button
+                                onClick={() => setShowPaymentModal(b)}
+                                className="h-7 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                                title="Record Payment"
+                              >
+                                <CreditCard className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                <span>Pay</span>
+                              </button>
+
+                              {/* Labeled Quick Action 2: Invoice Preview */}
+                              <button
+                                onClick={() => setShowInvoicePreviewModal(b)}
+                                className="h-7 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                                title="Invoice Preview"
+                              >
+                                <FileText className="w-3 h-3 text-slate-600 dark:text-slate-300" />
+                                <span>Invoice</span>
+                              </button>
+
+                              {/* More Actions Dropdown Toggle (...) */}
+                              <div className="relative">
                                 <button
-                                  onClick={() => router.push(`/bookings/${b.id}`)}
-                                  className="w-7 h-7 rounded-md bg-white hover:bg-emerald-50 border border-slate-200/60 hover:border-emerald-200 text-slate-600 hover:text-emerald-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                                  title={t('view')}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownId(openDropdownId === b.id ? null : b.id);
+                                  }}
+                                  className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-all cursor-pointer"
+                                  title="More Actions"
                                 >
-                                  <Eye className="w-3.5 h-3.5" />
+                                  <MoreHorizontal className="w-3.5 h-3.5" />
                                 </button>
 
-                                {b.status !== 'CANCELLED' && b.status !== 'CHECKED_OUT' && (
-                                  <button
-                                    onClick={() => router.push(`/bookings/${b.id}?edit=true`)}
-                                    className="w-7 h-7 rounded-md bg-white hover:bg-blue-50 border border-slate-200/60 hover:border-blue-200 text-slate-600 hover:text-blue-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                                    title={t('edit')}
+                                {/* Dropdown Menu (Opens Upward for Bottom Rows to Avoid Table Clipping) */}
+                                {openDropdownId === b.id && (
+                                  <div
+                                    className={`absolute right-0 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1 space-y-0.5 text-left text-xs font-bold ${
+                                      isBottomRow ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+                                    }`}
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    <Edit3 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        router.push(`/bookings/${b.id}`);
+                                      }}
+                                      className="w-full px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors cursor-pointer"
+                                    >
+                                      <Eye className="w-3.5 h-3.5 text-slate-400" />
+                                      <span>View Details</span>
+                                    </button>
 
-                                {(b.status === 'CHECKED_OUT' || b.status === 'CHECKED_IN' || b.status === 'CANCELLED') && (
-                                  <button
-                                    onClick={() => setShowRevertModal({
-                                      booking: b,
-                                      targetStatus: b.status === 'CHECKED_OUT' ? 'CHECKED_IN' : 'CONFIRMED',
-                                    })}
-                                    className="w-7 h-7 rounded-md bg-white hover:bg-amber-50 border border-slate-200/60 hover:border-amber-200 text-slate-600 hover:text-amber-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                                    title={t('revert')}
-                                  >
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
+                                    {b.status !== 'CANCELLED' && b.status !== 'CHECKED_OUT' && (
+                                      <button
+                                        onClick={() => {
+                                          setOpenDropdownId(null);
+                                          router.push(`/bookings/${b.id}?edit=true`);
+                                        }}
+                                        className="w-full px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors cursor-pointer"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5 text-blue-500" />
+                                        <span>Edit Booking</span>
+                                      </button>
+                                    )}
 
-                                {b.status !== 'CANCELLED' && b.status !== 'CHECKED_OUT' && (
-                                  <button
-                                    onClick={() => setShowCancelModal(b)}
-                                    className="w-7 h-7 rounded-md bg-white hover:bg-rose-50 border border-slate-200/60 hover:border-rose-200 text-slate-600 hover:text-rose-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                                    title={t('cancel')}
-                                  >
-                                    <XCircle className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
+                                    {(b.status === 'CHECKED_OUT' || b.status === 'CHECKED_IN' || b.status === 'CANCELLED') && (
+                                      <button
+                                        onClick={() => {
+                                          setOpenDropdownId(null);
+                                          setShowRevertModal({
+                                            booking: b,
+                                            targetStatus: b.status === 'CHECKED_OUT' ? 'CHECKED_IN' : 'CONFIRMED',
+                                          });
+                                        }}
+                                        className="w-full px-3 py-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2 transition-colors cursor-pointer"
+                                      >
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                        <span>Revert Status</span>
+                                      </button>
+                                    )}
 
-                                <button
-                                  onClick={() => setShowDeleteModal(b)}
-                                  className="w-7 h-7 rounded-md bg-white hover:bg-rose-50 border border-slate-200/60 hover:border-rose-200 text-slate-400 hover:text-rose-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                                  title={isReception ? 'Request Delete' : t('delete')}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                    {b.status !== 'CANCELLED' && b.status !== 'CHECKED_OUT' && (
+                                      <button
+                                        onClick={() => {
+                                          setOpenDropdownId(null);
+                                          setShowCancelModal(b);
+                                        }}
+                                        className="w-full px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors cursor-pointer border-t border-slate-100 dark:border-slate-800"
+                                      >
+                                        <XCircle className="w-3.5 h-3.5" />
+                                        <span>Cancel Booking</span>
+                                      </button>
+                                    )}
+
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        setShowDeleteModal(b);
+                                      }}
+                                      className="w-full px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>{isReception ? 'Request Delete' : 'Delete Booking'}</span>
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -770,6 +845,22 @@ export default function BookingsPage() {
             revertData={showRevertModal}
             onClose={() => setShowRevertModal(null)}
             activePropertyId={activeProperty?.id}
+          />
+        )}
+
+        {showPaymentModal && (
+          <PaymentEntryModal
+            isOpen={!!showPaymentModal}
+            bookingId={showPaymentModal.id}
+            onClose={() => setShowPaymentModal(null)}
+          />
+        )}
+
+        {showInvoicePreviewModal && (
+          <InvoicePreviewModal
+            isOpen={!!showInvoicePreviewModal}
+            bookingId={showInvoicePreviewModal.id}
+            onClose={() => setShowInvoicePreviewModal(null)}
           />
         )}
 

@@ -29,9 +29,9 @@ export function BookingStepperHeader({ step, setStep }: BookingStepperHeaderProp
   const currentStepObj = steps.find((s) => s.num === step);
 
   return (
-    <div className="glass-card-premium rounded-3xl shadow-lg p-5 space-y-4 animate-slideUp">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 space-y-4">
       {/* Top: Progress Info */}
-      <div className="flex items-center justify-between text-xs font-extrabold text-slate-800">
+      <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
         <span className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulseGlow" />
           {t('stepOf')} {step} / 4 — {progressPct}% {t('completed')}

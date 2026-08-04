@@ -108,7 +108,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ children, actions }) => {
             <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight truncate max-w-[120px] capitalize">
               {getDisplayName()}
             </span>
-            <span className="text-[10px] font-medium text-slate-400 leading-tight truncate">
+            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 leading-tight truncate">
               {getRoleLabel()}
             </span>
           </div>

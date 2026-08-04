@@ -10,6 +10,11 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { HousekeepingModule } from './modules/housekeeping/housekeeping.module';
+import { StorageModule } from './common/storage/storage.module';
+import { HealthModule } from './modules/health/health.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { AgenciesModule } from './modules/agencies/agencies.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -28,6 +33,7 @@ import { AppService } from './app.service';
     }]),
 
     PrismaModule,
+    StorageModule,
     AuthModule,
     AdminModule,
     PropertiesModule,
@@ -35,6 +41,10 @@ import { AppService } from './app.service';
     StaffModule,
     BookingsModule,
     HousekeepingModule,
+    HealthModule,
+    PaymentsModule,
+    AgenciesModule,
+    InvoicesModule,
   ],
   controllers: [AppController],
   providers: [

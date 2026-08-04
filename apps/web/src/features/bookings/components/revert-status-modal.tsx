@@ -24,7 +24,7 @@ export function RevertStatusModal({
   activePropertyId?: string;
 }) {
   const { t } = useTranslation();
-  const revertMutation = useRevertStatusMutation(activePropertyId);
+  const revertMutation = useRevertStatusMutation();
   
   const overlayRef = useRef<HTMLDivElement>(null);
 

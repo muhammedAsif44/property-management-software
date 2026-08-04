@@ -164,7 +164,15 @@ export class StaffService {
   }
 
   /**
-   * 6. Permanently Delete Staff Member (Delegated - Owner Only)
+   * 6. Resend Invitation Email
+   */
+  async resendInvite(userId: string, staffId: string) {
+    const { property } = await this.resolveCallerProperty(userId);
+    return this.invitationService.resendInvite(property.id, staffId);
+  }
+
+  /**
+   * 7. Permanently Delete Staff Member (Delegated - Owner Only)
    */
   async deleteStaffPermanently(userId: string, staffId: string) {
     const { isOwner, property } = await this.resolveCallerProperty(userId);

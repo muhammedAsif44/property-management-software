@@ -12,31 +12,29 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async onModuleInit() {
     await this.$connect();
 
-    // Global Soft Delete Middleware
-    // Automatically injects `deletedAt: null` into read queries to prevent data leaks.
-    this.$use(async (params, next) => {
-      // List of models that use soft deletes
-      const softDeleteModels = ['Organization', 'User', 'Property', 'Booking'];
+    // Global Soft Delete Middleware (supported on Prisma versions <= 5)
+    if (typeof (this as any).$use === 'function') {
+      (this as any).$use(async (params: any, next: any) => {
+        const softDeleteModels = ['Organization', 'User', 'Property', 'Booking'];
 
-      if (softDeleteModels.includes(params.model as string)) {
-        if (params.action === 'findUnique' || params.action === 'findFirst') {
-          // findUnique fails if the where clause includes non-unique fields (like deletedAt)
-          // so we map it to findFirst
-          params.action = 'findFirst';
-          params.args.where = { ...params.args.where, deletedAt: null };
-        }
-        if (params.action === 'findMany' || params.action === 'count') {
-          if (params.args.where !== undefined) {
-            if (params.args.where.deletedAt === undefined) {
-              params.args.where.deletedAt = null;
+        if (softDeleteModels.includes(params.model as string)) {
+          if (params.action === 'findUnique' || params.action === 'findFirst') {
+            params.action = 'findFirst';
+            params.args.where = { ...params.args.where, deletedAt: null };
+          }
+          if (params.action === 'findMany' || params.action === 'count') {
+            if (params.args.where !== undefined) {
+              if (params.args.where.deletedAt === undefined) {
+                params.args.where.deletedAt = null;
+              }
+            } else {
+              params.args.where = { deletedAt: null };
             }
-          } else {
-            params.args.where = { deletedAt: null };
           }
         }
-      }
-      return next(params);
-    });
+        return next(params);
+      });
+    }
   }
 
   async onModuleDestroy() {

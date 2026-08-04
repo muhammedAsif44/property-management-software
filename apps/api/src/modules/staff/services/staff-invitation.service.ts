@@ -160,4 +160,29 @@ export class StaffInvitationService {
       }
     });
   }
+
+  /**
+   * Resend invitation by staff ID
+   */
+  async resendInvite(propertyId: string, staffId: string) {
+    const staff = await this.prisma.staffMember.findFirst({
+      where: { id: staffId, propertyId },
+      include: { user: true },
+    });
+
+    if (!staff) {
+      throw new NotFoundException('Staff member record not found');
+    }
+
+    const updated = await this.prisma.staffMember.update({
+      where: { id: staffId },
+      data: { invitedAt: new Date() },
+      include: { user: { select: { id: true, email: true, role: true } } },
+    });
+
+    return {
+      message: `Resent invitation to ${staff.user.email}.`,
+      staff: updated,
+    };
+  }
 }

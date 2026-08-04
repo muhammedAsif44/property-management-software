@@ -21,7 +21,7 @@ export class CreateBookingDto {
   guestName!: string;
 
   @IsOptional()
-  @IsPhoneNumber()
+  @IsString()
   guestPhone?: string;
 
   @IsOptional()
@@ -29,7 +29,7 @@ export class CreateBookingDto {
   guestEmail?: string;
 
   @IsOptional()
-  @IsISO31661Alpha2()
+  @IsString()
   guestNationality?: string;
 
   @IsUUID()

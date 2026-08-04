@@ -145,15 +145,29 @@ export class BookingLifecycleService {
           ? new Prisma.Decimal(dto.advancePaid)
           : booking.advancePaid;
 
+        // Aggregate all payments logged so far to preserve accurate balanceDue
+        const paymentAggregate = await tx.payment.aggregate({
+          where: { bookingId },
+          _sum: { amount: true },
+        });
+        const totalPaidSoFar = paymentAggregate._sum.amount || advancePaid;
+        const newTotalAmount = baseAmount.add(gstAmount);
+
         updateData.baseAmount = baseAmount;
         updateData.gstAmount = gstAmount;
-        updateData.totalAmount = baseAmount.add(gstAmount);
+        updateData.totalAmount = newTotalAmount;
         updateData.advancePaid = advancePaid;
-        updateData.balanceDue = baseAmount.add(gstAmount).sub(advancePaid);
+        updateData.balanceDue = newTotalAmount.sub(totalPaidSoFar);
       } else if (dto.advancePaid !== undefined) {
         const advancePaid = new Prisma.Decimal(dto.advancePaid);
+        const paymentAggregate = await tx.payment.aggregate({
+          where: { bookingId },
+          _sum: { amount: true },
+        });
+        const totalPaidSoFar = paymentAggregate._sum.amount || advancePaid;
+
         updateData.advancePaid = advancePaid;
-        updateData.balanceDue = booking.totalAmount.sub(advancePaid);
+        updateData.balanceDue = booking.totalAmount.sub(totalPaidSoFar);
       }
 
       // Update facilities if provided
@@ -172,6 +186,28 @@ export class BookingLifecycleService {
               priceAtBooking: a.price,
             })),
           });
+        }
+      }
+
+      // Update TAC accounting if baseAmount changed on pending agency booking
+      if (dto.baseAmount !== undefined && booking.agencyId && booking.tacStatus === TacStatus.PENDING) {
+        const agency = await tx.agency.findUnique({ where: { id: booking.agencyId } });
+        if (agency?.defaultTacRate) {
+          const newBase = new Prisma.Decimal(dto.baseAmount);
+          const oldTac = booking.tacAmount || booking.baseAmount.mul(agency.defaultTacRate).div(100);
+          const newTac = newBase.mul(agency.defaultTacRate).div(100);
+          const diff = newTac.minus(oldTac);
+
+          if (!diff.isZero()) {
+            updateData.tacAmount = newTac;
+            await tx.agency.update({
+              where: { id: booking.agencyId },
+              data: {
+                totalTac: { increment: diff },
+                pendingTac: { increment: diff },
+              },
+            });
+          }
         }
       }
 

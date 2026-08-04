@@ -1,10 +1,10 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
-import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../../../database/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+import { Response } from 'express';
+import { PrismaService } from '../../../database/prisma.service';
 
 @Injectable()
 export class TokenService {
@@ -25,7 +25,7 @@ export class TokenService {
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      expiresIn: (this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '30d') as any,
+      expiresIn: (this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '15m') as any,
     });
 
     const refreshToken = this.jwtService.sign(payload, {
@@ -82,9 +82,8 @@ export class TokenService {
         organizationId: user.organizationId,
       },
       tokens: {
-        accessToken,
-        accessTokenExpiresIn: '7d',
-        refreshTokenExpiresIn: '30d',
+        accessTokenExpiresIn: '15m',
+        refreshTokenExpiresIn: '365d',
       },
     };
   }

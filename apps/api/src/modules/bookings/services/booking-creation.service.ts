@@ -65,7 +65,7 @@ export class BookingCreationService {
       where: { propertyId },
     });
 
-    // Run inside SERIALIZABLE transaction for conflict detection
+    // Run inside SERIALIZABLE transaction for conflict detection to prevent Phantom Reads
     return this.prisma.$transaction(async (tx) => {
       // Count overlapping bookings for same room type (excluding cancelled/deleted)
       const overlappingCount = await tx.booking.count({

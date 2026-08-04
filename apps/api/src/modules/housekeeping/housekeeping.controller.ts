@@ -8,8 +8,11 @@ import {
   Delete,
   Query,
   UseGuards,
-  Req,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
+import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { HousekeepingService } from './housekeeping.service';
 import { CreateRoomUnitDto } from './dto/create-room-unit.dto';
 import { UpdateRoomUnitDto } from './dto/update-room-unit.dto';
@@ -34,12 +37,12 @@ export class HousekeepingController {
   @Get('units')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.SUPER_ADMIN)
   async getUnits(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Query('propertyId') propertyId?: string,
     @Query('roomTypeId') roomTypeId?: string,
     @Query('status') status?: CleanlinessStatus,
   ) {
-    return this.housekeepingService.getUnits(req.user.id, propertyId, roomTypeId, status);
+    return this.housekeepingService.getUnits(user.id, propertyId, roomTypeId, status);
   }
 
   /**
@@ -49,11 +52,11 @@ export class HousekeepingController {
   @Patch('units/:id/status')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.SUPER_ADMIN)
   async updateUnitStatus(
-    @Req() req: any,
-    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUnitStatusDto,
   ) {
-    return this.housekeepingService.updateUnitStatus(req.user.id, id, dto);
+    return this.housekeepingService.updateUnitStatus(user.id, id, dto);
   }
 
   /**
@@ -62,8 +65,8 @@ export class HousekeepingController {
    */
   @Post('units')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
-  async createUnit(@Req() req: any, @Body() dto: CreateRoomUnitDto) {
-    return this.housekeepingService.createUnit(req.user.id, dto);
+  async createUnit(@CurrentUser() user: AuthUser, @Body() dto: CreateRoomUnitDto) {
+    return this.housekeepingService.createUnit(user.id, dto);
   }
 
   /**
@@ -72,8 +75,8 @@ export class HousekeepingController {
    */
   @Patch('units/:id')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
-  async updateUnit(@Req() req: any, @Param('id') id: string, @Body() dto: UpdateRoomUnitDto) {
-    return this.housekeepingService.updateUnit(req.user.id, id, dto);
+  async updateUnit(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateRoomUnitDto) {
+    return this.housekeepingService.updateUnit(user.id, id, dto);
   }
 
   /**
@@ -81,9 +84,10 @@ export class HousekeepingController {
    * Delete a room unit (Owner & Manager only)
    */
   @Delete('units/:id')
+  @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
-  async deleteUnit(@Req() req: any, @Param('id') id: string) {
-    return this.housekeepingService.deleteUnit(req.user.id, id);
+  async deleteUnit(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.housekeepingService.deleteUnit(user.id, id);
   }
 
   /**
@@ -93,10 +97,10 @@ export class HousekeepingController {
   @Post('units/batch-generate')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
   async batchGenerateUnits(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Body() dto: BatchGenerateUnitsDto,
   ) {
-    return this.housekeepingService.batchGenerateUnits(req.user.id, dto);
+    return this.housekeepingService.batchGenerateUnits(user.id, dto);
   }
 
   /**
@@ -106,11 +110,11 @@ export class HousekeepingController {
   @Get('tasks')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.SUPER_ADMIN)
   async getTasks(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Query('propertyId') propertyId?: string,
     @Query('status') status?: TaskStatus,
   ) {
-    return this.housekeepingService.getTasks(req.user.id, propertyId, status);
+    return this.housekeepingService.getTasks(user.id, propertyId, status);
   }
 
   /**
@@ -120,10 +124,10 @@ export class HousekeepingController {
   @Post('tasks')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.SUPER_ADMIN)
   async createTask(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreateTaskDto,
   ) {
-    return this.housekeepingService.createTask(req.user.id, dto);
+    return this.housekeepingService.createTask(user.id, dto);
   }
 
   /**
@@ -133,10 +137,10 @@ export class HousekeepingController {
   @Patch('tasks/:id')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.SUPER_ADMIN)
   async updateTask(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Param('id') id: string,
     @Body() dto: UpdateTaskDto,
   ) {
-    return this.housekeepingService.updateTask(req.user.id, id, dto);
+    return this.housekeepingService.updateTask(user.id, id, dto);
   }
 }

@@ -28,14 +28,14 @@ export function QuickActionsStrip({
   const isManagerOrOwner = isOwner || userRole === 'MANAGER';
 
   return (
-    <div className="p-4 bg-white/95 backdrop-blur-xl rounded-2xl border border-emerald-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <div className="p-2 rounded-xl bg-emerald-100/80 border border-emerald-200 text-emerald-800">
-          <Zap className="w-4 h-4 text-emerald-700" />
+    <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 border border-divider flex items-center justify-center">
+          <Zap className="w-4 h-4 text-slate-400" />
         </div>
         <div>
-          <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">{t('quickActionsAndWorkflows')}</h3>
-          <p className="text-[11px] text-slate-500 font-semibold">{t('quickActionsSubtitle')}</p>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{t('quickActionsAndWorkflows')}</h3>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">{t('quickActionsSubtitle')}</p>
         </div>
       </div>
 
@@ -45,10 +45,10 @@ export function QuickActionsStrip({
           <button
             onClick={onTriggerAutoCheckout}
             disabled={isAutoCheckoutSyncing}
-            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-900 transition-all flex items-center gap-1.5 text-xs font-bold shadow-xs disabled:opacity-60 cursor-pointer"
+            className="interactive px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-divider text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             title={t('autoCheckoutExpiredStays')}
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-emerald-700 ${isAutoCheckoutSyncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${isAutoCheckoutSyncing ? 'animate-spin' : ''}`} />
             <span>{isAutoCheckoutSyncing ? t('syncing') : t('autoCheckoutExpiredStays')}</span>
           </button>
         )}
@@ -58,9 +58,11 @@ export function QuickActionsStrip({
         {isManagerOrOwner && (
           <Link
             href="/settings/staff"
-            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-900 transition-all flex items-center gap-1.5 text-xs font-bold shadow-xs cursor-pointer active:scale-95"
+            className="interactive px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-divider text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all flex items-center gap-1.5"
+            title={t('manageStaffRoles')}
           >
-            <Users className="w-3.5 h-3.5 text-emerald-700" /> {t('staffDirectory')}
+            <Users className="w-3.5 h-3.5 text-slate-400" />
+            <span>{t('staffDirectory')}</span>
           </Link>
         )}
       </div>

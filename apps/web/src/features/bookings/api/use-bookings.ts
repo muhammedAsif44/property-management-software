@@ -215,6 +215,6 @@ export function useOccupancyQuery(propertyId: string, from: string, to: string) 
     queryKey: bookingKeys.occupancy(propertyId, from, to),
     queryFn: () => bookingService.getOccupancy(propertyId, from, to),
     enabled: !!propertyId && !!from && !!to,
-    staleTime: 30000,
+    staleTime: 5000,
   });
 }

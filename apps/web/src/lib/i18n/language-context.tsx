@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { Language, translations, TranslationKey } from './translations';
+import { useUiStore } from '../store/use-ui-store';
 
 interface LanguageContextType {
   language: Language;
@@ -12,28 +13,12 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>('en');
-
-  // Load language preference from localStorage on client mount
-  useEffect(() => {
-    try {
-      const savedLang = localStorage.getItem('orvyn_pms_lang') as Language;
-      if (savedLang === 'en' || savedLang === 'ml') {
-        setLanguageState(savedLang);
-      }
-    } catch (e) {
-      // LocalStorage unavailable fallback to 'en'
-    }
-  }, []);
+  const language = useUiStore((state) => state.language);
+  const setLanguageState = useUiStore((state) => state.setLanguage);
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
-    try {
-      localStorage.setItem('orvyn_pms_lang', lang);
-    } catch (e) {
-      // Storage failure ignore
-    }
-  }, []);
+  }, [setLanguageState]);
 
   const t = useCallback((key: TranslationKey): string => {
     const langDict = translations[language];
@@ -56,7 +41,6 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 export const useTranslation = (): LanguageContextType => {
   const context = useContext(LanguageContext);
   if (!context) {
-    // Fallback default if rendered outside provider
     return {
       language: 'en',
       setLanguage: () => {},

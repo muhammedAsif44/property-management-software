@@ -7,7 +7,8 @@ import { usePropertyStore, useActivePropertyQuery } from '@/features/properties'
 import { useOccupancyQuery } from '@/features/bookings/api/use-bookings';
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
 import { QuickHelpDrawer } from '@/components/quick-help-drawer';
-import { BookingPreviewPopover } from '@/features/bookings/components/booking-preview-popover';
+import dynamic from 'next/dynamic';
+const BookingPreviewPopover = dynamic(() => import('@/features/bookings/components/booking-preview-popover').then(m => m.BookingPreviewPopover), { ssr: false });
 import { OccupancyCell, OccupancyCellBooking } from '@/features/bookings/types/booking.types';
 import {
   ArrowLeft,
@@ -43,8 +44,13 @@ const formatRangeLabel = (start: string, end: string) => {
   return `${s.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} — ${e.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
 };
 
+const VIEW_MODE = {
+  FORTNIGHT: 14,
+  MONTH: 30
+} as const;
+
 /* ─── Cell logic ─── */
-function getCellStyle(cell: any, total: number) {
+function getCellStyle(cell: OccupancyCell | undefined, total: number) {
   if (!cell) return { bg: 'bg-transparent', text: 'text-slate-200', border: 'border-transparent', ring: '', opacity: 'opacity-20' };
   const booked = cell.booked || 0;
   if (booked === 0) return { bg: 'bg-transparent', text: 'text-slate-300', border: 'border-transparent', ring: '', opacity: 'opacity-25' };
@@ -59,23 +65,111 @@ function getCellStyle(cell: any, total: number) {
   return { bg: 'bg-transparent', text: 'text-slate-200', border: 'border-transparent', ring: '', opacity: 'opacity-20' };
 }
 
+import { Skeleton } from '@/components/ui/skeleton';
+
 /* ─── Skeleton Rows ─── */
 function CalendarSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 space-y-4">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="flex items-center gap-3">
-          <div className="w-36 h-10 skeleton rounded-lg shrink-0" />
-          <div className="flex gap-2 flex-1 overflow-hidden">
-            {Array.from({ length: 14 }).map((_, j) => (
-              <div key={j} className="w-10 h-10 skeleton rounded-lg shrink-0" />
-            ))}
-          </div>
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] overflow-hidden">
+      {/* Header Row Skeleton */}
+      <div className="flex bg-slate-50 dark:bg-slate-800/50 border-b border-divider p-3 gap-1">
+        <div className="w-[180px] shrink-0" />
+        <div className="flex flex-1 gap-1 overflow-hidden">
+          {Array.from({ length: 14 }).map((_, i) => (
+            <Skeleton key={`h-${i}`} className="h-10 w-11 rounded-md shrink-0 opacity-50" />
+          ))}
         </div>
-      ))}
+      </div>
+      
+      {/* Body Rows */}
+      <div className="p-3 space-y-3">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Skeleton className="w-[180px] h-11 rounded-lg shrink-0" />
+            <div className="flex gap-1 flex-1 overflow-hidden">
+              {Array.from({ length: 14 }).map((_, j) => (
+                <Skeleton key={j} className="w-11 h-11 rounded-md shrink-0 opacity-40" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
+
+/* ─── Memoized Calendar Cell ─── */
+const CalendarCell = React.memo(({
+  h,
+  rt,
+  cell,
+  cellKey,
+  isPopoverOpen,
+  popover,
+  bookingsMap,
+  filteredRoomTypesLength,
+  handleCellClick,
+  setPopover,
+  t
+}: any) => {
+  const style = getCellStyle(cell, rt.totalUnits);
+  const booked = cell?.booked || 0;
+  const total = cell?.total || rt.totalUnits;
+  
+  // Resolve bookings from normalized bookingIds map
+  const cellBookings = React.useMemo(() => {
+    if (!cell?.bookingIds || !bookingsMap) return [];
+    return cell.bookingIds.map((id: string) => bookingsMap[id]).filter(Boolean);
+  }, [cell?.bookingIds, bookingsMap]);
+
+  const hasBookings = cellBookings.length > 0;
+  
+  const dateLabel = new Date(h.date + 'T00:00:00').toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  });
+
+  return (
+    <td
+      className={`p-1 text-center border-b border-r border-slate-100 relative ${
+        filteredRoomTypesLength <= 2 ? 'h-[90px]' : filteredRoomTypesLength <= 4 ? 'h-[75px]' : 'h-[72px]'
+      } ${
+        h.isToday ? 'bg-emerald-50/40' : h.isWeekend ? 'bg-slate-50/50' : 'bg-white'
+      }`}
+    >
+      <button
+        onClick={() => handleCellClick(cellKey, cellBookings, `${rt.name} · ${dateLabel}`)}
+        disabled={!hasBookings}
+        className={`w-full h-full min-h-[56px] rounded-lg flex flex-col items-center justify-center text-xs font-bold transition-all duration-200 border ${style.bg} ${style.text} ${style.border} ${style.ring} ${style.opacity} ${
+          hasBookings ? 'cursor-pointer hover:scale-[1.03] hover:shadow-lg hover:brightness-110' : 'cursor-default'
+        }`}
+        title={
+          cell?.hasConflict
+            ? t('conflictWarning')
+            : cellBookings.map((b: any) => b.guestName).join(', ') || ''
+        }
+      >
+        {booked > 0 ? (
+          <span className="leading-none tracking-tight text-sm tabular-data">{booked}</span>
+        ) : (
+          <span className="w-1 h-1 rounded-full bg-slate-300 opacity-60"></span>
+        )}
+        {booked > 0 && <span className="text-[10px] font-bold opacity-90 leading-none mt-1">/{total}</span>}
+      </button>
+
+      {/* Popover */}
+      {isPopoverOpen && (
+        <BookingPreviewPopover
+          bookings={popover?.bookings || []}
+          dateLabel={popover?.label || ''}
+          onClose={() => setPopover(null)}
+        />
+      )}
+    </td>
+  );
+});
+CalendarCell.displayName = 'CalendarCell';
 
 export default function OccupancyPage() {
   const router = useRouter();
@@ -84,54 +178,55 @@ export default function OccupancyPage() {
   const activeProperty = usePropertyStore((s) => s.activeProperty);
 
   // Date range state: 14-day or 30-day (Month) view
-  const [spanDays, setSpanDays] = useState<14 | 30>(14);
+  const [spanDays, setSpanDays] = useState<typeof VIEW_MODE.FORTNIGHT | typeof VIEW_MODE.MONTH>(VIEW_MODE.FORTNIGHT);
   const [startDate, setStartDate] = useState(todayStr);
-  const [endDate, setEndDate] = useState(() => addDays(todayStr(), 14));
+  const [endDate, setEndDate] = useState(() => addDays(todayStr(), VIEW_MODE.FORTNIGHT));
   const [searchTerm, setSearchTerm] = useState('');
 
   // Popover state
-  const [popoverKey, setPopoverKey] = useState<string | null>(null);
-  const [popoverBookings, setPopoverBookings] = useState<OccupancyCellBooking[]>([]);
-  const [popoverLabel, setPopoverLabel] = useState('');
+  type PopoverState = { key: string; bookings: OccupancyCellBooking[]; label: string } | null;
+  const [popover, setPopover] = useState<PopoverState>(null);
 
   const { data, isLoading, isError, refetch } = useOccupancyQuery(activeProperty?.id || '', startDate, endDate);
 
-  const changeSpan = useCallback((days: 14 | 30) => {
+  const handleChangeSpan = useCallback((days: typeof VIEW_MODE.FORTNIGHT | typeof VIEW_MODE.MONTH) => {
     setSpanDays(days);
     setEndDate(addDays(startDate, days));
-    setPopoverKey(null);
+    setPopover(null);
   }, [startDate]);
 
-  const shiftDays = useCallback((dir: number) => {
-    const amount = spanDays === 14 ? 7 : 15;
+  const handleShiftDays = useCallback((dir: number) => {
+    const amount = spanDays === VIEW_MODE.FORTNIGHT ? 7 : 15;
     setStartDate((s) => addDays(s, dir * amount));
     setEndDate((e) => addDays(e, dir * amount));
-    setPopoverKey(null);
+    setPopover(null);
   }, [spanDays]);
 
-  const goToday = useCallback(() => {
+  const handleGoToToday = useCallback(() => {
     setStartDate(todayStr());
     setEndDate(addDays(todayStr(), spanDays));
-    setPopoverKey(null);
+    setPopover(null);
   }, [spanDays]);
 
   const handleCellClick = useCallback((key: string, bookings: OccupancyCellBooking[], label: string) => {
     if (bookings.length === 0) return;
-    if (popoverKey === key) {
-      setPopoverKey(null);
+    if (popover?.key === key) {
+      setPopover(null);
       return;
     }
-    setPopoverKey(key);
-    setPopoverBookings(bookings);
-    setPopoverLabel(label);
-  }, [popoverKey]);
+    setPopover({ key, bookings, label });
+  }, [popover?.key]);
 
-  // Memoize formatted day headers
+  // Memoize formatted day headers (optimized date math)
   const dayHeaders = useMemo(() => {
-    if (!data?.dates) return [];
+    if (!data?.dates || data.dates.length === 0) return [];
+    
+    // Parse the first date once, then increment by 86,400,000ms (1 day)
+    const baseTs = new Date(data.dates[0] + 'T00:00:00').getTime();
     const today = todayStr();
-    return data.dates.map((d) => {
-      const dt = new Date(d + 'T00:00:00');
+    
+    return data.dates.map((d, index) => {
+      const dt = new Date(baseTs + (index * 86400000));
       return {
         date: d,
         day: dt.getDate(),
@@ -143,12 +238,14 @@ export default function OccupancyPage() {
     });
   }, [data?.dates]);
 
-  // Filtered Room Types
+  // Filtered Room Types (optimized search)
   const filteredRoomTypes = useMemo(() => {
     if (!data?.roomTypes) return [];
     if (!searchTerm.trim()) return data.roomTypes;
+    
+    const normalizedSearch = searchTerm.toLowerCase().trim();
     return data.roomTypes.filter((rt) =>
-      rt.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
+      rt.name.toLowerCase().includes(normalizedSearch)
     );
   }, [data?.roomTypes, searchTerm]);
 
@@ -176,10 +273,7 @@ export default function OccupancyPage() {
   }, [data]);
 
   return (
-    <div className="min-h-screen bg-slate-50/90 text-slate-900 font-sans antialiased flex relative overflow-hidden">
-      {/* Ambient Rich Emerald Glow */}
-      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
-      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
+    <div className="min-h-screen text-slate-900 font-sans antialiased flex relative overflow-hidden">
 
       <DashboardSidebar />
 
@@ -201,7 +295,6 @@ export default function OccupancyPage() {
               </div>
               <div className="min-w-0">
                 <h1 className="text-sm font-black text-slate-900 tracking-tight truncate flex items-center gap-1.5">
-                  <span className="text-base">🏨</span>
                   <span>{activeProperty?.name || 'Property'}</span>
                 </h1>
                 <p className="text-[11px] font-bold text-slate-500 truncate">
@@ -214,17 +307,17 @@ export default function OccupancyPage() {
               {/* Span Selector Pill */}
               <div className="flex items-center bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/80 shrink-0">
                 <button
-                  onClick={() => changeSpan(14)}
+                  onClick={() => handleChangeSpan(VIEW_MODE.FORTNIGHT)}
                   className={`px-2.5 py-1 text-[11px] font-black rounded-lg transition-all cursor-pointer ${
-                    spanDays === 14 ? 'bg-white text-emerald-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                    spanDays === VIEW_MODE.FORTNIGHT ? 'bg-white text-emerald-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   14 Days
                 </button>
                 <button
-                  onClick={() => changeSpan(30)}
+                  onClick={() => handleChangeSpan(VIEW_MODE.MONTH)}
                   className={`px-2.5 py-1 text-[11px] font-black rounded-lg transition-all cursor-pointer ${
-                    spanDays === 30 ? 'bg-white text-emerald-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                    spanDays === VIEW_MODE.MONTH ? 'bg-white text-emerald-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   30 Days (Month)
@@ -234,7 +327,7 @@ export default function OccupancyPage() {
               {/* Date Navigation */}
               <div className="flex items-center gap-1 bg-white border border-slate-200/80 rounded-xl px-1 py-1 shadow-2xs">
                 <button
-                  onClick={() => shiftDays(-1)}
+                  onClick={() => handleShiftDays(-1)}
                   className="p-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
                   title={t('shiftWeekBack')}
                 >
@@ -244,7 +337,7 @@ export default function OccupancyPage() {
                   {formatRangeLabel(startDate, endDate)}
                 </span>
                 <button
-                  onClick={() => shiftDays(1)}
+                  onClick={() => handleShiftDays(1)}
                   className="p-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
                   title={t('shiftWeekForward')}
                 >
@@ -253,7 +346,7 @@ export default function OccupancyPage() {
               </div>
 
               <button
-                onClick={goToday}
+                onClick={handleGoToToday}
                 className="px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200/80 text-slate-700 font-extrabold text-xs transition-all cursor-pointer active:scale-95 shadow-2xs"
               >
                 {t('todayLabel')}
@@ -282,31 +375,31 @@ export default function OccupancyPage() {
 
         {/* ═══ Summary Stats Bar (SaaS Metrics Pills) ═══ */}
         {summaryStats && (
-          <div className="px-6 py-2 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between gap-4 flex-wrap z-10 relative">
+          <div className="px-6 py-2 bg-white/80 backdrop-blur-md border-b border-divider flex items-center justify-between gap-4 flex-wrap z-10 relative">
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100/80 border border-slate-200/60">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-2xs" />
-                <span className="text-xs font-black text-slate-900">{summaryStats.availableToday}</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-divider">
+                <div className="w-2 h-2 rounded-full bg-slate-300" />
+                <span className="text-xs font-bold tabular-data text-slate-900">{summaryStats.availableToday}</span>
                 <span className="text-[11px] font-semibold text-slate-500">{t('available')}</span>
               </div>
 
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100/80 border border-slate-200/60">
-                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-2xs" />
-                <span className="text-xs font-black text-slate-900">{summaryStats.bookedToday}</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-divider">
+                <div className="w-2 h-2 rounded-full bg-slate-400" />
+                <span className="text-xs font-bold tabular-data text-slate-900">{summaryStats.bookedToday}</span>
                 <span className="text-[11px] font-semibold text-slate-500">{t('occupied')}</span>
               </div>
 
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100/80 border border-slate-200/60">
-                <div className="w-2 h-2 rounded-full bg-slate-400 shadow-2xs" />
-                <span className="text-xs font-black text-slate-900">{summaryStats.oooToday}</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-divider">
+                <div className="w-2 h-2 rounded-full bg-slate-500" />
+                <span className="text-xs font-bold tabular-data text-slate-900">{summaryStats.oooToday}</span>
                 <span className="text-[11px] font-semibold text-slate-500">{t('outOfOrderUnits')}</span>
               </div>
 
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50/80 border border-emerald-200/70">
-                <span className={`text-xs font-black ${summaryStats.occupancyPct >= 90 ? 'text-rose-600' : summaryStats.occupancyPct >= 60 ? 'text-amber-600' : 'text-emerald-700'}`}>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-divider">
+                <span className="text-xs font-bold tabular-data text-slate-900">
                   {summaryStats.occupancyPct}%
                 </span>
-                <span className="text-[11px] font-bold text-emerald-800">{t('occupancyRate')}</span>
+                <span className="text-[11px] font-semibold text-slate-500">{t('occupancyRate')}</span>
               </div>
 
               {summaryStats.conflicts > 0 && (
@@ -332,9 +425,8 @@ export default function OccupancyPage() {
 
               {/* Future Filter Trigger Slot */}
               <button
-                disabled
-                className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-400 text-xs font-bold flex items-center gap-1.5 opacity-60 cursor-not-allowed shadow-2xs"
-                title="Filters (Status, Floor, Category) - Coming Soon"
+                className="interactive px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-divider text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Filters"
               >
                 <span>Filter</span>
               </button>
@@ -343,7 +435,7 @@ export default function OccupancyPage() {
         )}
 
         {/* ═══ Main Body: Calendar Grid & Operational Insights ═══ */}
-        <div className="p-6 space-y-6 flex-1 flex flex-col">
+        <div className="p-4 sm:p-6 space-y-6 flex flex-col">
           {isLoading ? (
             <CalendarSkeleton />
           ) : isError ? (
@@ -367,8 +459,8 @@ export default function OccupancyPage() {
           ) : (
             <>
               {/* Table Container */}
-              <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
-                <div className="overflow-auto flex-1 min-h-0 relative">
+              <div className="bg-white rounded-xl border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col">
+                <div className="overflow-x-auto relative">
                   <table className="w-full text-sm border-collapse">
                     <thead>
                       <tr className="bg-slate-100/90 sticky top-0 z-20 shadow-xs border-b border-slate-200">
@@ -382,12 +474,12 @@ export default function OccupancyPage() {
                               h.isToday ? 'bg-emerald-100/80 border-b-2 border-b-emerald-600' : h.isWeekend ? 'bg-slate-200/60' : 'bg-slate-100/90'
                             }`}
                           >
-                            <span className="block text-[9.5px] text-slate-500 uppercase font-black tracking-widest">{h.dayName}</span>
+                            <span className="block text-[9.5px] text-slate-500 uppercase font-bold tracking-widest">{h.dayName}</span>
                             <span className={`inline-block mt-0.5 ${h.isToday ? 'bg-emerald-600 text-white font-black text-xs px-1.5 py-0.5 rounded-md shadow-2xs' : 'text-[15px] font-black text-slate-900'}`}>
                               {h.day}
                             </span>
                             {h.day === 1 && (
-                              <span className="block text-[9px] text-emerald-800 font-extrabold mt-0.5">{h.monthShort}</span>
+                              <span className="block text-[9px] text-slate-500 font-bold mt-0.5">{h.monthShort}</span>
                             )}
                           </th>
                         ))}
@@ -396,58 +488,30 @@ export default function OccupancyPage() {
                     <tbody>
                       {filteredRoomTypes.map((rt) => (
                         <tr key={rt.id} className="group hover:bg-slate-50/80 transition-colors">
-                          <td className="sticky left-0 bg-white group-hover:bg-slate-50/90 z-10 px-5 py-3.5 border-b border-r border-slate-200/80 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.08)] transition-colors">
-                            <p className="font-black text-slate-900 text-sm tracking-tight truncate min-w-0">{rt.name}</p>
-                            <p className="text-xs text-slate-500 font-bold mt-0.5">{rt.totalUnits} {t('units')}</p>
+                          <td className="sticky left-0 bg-white group-hover:bg-slate-50/90 z-10 px-5 py-5 border-b border-r border-slate-200/80 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.08)] transition-colors">
+                            <p className="font-bold text-slate-900 text-sm tracking-tight truncate min-w-0">{rt.name}</p>
+                            <p className="text-xs text-slate-500 font-semibold mt-0.5">{rt.totalUnits} {t('units')}</p>
                           </td>
                           {dayHeaders.map((h) => {
                             const cell = data.occupancy?.[rt.id]?.[h.date];
-                            const style = getCellStyle(cell, rt.totalUnits);
-                            const booked = cell?.booked || 0;
-                            const total = cell?.total || rt.totalUnits;
                             const cellKey = `${rt.id}-${h.date}`;
-                            const isPopoverOpen = popoverKey === cellKey;
-                            const hasBookings = (cell?.bookings?.length || 0) > 0;
-                            const dateLabel = new Date(h.date + 'T00:00:00').toLocaleDateString('en-IN', {
-                              weekday: 'short',
-                              day: '2-digit',
-                              month: 'short',
-                            });
-
+                            const isPopoverOpen = popover?.key === cellKey;
+                            
                             return (
-                              <td
+                              <CalendarCell
                                 key={h.date}
-                                className={`p-1 text-center border-b border-r border-slate-100 relative ${
-                                  filteredRoomTypes.length <= 2 ? 'h-[90px]' : filteredRoomTypes.length <= 4 ? 'h-[75px]' : 'h-[60px]'
-                                } ${
-                                  h.isToday ? 'bg-emerald-50/40' : h.isWeekend ? 'bg-slate-50/50' : 'bg-white'
-                                }`}
-                              >
-                                <button
-                                  onClick={() => handleCellClick(cellKey, cell?.bookings || [], `${rt.name} · ${dateLabel}`)}
-                                  disabled={!hasBookings}
-                                  className={`w-full h-full min-h-[48px] rounded-lg flex flex-col items-center justify-center text-xs font-black transition-all duration-200 border ${style.bg} ${style.text} ${style.border} ${style.ring} ${style.opacity} ${
-                                    hasBookings ? 'cursor-pointer hover:scale-[1.03] hover:shadow-lg hover:brightness-110' : 'cursor-default'
-                                  }`}
-                                  title={
-                                    cell?.hasConflict
-                                      ? t('conflictWarning')
-                                      : cell?.bookings?.map((b) => b.guestName).join(', ') || ''
-                                  }
-                                >
-                                  <span className="leading-none tracking-tight text-sm">{booked > 0 ? booked : '-'}</span>
-                                  {booked > 0 && <span className="text-[10px] font-extrabold opacity-90 leading-none mt-1">/{total}</span>}
-                                </button>
-
-                                {/* Popover */}
-                                {isPopoverOpen && (
-                                  <BookingPreviewPopover
-                                    bookings={popoverBookings}
-                                    dateLabel={popoverLabel}
-                                    onClose={() => setPopoverKey(null)}
-                                  />
-                                )}
-                              </td>
+                                h={h}
+                                rt={rt}
+                                cell={cell}
+                                cellKey={cellKey}
+                                isPopoverOpen={isPopoverOpen}
+                                popover={popover}
+                                bookingsMap={data.bookingsMap}
+                                filteredRoomTypesLength={filteredRoomTypes.length}
+                                handleCellClick={handleCellClick}
+                                setPopover={setPopover}
+                                t={t}
+                              />
                             );
                           })}
                         </tr>

@@ -8,8 +8,12 @@ import {
   IsArray,
   Min,
   MinLength,
+  IsEmail,
+  IsPhoneNumber,
+  IsISO31661Alpha2,
 } from 'class-validator';
 import { BookingChannel, MealPlan } from '@prisma/client';
+import { IsAfterDate } from '../../../common/validators/is-after.validator';
 
 export class CreateBookingDto {
   @IsString()
@@ -17,15 +21,15 @@ export class CreateBookingDto {
   guestName!: string;
 
   @IsOptional()
-  @IsString()
+  @IsPhoneNumber()
   guestPhone?: string;
 
   @IsOptional()
-  @IsString()
+  @IsEmail()
   guestEmail?: string;
 
   @IsOptional()
-  @IsString()
+  @IsISO31661Alpha2()
   guestNationality?: string;
 
   @IsUUID()
@@ -35,6 +39,7 @@ export class CreateBookingDto {
   checkInDate!: string;
 
   @IsDateString()
+  @IsAfterDate('checkInDate')
   checkOutDate!: string;
 
   @IsNumber()
@@ -57,12 +62,12 @@ export class CreateBookingDto {
   @IsUUID()
   agencyId?: string;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   baseAmount!: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   advancePaid?: number;
 

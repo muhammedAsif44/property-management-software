@@ -22,16 +22,17 @@ model Organization {
   settings           Json?
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
+  deletedAt          DateTime?          @map("deleted_at")
 
   // Relations
-  users              User[]
-  owners             Owner[]
-  properties         Property[]
-  invoiceTemplates   InvoiceTemplate[]
-  notifications      Notification[]
-  auditLogs          AuditLog[]
-  apiKeys            ApiKey[]
-  webhooks           Webhook[]
+  users            User[]
+  owners           Owner[]
+  properties       Property[]
+  invoiceTemplates InvoiceTemplate[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  apiKeys          ApiKey[]
+  webhooks         Webhook[]
 
   @@map("organizations")
 }
@@ -55,35 +56,37 @@ enum SubscriptionStatus {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model User {
-  id               String         @id @default(uuid())
-  organizationId   String         @map("organization_id")
-  email            String         @unique
-  passwordHash     String         @map("password_hash")
-  phone            String?
-  role             UserRole       @default(VIEWER)
-  approvalStatus   ApprovalStatus @default(PENDING) @map("approval_status")
-  rejectionReason  String?        @map("rejection_reason")
-  isActive         Boolean        @default(true) @map("is_active")
-  lastLoginAt      DateTime?      @map("last_login_at")
-  mfaEnabled       Boolean        @default(false) @map("mfa_enabled")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  deletedAt        DateTime?      @map("deleted_at")
+  id              String         @id @default(uuid())
+  organizationId  String         @map("organization_id")
+  email           String         @unique
+  passwordHash    String         @map("password_hash")
+  phone           String?
+  role            UserRole       @default(VIEWER)
+  approvalStatus  ApprovalStatus @default(PENDING) @map("approval_status")
+  rejectionReason String?        @map("rejection_reason")
+  isActive        Boolean        @default(true) @map("is_active")
+  lastLoginAt     DateTime?      @map("last_login_at")
+  mfaEnabled      Boolean        @default(false) @map("mfa_enabled")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  deletedAt       DateTime?      @map("deleted_at")
 
   // Relations
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  owner             Owner?
-  staffMemberships  StaffMember[]       @relation("StaffUser")
-  createdBookings   Booking[]           @relation("BookingCreatedBy")
-  createdPayments   Payment[]           @relation("PaymentCreatedBy")
-  createdNotifications Notification[]   @relation("NotificationCreatedBy")
-  notificationReads NotificationRead[]
-  deviceTokens      DeviceToken[]
-  refreshTokens     RefreshToken[]
-  auditLogs         AuditLog[]
-  deletionRequestsCreated  BookingDeletionRequest[] @relation("DeletionRequestedBy")
-  deletionRequestsDecided  BookingDeletionRequest[] @relation("DeletionDecidedBy")
+  organization              Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner                     Owner?
+  staffMemberships          StaffMember[]            @relation("StaffUser")
+  createdBookings           Booking[]                @relation("BookingCreatedBy")
+  createdPayments           Payment[]                @relation("PaymentCreatedBy")
+  createdNotifications      Notification[]           @relation("NotificationCreatedBy")
+  notificationReads         NotificationRead[]
+  deviceTokens              DeviceToken[]
+  refreshTokens             RefreshToken[]
+  auditLogs                 AuditLog[]
+  deletionRequestsCreated   BookingDeletionRequest[] @relation("DeletionRequestedBy")
+  deletionRequestsDecided   BookingDeletionRequest[] @relation("DeletionDecidedBy")
   housekeepingTasksAssigned HousekeepingTask[]       @relation("HousekeepingTaskAssignedTo")
 
+  @@index([organizationId])
+  @@index([deletedAt])
   @@map("users")
 }
 
@@ -107,20 +110,20 @@ enum ApprovalStatus {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model Owner {
-  id                String    @id @default(uuid())
-  userId            String    @unique @map("user_id")
-  organizationId    String    @map("organization_id")
-  fullName          String    @map("full_name")
-  whatsappNumber    String?   @map("whatsapp_number")
-  defaultPropertyId String?   @map("default_property_id")
-  createdAt         DateTime  @default(now()) @map("created_at")
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  organizationId    String   @map("organization_id")
+  fullName          String   @map("full_name")
+  whatsappNumber    String?  @map("whatsapp_number")
+  defaultPropertyId String?  @map("default_property_id")
+  createdAt         DateTime @default(now()) @map("created_at")
 
   // Relations
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  defaultProperty   Property?     @relation("OwnerDefaultProperty", fields: [defaultPropertyId], references: [id], onDelete: SetNull)
-  ownedProperties   Property[]    @relation("PropertyOwner")
-  invitedStaff      StaffMember[] @relation("StaffInvitedByOwner")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  defaultProperty Property?     @relation("OwnerDefaultProperty", fields: [defaultPropertyId], references: [id], onDelete: SetNull)
+  ownedProperties Property[]    @relation("PropertyOwner")
+  invitedStaff    StaffMember[] @relation("StaffInvitedByOwner")
 
   @@map("owners")
 }
@@ -130,40 +133,40 @@ model Owner {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model Property {
-  id              String         @id @default(uuid())
-  organizationId  String         @map("organization_id")
-  ownerId         String         @map("owner_id")
-  name            String
-  slug            String         @unique
-  logoUrl         String?        @map("logo_url")
-  address         String?
-  city            String?
-  state           String?
-  country         String?        @default("IN")
-  timezone        String         @default("Asia/Kolkata")
-  currency        String         @default("INR")
-  status          PropertyStatus @default(ONBOARDING)
-  onboardingStep  Int            @default(0) @map("onboarding_step")
-  createdAt       DateTime       @default(now()) @map("created_at")
-  deletedAt       DateTime?      @map("deleted_at")
+  id             String         @id @default(uuid())
+  organizationId String         @map("organization_id")
+  ownerId        String         @map("owner_id")
+  name           String
+  slug           String         @unique
+  logoUrl        String?        @map("logo_url")
+  address        String?
+  city           String?
+  state          String?
+  country        String?        @default("IN")
+  timezone       String         @default("Asia/Kolkata")
+  currency       String         @default("INR")
+  status         PropertyStatus @default(ONBOARDING)
+  onboardingStep Int            @default(0) @map("onboarding_step")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  deletedAt      DateTime?      @map("deleted_at")
 
   // Relations
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  owner            Owner             @relation("PropertyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  defaultForOwners Owner[]           @relation("OwnerDefaultProperty")
-  staffMembers     StaffMember[]
-  settings         PropertySettings?
-  roomTypes        RoomType[]
-  amenities        Amenity[]
-  guests           Guest[]
-  bookings         Booking[]
-  agencies         Agency[]
-  roomUnits        RoomUnit[]
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner             Owner              @relation("PropertyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  defaultForOwners  Owner[]            @relation("OwnerDefaultProperty")
+  staffMembers      StaffMember[]
+  settings          PropertySettings?
+  roomTypes         RoomType[]
+  amenities         Amenity[]
+  guests            Guest[]
+  bookings          Booking[]
+  agencies          Agency[]
+  roomUnits         RoomUnit[]
   housekeepingTasks HousekeepingTask[]
-  notifications    Notification[]    @relation("NotificationTargetProperty")
-  backupLogs       BackupLog[]
-  featureFlags     FeatureFlag[]
-  otaIntegrations  OtaIntegration[]
+  notifications     Notification[]     @relation("NotificationTargetProperty")
+  backupLogs        BackupLog[]
+  featureFlags      FeatureFlag[]
+  otaIntegrations   OtaIntegration[]
 
   @@index([ownerId, deletedAt])
   @@index([organizationId])
@@ -194,9 +197,9 @@ model StaffMember {
   createdAt        DateTime    @default(now()) @map("created_at")
 
   // Relations
-  user             User     @relation("StaffUser", fields: [userId], references: [id], onDelete: Cascade)
-  property         Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  invitedByOwner   Owner    @relation("StaffInvitedByOwner", fields: [invitedByOwnerId], references: [id], onDelete: Cascade)
+  user           User     @relation("StaffUser", fields: [userId], references: [id], onDelete: Cascade)
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  invitedByOwner Owner    @relation("StaffInvitedByOwner", fields: [invitedByOwnerId], references: [id], onDelete: Cascade)
 
   @@unique([userId, propertyId])
   @@map("staff_members")
@@ -220,21 +223,21 @@ enum StaffStatus {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model PropertySettings {
-  propertyId              String           @id @map("property_id")
-  checkInTime             String           @default("14:00") @map("check_in_time")
-  checkOutTime            String           @default("11:00") @map("check_out_time")
-  termsAndConditions      String?          @map("terms_and_conditions") @db.Text
-  gstEnabled              Boolean          @default(false) @map("gst_enabled")
-  gstRate                 Decimal?         @map("gst_rate") @db.Decimal(5, 2)
-  bankAccountDetails      Json?            @map("bank_account_details")
-  upiId                   String?          @map("upi_id")
-  qrCodeUrl               String?          @map("qr_code_url")
-  activeInvoiceTemplateId String?          @map("active_invoice_template_id")
-  updatedAt               DateTime         @updatedAt @map("updated_at")
+  propertyId              String   @id @map("property_id")
+  checkInTime             String   @default("14:00") @map("check_in_time")
+  checkOutTime            String   @default("11:00") @map("check_out_time")
+  termsAndConditions      String?  @map("terms_and_conditions") @db.Text
+  gstEnabled              Boolean  @default(false) @map("gst_enabled")
+  gstRate                 Decimal? @map("gst_rate") @db.Decimal(5, 2)
+  bankAccountDetails      Json?    @map("bank_account_details")
+  upiId                   String?  @map("upi_id")
+  qrCodeUrl               String?  @map("qr_code_url")
+  activeInvoiceTemplateId String?  @map("active_invoice_template_id")
+  updatedAt               DateTime @updatedAt @map("updated_at")
 
   // Relations
-  property                Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  activeInvoiceTemplate   InvoiceTemplate? @relation(fields: [activeInvoiceTemplateId], references: [id], onDelete: SetNull)
+  property              Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  activeInvoiceTemplate InvoiceTemplate? @relation(fields: [activeInvoiceTemplateId], references: [id], onDelete: SetNull)
 
   @@map("property_settings")
 }
@@ -244,14 +247,14 @@ model PropertySettings {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model RoomType {
-  id           String   @id @default(uuid())
-  propertyId   String   @map("property_id")
+  id           String  @id @default(uuid())
+  propertyId   String  @map("property_id")
   name         String
-  totalUnits   Int      @default(1) @map("total_units")
-  basePrice    Decimal  @map("base_price") @db.Decimal(10, 2)
-  maxOccupancy Int      @default(2) @map("max_occupancy")
-  isActive     Boolean  @default(true) @map("is_active")
-  sortOrder    Int      @default(0) @map("sort_order")
+  totalUnits   Int     @default(1) @map("total_units")
+  basePrice    Decimal @map("base_price") @db.Decimal(10, 2)
+  maxOccupancy Int     @default(2) @map("max_occupancy")
+  isActive     Boolean @default(true) @map("is_active")
+  sortOrder    Int     @default(0) @map("sort_order")
 
   // Relations
   property  Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -275,7 +278,7 @@ model Amenity {
   isActive   Boolean @default(true) @map("is_active")
 
   // Relations
-  property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property          Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   bookingFacilities BookingFacility[]
 
   @@index([propertyId, isActive])
@@ -307,6 +310,8 @@ model Guest {
 
   @@unique([propertyId, phone])
   @@index([propertyId, fullName])
+  @@index([propertyId, phone])
+  @@index([propertyId, email])
   @@map("guests")
 }
 
@@ -315,45 +320,45 @@ model Guest {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model Booking {
-  id                 String            @id @default(uuid())
-  propertyId         String            @map("property_id")
-  guestId            String            @map("guest_id")
-  roomTypeId         String            @map("room_type_id")
-  agencyId           String?           @map("agency_id")
-  channel            BookingChannel    @default(WALK_IN)
-  status             BookingStatus     @default(CONFIRMED)
-  checkInDate        DateTime          @map("check_in_date") @db.Date
-  checkOutDate       DateTime          @map("check_out_date") @db.Date
-  adults             Int               @default(1)
-  children           Int               @default(0)
-  mealPlan           MealPlan?         @map("meal_plan")
-  baseAmount         Decimal           @map("base_amount") @db.Decimal(10, 2)
-  gstAmount          Decimal           @default(0) @map("gst_amount") @db.Decimal(10, 2)
-  totalAmount        Decimal           @map("total_amount") @db.Decimal(10, 2)
-  advancePaid        Decimal           @default(0) @map("advance_paid") @db.Decimal(10, 2)
-  balanceDue         Decimal           @default(0) @map("balance_due") @db.Decimal(10, 2)
-  tacStatus          TacStatus?        @map("tac_status")
-  cancellationReason String?           @map("cancellation_reason")
-  refundAmount       Decimal?          @map("refund_amount") @db.Decimal(10, 2)
-  idempotencyKey     String?           @unique @map("idempotency_key")
-  createdByUserId    String            @map("created_by_user_id")
-  roomUnitId         String?           @map("room_unit_id")
-  createdAt          DateTime          @default(now()) @map("created_at")
-  updatedAt          DateTime          @updatedAt @map("updated_at")
-  deletedAt          DateTime?         @map("deleted_at")
+  id                 String         @id @default(uuid())
+  propertyId         String         @map("property_id")
+  guestId            String         @map("guest_id")
+  roomTypeId         String         @map("room_type_id")
+  agencyId           String?        @map("agency_id")
+  channel            BookingChannel @default(WALK_IN)
+  status             BookingStatus  @default(CONFIRMED)
+  checkInDate        DateTime       @map("check_in_date") @db.Date
+  checkOutDate       DateTime       @map("check_out_date") @db.Date
+  adults             Int            @default(1)
+  children           Int            @default(0)
+  mealPlan           MealPlan?      @map("meal_plan")
+  baseAmount         Decimal        @map("base_amount") @db.Decimal(10, 2)
+  gstAmount          Decimal        @default(0) @map("gst_amount") @db.Decimal(10, 2)
+  totalAmount        Decimal        @map("total_amount") @db.Decimal(10, 2)
+  advancePaid        Decimal        @default(0) @map("advance_paid") @db.Decimal(10, 2)
+  balanceDue         Decimal        @default(0) @map("balance_due") @db.Decimal(10, 2)
+  tacStatus          TacStatus?     @map("tac_status")
+  cancellationReason String?        @map("cancellation_reason")
+  refundAmount       Decimal?       @map("refund_amount") @db.Decimal(10, 2)
+  idempotencyKey     String?        @unique @map("idempotency_key")
+  createdByUserId    String         @map("created_by_user_id")
+  roomUnitId         String?        @map("room_unit_id")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  deletedAt          DateTime?      @map("deleted_at")
 
   // Relations
-  property           Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  guest              Guest             @relation(fields: [guestId], references: [id])
-  roomType           RoomType          @relation(fields: [roomTypeId], references: [id])
-  roomUnit           RoomUnit?         @relation(fields: [roomUnitId], references: [id], onDelete: SetNull)
-  agency             Agency?           @relation(fields: [agencyId], references: [id], onDelete: SetNull)
-  createdByUser      User              @relation("BookingCreatedBy", fields: [createdByUserId], references: [id])
-  bookingFacilities  BookingFacility[]
-  payments           Payment[]
-  invoices           Invoice[]
-  otaBookingMap      OtaBookingMap?
-  deletionRequests   BookingDeletionRequest[]
+  property          Property                 @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  guest             Guest                    @relation(fields: [guestId], references: [id])
+  roomType          RoomType                 @relation(fields: [roomTypeId], references: [id])
+  roomUnit          RoomUnit?                @relation(fields: [roomUnitId], references: [id], onDelete: SetNull)
+  agency            Agency?                  @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+  createdByUser     User                     @relation("BookingCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  bookingFacilities BookingFacility[]
+  payments          Payment[]
+  invoices          Invoice[]
+  otaBookingMap     OtaBookingMap?
+  deletionRequests  BookingDeletionRequest[]
 
   @@index([propertyId, status, deletedAt])
   @@index([propertyId, checkInDate, status, deletedAt])
@@ -426,7 +431,7 @@ model Payment {
 
   // Relations
   booking       Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  createdByUser User    @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id])
+  createdByUser User    @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@index([bookingId, paidAt])
   @@map("payments")
@@ -470,20 +475,21 @@ model Agency {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model InvoiceTemplate {
-  id              String   @id @default(uuid())
-  organizationId  String   @map("organization_id")
-  name            String
-  htmlContent     String   @map("html_content") @db.Text
-  version         Int      @default(1)
-  isDefault       Boolean  @default(false) @map("is_default")
-  isActive        Boolean  @default(true) @map("is_active")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  htmlContent    String   @map("html_content") @db.Text
+  version        Int      @default(1)
+  isDefault      Boolean  @default(false) @map("is_default")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   // Relations
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  propertySettings  PropertySettings[]
-  invoices          Invoice[]
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  propertySettings PropertySettings[]
+  invoices         Invoice[]
 
+  @@index([organizationId])
   @@map("invoice_templates")
 }
 
@@ -537,11 +543,12 @@ model Notification {
   createdAt        DateTime         @default(now()) @map("created_at")
 
   // Relations
-  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  targetProperty  Property?          @relation("NotificationTargetProperty", fields: [targetPropertyId], references: [id], onDelete: SetNull)
-  createdByUser   User?              @relation("NotificationCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  reads           NotificationRead[]
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  targetProperty Property?          @relation("NotificationTargetProperty", fields: [targetPropertyId], references: [id], onDelete: SetNull)
+  createdByUser  User?              @relation("NotificationCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reads          NotificationRead[]
 
+  @@index([organizationId])
   @@map("notifications")
 }
 
@@ -574,12 +581,12 @@ model NotificationRead {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model DeviceToken {
-  id           String       @id @default(uuid())
-  userId       String       @map("user_id")
-  pushToken    String       @map("push_token")
+  id           String         @id @default(uuid())
+  userId       String         @map("user_id")
+  pushToken    String         @map("push_token")
   platform     DevicePlatform
-  registeredAt DateTime     @default(now()) @map("registered_at")
-  lastActiveAt DateTime     @default(now()) @map("last_active_at")
+  registeredAt DateTime       @default(now()) @map("registered_at")
+  lastActiveAt DateTime       @default(now()) @map("last_active_at")
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -662,6 +669,8 @@ model AuditLog {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   actorUser    User         @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
 
+  @@index([entityType, entityId])
+  @@index([organizationId, createdAt])
   @@map("audit_logs")
 }
 
@@ -681,6 +690,7 @@ model ApiKey {
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@index([organizationId])
   @@map("api_keys")
 }
 
@@ -689,17 +699,18 @@ model ApiKey {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model Webhook {
-  id               String             @id @default(uuid())
-  organizationId   String             @map("organization_id")
-  targetUrl        String             @map("target_url")
-  subscribedEvents String[]           @map("subscribed_events")
+  id               String   @id @default(uuid())
+  organizationId   String   @map("organization_id")
+  targetUrl        String   @map("target_url")
+  subscribedEvents String[] @map("subscribed_events")
   secret           String
-  isActive         Boolean            @default(true) @map("is_active")
+  isActive         Boolean  @default(true) @map("is_active")
 
   // Relations
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   deliveries   WebhookDelivery[]
 
+  @@index([organizationId])
   @@map("webhooks")
 }
 
@@ -734,10 +745,10 @@ enum WebhookDeliveryStatus {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model FeatureFlag {
-  id         String   @id @default(uuid())
-  flagName   String   @map("flag_name")
-  isEnabled  Boolean  @default(false) @map("is_enabled")
-  propertyId String?  @map("property_id")
+  id         String  @id @default(uuid())
+  flagName   String  @map("flag_name")
+  isEnabled  Boolean @default(false) @map("is_enabled")
+  propertyId String? @map("property_id")
 
   // Relations
   property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -751,12 +762,12 @@ model FeatureFlag {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model OtaIntegration {
-  id           String         @id @default(uuid())
-  propertyId   String         @map("property_id")
+  id           String        @id @default(uuid())
+  propertyId   String        @map("property_id")
   channel      OtaChannel
   credentials  Json
-  syncStatus   OtaSyncStatus  @default(PENDING) @map("sync_status")
-  lastSyncedAt DateTime?      @map("last_synced_at")
+  syncStatus   OtaSyncStatus @default(PENDING) @map("sync_status")
+  lastSyncedAt DateTime?     @map("last_synced_at")
 
   // Relations
   property       Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -785,10 +796,10 @@ enum OtaSyncStatus {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model OtaBookingMap {
-  bookingId             String         @id @map("booking_id")
-  otaIntegrationId      String         @map("ota_integration_id")
-  externalReservationId String         @map("external_reservation_id")
-  rawPayload            Json?          @map("raw_payload")
+  bookingId             String @id @map("booking_id")
+  otaIntegrationId      String @map("ota_integration_id")
+  externalReservationId String @map("external_reservation_id")
+  rawPayload            Json?  @map("raw_payload")
 
   // Relations
   booking        Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -830,19 +841,19 @@ enum PaymentTransactionStatus {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model BookingDeletionRequest {
-  id             String                @id @default(uuid())
-  bookingId      String                @map("booking_id")
-  requestedById  String                @map("requested_by_id")
-  reason         String                @db.Text
-  status         DeletionRequestStatus @default(PENDING)
-  decidedById    String?               @map("decided_by_id")
-  decidedAt      DateTime?             @map("decided_at")
-  createdAt      DateTime              @default(now()) @map("created_at")
+  id            String                @id @default(uuid())
+  bookingId     String                @map("booking_id")
+  requestedById String                @map("requested_by_id")
+  reason        String                @db.Text
+  status        DeletionRequestStatus @default(PENDING)
+  decidedById   String?               @map("decided_by_id")
+  decidedAt     DateTime?             @map("decided_at")
+  createdAt     DateTime              @default(now()) @map("created_at")
 
   // Relations
-  booking        Booking               @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  requestedBy    User                  @relation("DeletionRequestedBy", fields: [requestedById], references: [id])
-  decidedBy      User?                 @relation("DeletionDecidedBy", fields: [decidedById], references: [id])
+  booking     Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  requestedBy User    @relation("DeletionRequestedBy", fields: [requestedById], references: [id])
+  decidedBy   User?   @relation("DeletionDecidedBy", fields: [decidedById], references: [id])
 
   @@index([bookingId, status])
   @@map("booking_deletion_requests")
@@ -870,10 +881,10 @@ model RoomUnit {
   updatedAt         DateTime          @updatedAt @map("updated_at")
 
   // Relations
-  property          Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  roomType          RoomType          @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
-  bookings          Booking[]
-  tasks             HousekeepingTask[]
+  property Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  roomType RoomType           @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+  tasks    HousekeepingTask[]
 
   @@unique([propertyId, unitNumber])
   @@index([propertyId, cleanlinessStatus])
@@ -888,19 +899,19 @@ enum CleanlinessStatus {
 }
 
 model HousekeepingTask {
-  id               String            @id @default(uuid())
-  propertyId       String            @map("property_id")
-  roomUnitId       String            @map("room_unit_id")
-  assignedToUserId String?           @map("assigned_to_user_id")
-  status           TaskStatus        @default(PENDING)
-  reportedIssue    String?           @map("reported_issue") @db.Text
-  createdAt        DateTime          @default(now()) @map("created_at")
-  completedAt      DateTime?         @map("completed_at")
+  id               String     @id @default(uuid())
+  propertyId       String     @map("property_id")
+  roomUnitId       String     @map("room_unit_id")
+  assignedToUserId String?    @map("assigned_to_user_id")
+  status           TaskStatus @default(PENDING)
+  reportedIssue    String?    @map("reported_issue") @db.Text
+  createdAt        DateTime   @default(now()) @map("created_at")
+  completedAt      DateTime?  @map("completed_at")
 
   // Relations
-  property         Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  roomUnit         RoomUnit          @relation(fields: [roomUnitId], references: [id], onDelete: Cascade)
-  assignedToUser   User?             @relation("HousekeepingTaskAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  roomUnit       RoomUnit @relation(fields: [roomUnitId], references: [id], onDelete: Cascade)
+  assignedToUser User?    @relation("HousekeepingTaskAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
 
   @@index([propertyId, status])
   @@map("housekeeping_tasks")
@@ -911,4 +922,3 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
 }
-

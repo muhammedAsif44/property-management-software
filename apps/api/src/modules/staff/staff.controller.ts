@@ -8,8 +8,11 @@ import {
   Param,
   Query,
   UseGuards,
-  Req,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
+import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { StaffService } from './staff.service';
 import { InviteStaffDto } from './dto/invite-staff.dto';
 import { UpdateStaffRoleDto } from './dto/update-staff-role.dto';
@@ -30,10 +33,10 @@ export class StaffController {
    */
   @Get()
   async getStaffDirectory(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Query('propertyId') propertyId?: string,
   ) {
-    return this.staffService.getStaffDirectory(req.user.id, propertyId);
+    return this.staffService.getStaffDirectory(user.id, propertyId);
   }
 
   /**
@@ -41,8 +44,8 @@ export class StaffController {
    * Invite staff member by email (Accessible by Owner & Manager)
    */
   @Post('invite')
-  async inviteStaff(@Req() req: any, @Body() dto: InviteStaffDto) {
-    return this.staffService.inviteStaff(req.user.id, dto);
+  async inviteStaff(@CurrentUser() user: AuthUser, @Body() dto: InviteStaffDto) {
+    return this.staffService.inviteStaff(user.id, dto);
   }
 
   /**
@@ -51,11 +54,11 @@ export class StaffController {
    */
   @Patch(':id/role')
   async updateStaffRole(
-    @Req() req: any,
-    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateStaffRoleDto,
   ) {
-    return this.staffService.updateStaffRole(req.user.id, id, dto);
+    return this.staffService.updateStaffRole(user.id, id, dto);
   }
 
   /**
@@ -63,8 +66,8 @@ export class StaffController {
    * Suspend staff member access (Accessible by Owner & Manager)
    */
   @Patch(':id/suspend')
-  async suspendStaff(@Req() req: any, @Param('id') id: string) {
-    return this.staffService.suspendStaff(req.user.id, id);
+  async suspendStaff(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.staffService.suspendStaff(user.id, id);
   }
 
   /**
@@ -72,8 +75,21 @@ export class StaffController {
    * Reactivate suspended staff member access (Accessible by Owner & Manager)
    */
   @Patch(':id/reactivate')
-  async reactivateStaff(@Req() req: any, @Param('id') id: string) {
-    return this.staffService.reactivateStaff(req.user.id, id);
+  async reactivateStaff(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.staffService.reactivateStaff(user.id, id);
+  }
+
+  /**
+   * POST /api/v1/staff/:id/resend-invite
+   * Resend staff invite (Accessible by Owner & Manager)
+   */
+  @Post(':id/resend-invite')
+  @HttpCode(HttpStatus.OK)
+  async resendInvite(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.staffService.resendInvite(user.id, id);
   }
 
   /**
@@ -82,8 +98,12 @@ export class StaffController {
    * If a Manager calls this, it returns HTTP 403 Forbidden!
    */
   @Delete(':id')
-  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
-  async deleteStaffPermanently(@Req() req: any, @Param('id') id: string) {
-    return this.staffService.deleteStaffPermanently(req.user.id, id);
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN) // Hard override to block managers
+  async removeStaffMember(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.staffService.deleteStaffPermanently(user.id, id);
   }
 }

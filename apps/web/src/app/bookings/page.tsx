@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
+import { AppHeader } from '@/components/app-header';
 import { usePropertyStore, useActivePropertyQuery } from '@/features/properties';
 import { authService } from '@/features/auth';
 import {
@@ -16,6 +17,7 @@ import {
   useRevertStatusMutation,
 } from '@/features/bookings/api/use-bookings';
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
+import dynamic from 'next/dynamic';
 import { QuickHelpDrawer } from '@/components/quick-help-drawer';
 import { Sparkline } from '@/components/ui/sparkline';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
@@ -55,14 +57,17 @@ import {
   Download,
 } from 'lucide-react';
 
-/* ─── Status & Channel Config ─── */
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  CONFIRMED: { label: 'Confirmed', color: 'text-emerald-800', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
-  CHECKED_IN: { label: 'Checked In', color: 'text-blue-800', bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-500' },
+  CONFIRMED: { label: 'Confirmed', color: 'text-amber-800', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-500' },
+  CHECKED_IN: { label: 'Checked In', color: 'text-emerald-800', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
   CHECKED_OUT: { label: 'Checked Out', color: 'text-slate-600', bg: 'bg-slate-100 border-slate-300', dot: 'bg-slate-400' },
   CANCELLED: { label: 'Cancelled', color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200', dot: 'bg-rose-500' },
-  NO_SHOW: { label: 'No Show', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-500' },
+  NO_SHOW: { label: 'No Show', color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200', dot: 'bg-rose-500' },
 };
+
+const CancelBookingModal = dynamic(() => import('@/features/bookings/components/cancel-booking-modal').then(m => m.CancelBookingModal), { ssr: false });
+const DeleteBookingModal = dynamic(() => import('@/features/bookings/components/delete-booking-modal').then(m => m.DeleteBookingModal), { ssr: false });
+const RevertStatusModal = dynamic(() => import('@/features/bookings/components/revert-status-modal').then(m => m.RevertStatusModal), { ssr: false });
 
 const CHANNEL_CONFIG: Record<string, { label: string; icon: any }> = {
   WALK_IN: { label: 'Walk-In', icon: Users },
@@ -117,34 +122,7 @@ function TableSkeletonRows() {
   );
 }
 
-/* ─── Elegant Modal Wrapper ─── */
-function ModalOverlay({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) {
-  const overlayRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
-  return (
-    <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop-enter"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className="absolute inset-0 bg-slate-900/50" />
-      <div className="relative modal-card-enter w-full max-w-md">
-        {children}
-      </div>
-    </div>
-  );
-}
 
 /* ─── Active Filter Chip ─── */
 function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
@@ -188,9 +166,6 @@ export default function BookingsPage() {
   const [showCancelModal, setShowCancelModal] = useState<Booking | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<Booking | null>(null);
   const [showRevertModal, setShowRevertModal] = useState<{ booking: Booking; targetStatus: 'CONFIRMED' | 'CHECKED_IN' } | null>(null);
-  const [cancelReason, setCancelReason] = useState('');
-  const [deleteReason, setDeleteReason] = useState('');
-  const [refundType, setRefundType] = useState<'REFUND' | 'FORFEIT'>('REFUND');
 
   const activeFilters = useMemo(() => ({
     ...filters,
@@ -292,27 +267,8 @@ export default function BookingsPage() {
     setFilters((f) => ({ propertyId: f.propertyId, page: 1, limit: 15 }));
   }, []);
 
-  const handleCancelConfirm = () => {
-    if (!showCancelModal) return;
-    cancelMutation.mutate(
-      { id: showCancelModal.id, payload: { cancellationReason: cancelReason, refundType } },
-      { onSuccess: () => { setShowCancelModal(null); setCancelReason(''); } },
-    );
-  };
-
-  const handleDeleteConfirm = () => {
-    if (!showDeleteModal) return;
-    if (isReception) {
-      requestDeletionMutation.mutate(
-        { id: showDeleteModal.id, reason: deleteReason },
-        { onSuccess: () => { setShowDeleteModal(null); setDeleteReason(''); } },
-      );
-    } else {
-      deleteMutation.mutate(showDeleteModal.id, {
-        onSuccess: () => { setShowDeleteModal(null); },
-      });
-    }
-  };
+  const handleCancelConfirm = () => {};
+  const handleDeleteConfirm = () => {};
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   const formatCurrency = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
@@ -325,64 +281,59 @@ export default function BookingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/90 text-slate-900 font-sans antialiased flex relative overflow-hidden">
-      {/* Ambient Rich Emerald Glow */}
-      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
-      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
-
+    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
       {/* Left Navigation Sidebar */}
       <DashboardSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         {/* ═══ Top Header Bar ═══ */}
-        <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 px-6 flex items-center justify-between shadow-xs">
+        <AppHeader
+          actions={
+            <div className="flex items-center gap-2">
+              <QuickHelpDrawer />
+              <button
+                onClick={() => router.push('/bookings/room-calendar')}
+                className="h-9 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden sm:inline truncate">{t('occupancyCalendar')}</span>
+              </button>
+              {isOwnerOrManager && (
+                <button
+                  onClick={() => router.push('/bookings/approvals')}
+                  className="interactive h-9 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-divider text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                >
+                  <div className="w-2 h-2 rounded-full bg-amber-500 shadow-sm" />
+                  <span className="hidden sm:inline truncate">{t('approvalQueue')}</span>
+                </button>
+              )}
+              <button
+                onClick={() => router.push('/bookings/new')}
+                className="h-9 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="truncate">{t('newBooking')}</span>
+              </button>
+            </div>
+          }
+        >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-xl bg-emerald-100/80 border border-emerald-200 text-emerald-800 shadow-xs shrink-0">
-              <Calendar className="w-4 h-4 text-emerald-700" />
+            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
+              <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">
+              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
                 {t('bookingManagement')}
               </h1>
-              <p className="text-[11px] font-semibold text-emerald-700/80 truncate">
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
                 {activeProperty?.name || t('activeManagementHub')}
               </p>
             </div>
           </div>
+        </AppHeader>
 
-          <div className="flex items-center gap-2.5 shrink-0">
-            <QuickHelpDrawer />
-
-            <button
-              onClick={() => router.push('/bookings/room-calendar')}
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-700 font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs"
-            >
-              <Building2 className="w-4 h-4 text-emerald-700" />
-              <span className="hidden sm:inline truncate">{t('occupancyCalendar')}</span>
-            </button>
-
-            {isOwnerOrManager && (
-              <button
-                onClick={() => router.push('/bookings/approvals')}
-                className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100/80 border border-amber-200 text-amber-900 font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs"
-              >
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                <span className="hidden sm:inline truncate">{t('approvalQueue')}</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => router.push('/bookings/new')}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-md shadow-emerald-700/20"
-            >
-              <Plus className="w-4 h-4 text-emerald-200" />
-              <span className="truncate">{t('newBooking')}</span>
-            </button>
-          </div>
-        </header>
-
-        <div className="p-6 space-y-4 flex-1 overflow-y-auto">
+        <div className="p-4 lg:p-6 space-y-4 flex-1 overflow-y-auto">
           {/* ═══ Filters Bar ═══ */}
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
             <div className="flex flex-wrap items-center gap-3">
@@ -431,19 +382,25 @@ export default function BookingsPage() {
                 <option value="OTA">{t('otaBooking')}</option>
               </select>
 
-              <input
-                type="date"
-                value={filters.fromDate || ''}
-                onChange={(e) => setFilters((f) => ({ ...f, fromDate: e.target.value || undefined, page: 1 }))}
-                className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600 cursor-pointer"
-              />
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="date"
+                  value={filters.fromDate || ''}
+                  onChange={(e) => setFilters((f) => ({ ...f, fromDate: e.target.value || undefined, page: 1 }))}
+                  className="pl-9 pr-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600 focus:bg-white cursor-pointer transition-all"
+                />
+              </div>
 
-              <input
-                type="date"
-                value={filters.toDate || ''}
-                onChange={(e) => setFilters((f) => ({ ...f, toDate: e.target.value || undefined, page: 1 }))}
-                className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600 cursor-pointer"
-              />
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="date"
+                  value={filters.toDate || ''}
+                  onChange={(e) => setFilters((f) => ({ ...f, toDate: e.target.value || undefined, page: 1 }))}
+                  className="pl-9 pr-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600 focus:bg-white cursor-pointer transition-all"
+                />
+              </div>
 
               <button
                 onClick={handleSearch}
@@ -603,7 +560,7 @@ export default function BookingsPage() {
                                 <span>{formatDate(b.checkInDate)}</span>
                                 <ArrowRight className="w-3 h-3 text-slate-300" />
                                 <span>{formatDate(b.checkOutDate)}</span>
-                                <span className="ml-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded">
+                                <span className="ml-1 text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
                                   {nights}N
                                 </span>
                               </div>
@@ -656,7 +613,7 @@ export default function BookingsPage() {
                                 <button
                                   onClick={() => handleCheckOutWithUndo(b.id)}
                                   disabled={checkOutMutation.isPending}
-                                  className="h-8 px-3 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer btn-press shadow-2xs shrink-0 disabled:opacity-50"
+                                  className="h-8 px-3 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer btn-press shadow-2xs shrink-0 disabled:opacity-50"
                                 >
                                   {checkOutMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
                                   {t('checkOut')}
@@ -723,6 +680,15 @@ export default function BookingsPage() {
                 </tbody>
               </table>
             </div>
+            
+            {/* End of List State (When very few bookings exist) */}
+            {bookings.length > 0 && bookings.length < 5 && (
+              <div className="p-12 border-t border-slate-100 bg-slate-50/50 flex flex-col items-center justify-center text-center">
+                <Calendar className="w-8 h-8 text-slate-300 mb-3" />
+                <h4 className="text-sm font-bold text-slate-700">End of Bookings List</h4>
+                <p className="text-xs text-slate-500 mt-1 max-w-xs">You have reached the end of the matching bookings for this period.</p>
+              </div>
+            )}
           </div>
 
           {/* ═══ Pagination ═══ */}
@@ -778,149 +744,34 @@ export default function BookingsPage() {
           )}
         </div>
 
-        {/* ═══ Cancel Modal ═══ */}
-        <ModalOverlay isOpen={!!showCancelModal} onClose={() => setShowCancelModal(null)}>
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600">
-                <XCircle className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">{t('cancelBooking')}</h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  {t('cancelBookingConfirm')} <strong>{showCancelModal?.guest?.fullName}</strong>?
-                </p>
-              </div>
-            </div>
-
-            <textarea
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder={t('cancellationReasonPlaceholder')}
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium resize-none h-24 focus:outline-none focus:border-emerald-600"
-              autoFocus
-            />
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setRefundType('REFUND'); }}
-                className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${refundType === 'REFUND' ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-              >
-                {t('refundAdvance')}
-              </button>
-              <button
-                onClick={() => { setRefundType('FORFEIT'); }}
-                className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${refundType === 'FORFEIT' ? 'bg-rose-50 border-rose-300 text-rose-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-              >
-                {t('forfeitAdvance')}
-              </button>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button onClick={() => setShowCancelModal(null)} className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">{t('close')}</button>
-              <button
-                onClick={handleCancelConfirm}
-                disabled={cancelMutation.isPending || !cancelReason}
-                className="px-4 py-2 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50 transition-colors cursor-pointer inline-flex items-center gap-1.5"
-              >
-                {cancelMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {cancelMutation.isPending ? t('cancelling') : t('confirmCancel')}
-              </button>
-            </div>
-          </div>
-        </ModalOverlay>
-
-        {/* ═══ Delete / Request Delete Modal ═══ */}
-        <ModalOverlay isOpen={!!showDeleteModal} onClose={() => setShowDeleteModal(null)}>
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">
-                  {isReception ? t('requestDeletion') : t('deleteBooking')}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  {isReception ? t('requestDeletionConfirm') : t('deleteBookingConfirm')}{' '}
-                  <strong>{showDeleteModal?.guest?.fullName}</strong>
-                </p>
-              </div>
-            </div>
-
-            {isReception && (
-              <textarea
-                value={deleteReason}
-                onChange={(e) => setDeleteReason(e.target.value)}
-                placeholder={t('deletionReasonPlaceholder')}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium resize-none h-24 focus:outline-none focus:border-emerald-600"
-                autoFocus
-              />
-            )}
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button onClick={() => setShowDeleteModal(null)} className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">{t('close')}</button>
-              <button
-                onClick={handleDeleteConfirm}
-                disabled={(isReception && deleteReason.length < 5) || deleteMutation.isPending || requestDeletionMutation.isPending}
-                className="px-4 py-2 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50 transition-colors cursor-pointer inline-flex items-center gap-1.5"
-              >
-                {(deleteMutation.isPending || requestDeletionMutation.isPending) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {isReception ? t('submitRequest') : t('confirmDelete')}
-              </button>
-            </div>
-          </div>
-        </ModalOverlay>
-
-        {/* ═══ Revert Status Modal ═══ */}
-        <ModalOverlay isOpen={!!showRevertModal} onClose={() => setShowRevertModal(null)}>
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700">
-                <RotateCcw className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900">{t('revertBookingStatus') || 'Revert Booking Status'}</h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  Did you accidentally change the status for <strong>{showRevertModal?.booking.guest?.fullName}</strong>?
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${STATUS_CONFIG[showRevertModal?.booking.status || 'CONFIRMED']?.bg} ${STATUS_CONFIG[showRevertModal?.booking.status || 'CONFIRMED']?.color}`}>
-                {showRevertModal?.booking.status?.replace('_', ' ')}
-              </span>
-              <ArrowRight className="w-4 h-4 text-slate-400" />
-              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${STATUS_CONFIG[showRevertModal?.targetStatus || 'CONFIRMED']?.bg} ${STATUS_CONFIG[showRevertModal?.targetStatus || 'CONFIRMED']?.color}`}>
-                {showRevertModal?.targetStatus?.replace('_', ' ')}
-              </span>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                onClick={() => setShowRevertModal(null)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-              >
-                {t('cancel')}
-              </button>
-              <button
-                onClick={() => {
-                  if (!showRevertModal) return;
-                  revertMutation.mutate(
-                    { id: showRevertModal.booking.id, status: showRevertModal.targetStatus },
-                    { onSuccess: () => setShowRevertModal(null) }
-                  );
-                }}
-                disabled={revertMutation.isPending}
-                className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold disabled:opacity-50 transition-colors cursor-pointer inline-flex items-center gap-1.5"
-              >
-                {revertMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {revertMutation.isPending ? (t('reverting') || 'Reverting...') : (t('confirmRevert') || 'Confirm Revert')}
-              </button>
-            </div>
-          </div>
-        </ModalOverlay>
+        {/* ═══ Lazy Loaded Modals ═══ */}
+        {showCancelModal && (
+          <CancelBookingModal
+            isOpen={!!showCancelModal}
+            booking={showCancelModal}
+            onClose={() => setShowCancelModal(null)}
+            activePropertyId={activeProperty?.id}
+          />
+        )}
+        
+        {showDeleteModal && (
+          <DeleteBookingModal
+            isOpen={!!showDeleteModal}
+            booking={showDeleteModal}
+            onClose={() => setShowDeleteModal(null)}
+            activePropertyId={activeProperty?.id}
+            isReception={isReception}
+          />
+        )}
+        
+        {showRevertModal && (
+          <RevertStatusModal
+            isOpen={!!showRevertModal}
+            revertData={showRevertModal}
+            onClose={() => setShowRevertModal(null)}
+            activePropertyId={activeProperty?.id}
+          />
+        )}
 
         {/* Floating Bulk Action Bar for Bookings */}
         <BulkActionBar

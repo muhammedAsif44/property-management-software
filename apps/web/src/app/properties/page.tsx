@@ -13,6 +13,7 @@ import {
 } from '@/features/properties';
 import { authService } from '@/features/auth';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
+import { AppHeader } from '@/components/app-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import {
@@ -40,7 +41,9 @@ import {
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
 import { Sparkline } from '@/components/ui/sparkline';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
-import { QuickDrawer } from '@/components/ui/quick-drawer';
+import dynamic from 'next/dynamic';
+
+const QuickDrawer = dynamic(() => import('@/components/ui/quick-drawer').then(m => m.QuickDrawer), { ssr: false });
 
 export default function PropertiesPage() {
   const router = useRouter();
@@ -174,76 +177,54 @@ export default function PropertiesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/90 text-slate-900 font-sans antialiased flex relative overflow-hidden">
-      {/* Ambient Rich Emerald Glow */}
-      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
-      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
-
+    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
       {/* Left Navigation Sidebar */}
       <DashboardSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
-        
-        {/* Top Header Bar */}
-        <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 px-6 flex items-center justify-between shadow-xs">
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+        {/* ═══ Top Header Bar ═══ */}
+        <AppHeader
+          actions={
+            isOwner ? (
+              <Link
+                href="/onboarding/property?new=true"
+                className="h-9 px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="truncate">{t('addProperty')}</span>
+              </Link>
+            ) : undefined
+          }
+        >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-xl bg-emerald-100/80 border border-emerald-200 text-emerald-800 shadow-xs shrink-0">
-              <Building2 className="w-4 h-4 text-emerald-700" />
+            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
+              <Building2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">
+              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
                 {t('propertiesPortfolio')}
               </h1>
-              <p className="text-[11px] font-semibold text-emerald-700/80 truncate">
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
                 {t('propertiesPortfolioSubtitle')}
               </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2.5 shrink-0">
-            {/* Language Switcher Pill (English ↔ Malayalam) */}
-            <LanguageSwitcher />
-
-            {/* Single Primary Add Property Action */}
-            {isOwner && (
-              <Link
-                href="/onboarding/property?new=true"
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 active:scale-95 text-white text-xs font-black transition-all duration-200 shadow-md shadow-emerald-700/20 flex items-center gap-1.5 cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4 text-emerald-200" />
-                <span className="truncate">{t('addProperty')}</span>
-              </Link>
-            )}
-          </div>
-        </header>
+        </AppHeader>
 
         {/* Properties Workspace */}
-        <main className="p-6 space-y-6 w-full flex-1">
+        <main className="p-4 lg:p-6 space-y-6 w-full flex-1">
           
           {/* Hero Banner & Search Filter Bar */}
-          <div className="p-6 rounded-3xl bg-white/95 backdrop-blur-xl border border-emerald-200/90 shadow-xs relative overflow-hidden space-y-6">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-            
+          <div className="p-5 sm:p-6 rounded-xl bg-white dark:bg-slate-900 border-l-4 border-emerald-600 border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative overflow-hidden space-y-6">
             <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-wrap min-w-0">
-                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl bg-emerald-100/80 border border-emerald-200 text-emerald-900 text-xs font-black tracking-tight shadow-2xs">
-                  <Star className="w-4 h-4 text-emerald-700 shrink-0" />
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-divider text-slate-500 text-[10px] font-semibold uppercase tracking-wider">
                   <span>{t('propertiesPortfolio')} ({properties.length})</span>
                 </div>
                 {/* Sparkline Micro Trend Graph */}
                 <Sparkline changePercentage={+12.4} label="occupancy trend" />
               </div>
-
-              {isOwner && (
-                <Link
-                  href="/onboarding/property?new=true"
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 text-white font-black text-xs shadow-md shadow-emerald-700/20 transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
-                >
-                  <Plus className="w-4 h-4 text-emerald-200" />
-                  <span className="truncate">{t('addProperty')}</span>
-                </Link>
-              )}
             </div>
 
             {/* Interactive Search Bar & Filter Chips */}
@@ -256,7 +237,7 @@ export default function PropertiesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('searchPropertiesPlaceholder')}
-                  className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500 transition-all"
+                  className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#16241e] border border-slate-200 dark:border-[#1d3329] text-slate-900 dark:text-slate-100 placeholder-slate-400 text-xs focus:outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-[#16241e] focus:ring-1 focus:ring-emerald-500 transition-all"
                 />
               </div>
 
@@ -264,10 +245,10 @@ export default function PropertiesPage() {
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 shrink-0 scrollbar-none">
                 <button
                   onClick={() => setStatusFilter('all')}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                     statusFilter === 'all'
-                      ? 'bg-emerald-700 text-white shadow-xs font-black'
-                      : 'bg-slate-100 hover:bg-slate-200/80 border border-slate-200/60 text-slate-700 font-bold'
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-transparent hover:bg-slate-50 border border-transparent text-slate-600 font-semibold'
                   }`}
                 >
                   {t('filterAll')} ({properties.length})
@@ -275,10 +256,10 @@ export default function PropertiesPage() {
 
                 <button
                   onClick={() => setStatusFilter('active')}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                     statusFilter === 'active'
-                      ? 'bg-emerald-700 text-white shadow-xs font-black'
-                      : 'bg-slate-100 hover:bg-slate-200/80 border border-slate-200/60 text-slate-700 font-bold'
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-transparent hover:bg-slate-50 border border-transparent text-slate-600 font-semibold'
                   }`}
                 >
                   {t('filterActive')}
@@ -286,10 +267,10 @@ export default function PropertiesPage() {
 
                 <button
                   onClick={() => setStatusFilter('live')}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                     statusFilter === 'live'
-                      ? 'bg-emerald-700 text-white shadow-xs font-black'
-                      : 'bg-slate-100 hover:bg-slate-200/80 border border-slate-200/60 text-slate-700 font-bold'
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-transparent hover:bg-slate-50 border border-transparent text-slate-600 font-semibold'
                   }`}
                 >
                   {t('filterLive')}
@@ -297,10 +278,10 @@ export default function PropertiesPage() {
 
                 <button
                   onClick={() => setStatusFilter('setup')}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                     statusFilter === 'setup'
-                      ? 'bg-emerald-700 text-white shadow-xs font-black'
-                      : 'bg-slate-100 hover:bg-slate-200/80 border border-slate-200/60 text-slate-700 font-bold'
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-transparent hover:bg-slate-50 border border-transparent text-slate-600 font-semibold'
                   }`}
                 >
                   {t('filterSetup')}
@@ -378,11 +359,11 @@ export default function PropertiesPage() {
             </div>
           ) : viewMode === 'table' ? (
             /* Modern B2B SaaS Data Table Format */
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl border border-emerald-200/90 shadow-sm overflow-hidden min-w-0">
+            <div className="bg-white dark:bg-[#0f1814] rounded-3xl border border-emerald-200/90 dark:border-[#1d3329] shadow-sm overflow-hidden min-w-0">
               <div className="overflow-x-auto scrollbar-none">
                 <table className="w-full text-left border-collapse min-w-[750px]">
                   <thead>
-                    <tr className="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                    <tr className="bg-slate-50/90 dark:bg-[#16241e]/80 border-b border-slate-200/80 dark:border-[#1d3329] text-[11px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
                       <th className="py-3.5 px-4 w-12 text-center min-w-0">
                         <input
                           type="checkbox"
@@ -403,7 +384,7 @@ export default function PropertiesPage() {
                       <th className="py-3.5 px-5 text-right min-w-0">{t('actionsHeader')}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+                  <tbody className="divide-y divide-slate-100 dark:divide-[#1d3329] text-xs font-semibold">
                     {filteredProperties.map((prop) => {
                       const isActive = prop.id === activeProperty?.id;
                       const isSelected = selectedIds.includes(prop.id);
@@ -418,12 +399,12 @@ export default function PropertiesPage() {
                         <tr
                           key={prop.id}
                           onClick={() => setDrawerProperty(prop)}
-                          className={`transition-all cursor-pointer ${
+                          className={`transition-all cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
                             isSelected
-                              ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600'
+                              ? 'bg-slate-50/70 border-l-2 border-l-slate-400'
                               : isActive
-                              ? 'bg-emerald-50/40'
-                              : 'hover:bg-slate-50/80'
+                              ? 'border-l-2 border-l-emerald-500'
+                              : ''
                           }`}
                         >
                           {/* Checkbox Column */}
@@ -442,17 +423,13 @@ export default function PropertiesPage() {
                           <td className="py-4 px-5 min-w-0">
                             <div className="flex items-center gap-3 min-w-0">
                               <div
-                                className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-black shrink-0 shadow-2xs ${
-                                  isActive
-                                    ? 'bg-gradient-to-br from-emerald-600 to-emerald-800 text-white shadow-emerald-600/30 ring-2 ring-emerald-500/30'
-                                    : 'bg-slate-100 text-slate-700'
-                                }`}
+                                className="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 bg-slate-100 dark:bg-slate-800 border border-divider text-slate-500"
                               >
                                 {prop.name.charAt(0)}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <span className="font-extrabold text-slate-900 truncate text-sm" title={prop.name}>
+                                  <span className="font-extrabold text-slate-900 dark:text-slate-100 truncate text-sm" title={prop.name}>
                                     {prop.name}
                                   </span>
                                   {isActive && (
@@ -483,7 +460,7 @@ export default function PropertiesPage() {
                               </div>
                               <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
                                 <div
-                                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-700 transition-all duration-500"
+                                  className="h-full bg-emerald-600 rounded-full transition-all duration-500"
                                   style={{ width: `${stepPct}%` }}
                                 />
                               </div>
@@ -532,10 +509,10 @@ export default function PropertiesPage() {
                               <button
                                 onClick={() => handleSwitch(prop)}
                                 disabled={isActive || isSwitching}
-                                className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
+                                className={`py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
                                   isActive
-                                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 opacity-80 cursor-default'
-                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs active:scale-95'
+                                    ? 'bg-slate-50 text-slate-400 border border-divider opacity-70 cursor-default'
+                                    : 'interactive bg-white hover:bg-slate-50 border border-divider text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.02)]'
                                 } disabled:opacity-70`}
                               >
                                 {isSwitching ? (

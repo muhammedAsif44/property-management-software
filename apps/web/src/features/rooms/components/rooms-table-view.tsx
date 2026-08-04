@@ -65,148 +65,21 @@ export const RoomsTableView: React.FC<RoomsTableViewProps> = ({
               const isSelected = selectedIds.includes(u.id);
 
               return (
-                <tr
+                <RoomsTableRow
                   key={u.id}
-                  onClick={() => onRowClick && onRowClick(u)}
-                  className={`transition-all cursor-pointer ${
-                    isSelected ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600' : 'hover:bg-slate-50/80'
-                  }`}
-                >
-                  {/* Checkbox Column */}
-                  {onSelectOne && (
-                    <td
-                      className="py-3.5 px-4 text-center"
-                      onClick={(e) => onSelectOne(u.id, e)}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => {}}
-                        className="w-4 h-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
-                      />
-                    </td>
-                  )}
-
-                  {/* Room Name */}
-                  <td className="py-3.5 px-5 font-black text-slate-900 text-sm whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
-                        <DoorClosed className="w-4 h-4" />
-                      </span>
-                      <span>{u.unitNumber}</span>
-                    </div>
-                  </td>
-
-                  {/* Category & Rate */}
-                  <td className="py-3.5 px-5 whitespace-nowrap">
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-slate-800 truncate">{u.roomType?.name || 'Room'}</p>
-                      {u.roomType?.basePrice && (
-                        <p className="text-[11px] font-semibold text-emerald-700">
-                          ₹{Number(u.roomType.basePrice).toLocaleString('en-IN')} / night
-                        </p>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Location / Floor */}
-                  <td className="py-3.5 px-5 whitespace-nowrap font-medium text-slate-600">
-                    {u.floor || <span className="text-slate-400 italic">Unassigned</span>}
-                  </td>
-
-                  {/* Cleanliness Status */}
-                  <td className="py-3.5 px-5 whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wide border ${
-                        u.cleanlinessStatus === 'CLEAN'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : u.cleanlinessStatus === 'DIRTY'
-                          ? 'bg-rose-50 text-rose-700 border-rose-200'
-                          : u.cleanlinessStatus === 'INSPECTED'
-                          ? 'bg-blue-50 text-blue-700 border-blue-200'
-                          : 'bg-amber-50 text-amber-700 border-amber-200'
-                      }`}
-                    >
-                      {u.cleanlinessStatus === 'CLEAN' && <CheckCircle2 className="w-3 h-3" />}
-                      {u.cleanlinessStatus === 'DIRTY' && <AlertTriangle className="w-3 h-3" />}
-                      {u.cleanlinessStatus === 'OUT_OF_ORDER' && <Wrench className="w-3 h-3" />}
-                      {u.cleanlinessStatus.replace('_', ' ')}
-                    </span>
-                  </td>
-
-                  {/* Occupancy & Guest */}
-                  <td className="py-3.5 px-5 whitespace-nowrap">
-                    {isOccupied ? (
-                      <div className="flex items-center gap-2">
-                        <span className="p-1 rounded-full bg-indigo-100 text-indigo-700">
-                          <UserCheck className="w-3.5 h-3.5" />
-                        </span>
-                        <div>
-                          <p className="font-extrabold text-indigo-900 text-xs">
-                            {activeBooking?.guest?.fullName || 'Occupied'}
-                          </p>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">
-                            {activeBooking?.status.replace('_', ' ')}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-slate-400 font-semibold text-xs">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-slate-300" />
-                        Vacant
-                      </span>
-                    )}
-                  </td>
-
-                  {/* Quick Actions */}
-                  <td className="py-3.5 px-5 whitespace-nowrap text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {u.cleanlinessStatus !== 'CLEAN' && (
-                        <button
-                          onClick={() => onMarkClean(u.id)}
-                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-lg transition-all cursor-pointer"
-                        >
-                          Mark Clean
-                        </button>
-                      )}
-                      {u.cleanlinessStatus !== 'DIRTY' && (
-                        <button
-                          onClick={() => onMarkDirty(u.id)}
-                          className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px] rounded-lg transition-all cursor-pointer"
-                        >
-                          Mark Dirty
-                        </button>
-                      )}
-
-                      {/* Edit, Maintenance, and Delete options for Owners, Managers & Staff */}
-                      {isManagerOrOwner && (
-                        <>
-                          <button
-                            onClick={() => onEditRoom(u)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-                            title="Edit Room Details"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => onReportIssue(u)}
-                            className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-700 transition-colors cursor-pointer"
-                            title="Report Out of Order"
-                          >
-                            <Wrench className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => onDeleteRoom(u)}
-                            className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                            title="Delete Room"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                  u={u}
+                  isSelected={isSelected}
+                  isOccupied={isOccupied}
+                  activeBooking={activeBooking}
+                  isManagerOrOwner={isManagerOrOwner}
+                  onSelectOne={onSelectOne}
+                  onRowClick={onRowClick}
+                  onMarkClean={onMarkClean}
+                  onMarkDirty={onMarkDirty}
+                  onEditRoom={onEditRoom}
+                  onReportIssue={onReportIssue}
+                  onDeleteRoom={onDeleteRoom}
+                />
               );
             })}
           </tbody>
@@ -215,3 +88,166 @@ export const RoomsTableView: React.FC<RoomsTableViewProps> = ({
     </div>
   );
 };
+
+const RoomsTableRow = React.memo(({
+  u,
+  isSelected,
+  isOccupied,
+  activeBooking,
+  isManagerOrOwner,
+  onSelectOne,
+  onRowClick,
+  onMarkClean,
+  onMarkDirty,
+  onEditRoom,
+  onReportIssue,
+  onDeleteRoom
+}: any) => {
+  return (
+    <tr
+      onClick={() => onRowClick && onRowClick(u)}
+      className={`transition-all cursor-pointer ${
+        isSelected ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600' : 'hover:bg-slate-50/80'
+      }`}
+    >
+      {/* Checkbox Column */}
+      {onSelectOne && (
+        <td
+          className="py-3.5 px-4 text-center"
+          onClick={(e) => onSelectOne(u.id, e)}
+        >
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => {}}
+            className="w-4 h-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+          />
+        </td>
+      )}
+
+      {/* Room Name */}
+      <td className="py-3.5 px-5 font-black text-slate-900 text-sm whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <span className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+            <DoorClosed className="w-4 h-4" />
+          </span>
+          <span>{u.unitNumber}</span>
+        </div>
+      </td>
+
+      {/* Category & Rate */}
+      <td className="py-3.5 px-5 whitespace-nowrap">
+        <div className="min-w-0">
+          <p className="font-extrabold text-slate-800 truncate">{u.roomType?.name || 'Room'}</p>
+          {u.roomType?.basePrice && (
+            <p className="text-[11px] font-medium tabular-data text-slate-500">
+              ₹{Number(u.roomType.basePrice).toLocaleString('en-IN')} / night
+            </p>
+          )}
+        </div>
+      </td>
+
+      {/* Location / Floor */}
+      <td className="py-3.5 px-5 whitespace-nowrap font-medium text-slate-600">
+        {u.floor || <span className="text-slate-400 italic">Unassigned</span>}
+      </td>
+
+      {/* Cleanliness Status */}
+      <td className="py-3.5 px-5 whitespace-nowrap">
+        <span className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+              u.cleanlinessStatus === 'CLEAN'
+                ? 'bg-emerald-500'
+                : u.cleanlinessStatus === 'DIRTY'
+                ? 'bg-amber-500'
+                : u.cleanlinessStatus === 'OUT_OF_ORDER' || u.cleanlinessStatus === 'MAINTENANCE'
+                ? 'bg-rose-500'
+                : 'bg-slate-400'
+            }`}
+          />
+          <span className="capitalize">{u.cleanlinessStatus.replace('_', ' ').toLowerCase()}</span>
+        </span>
+      </td>
+
+      {/* Occupancy & Guest */}
+      <td className="py-3.5 px-5 whitespace-nowrap">
+        {isOccupied ? (
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
+            <div>
+              <p className="font-semibold text-slate-900 text-xs">
+                {activeBooking?.guest?.fullName || 'Occupied'}
+              </p>
+              <p className="text-[10px] font-medium text-slate-500 capitalize">
+                {activeBooking?.status.replace('_', ' ').toLowerCase()}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <span className="flex items-center gap-2 text-slate-500 font-medium text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+            Vacant
+          </span>
+        )}
+      </td>
+
+      {/* Quick Actions */}
+      <td className="py-3.5 px-5 whitespace-nowrap text-right">
+        <div className="flex items-center justify-end gap-1">
+          {u.cleanlinessStatus !== 'CLEAN' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onMarkClean(u.id); }}
+              className="interactive px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-bold text-xs rounded-md shadow-sm active:scale-95 transition-all cursor-pointer"
+            >
+              Mark Clean
+            </button>
+          )}
+          {u.cleanlinessStatus !== 'DIRTY' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onMarkDirty(u.id); }}
+              className="interactive px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 font-bold text-xs rounded-md shadow-sm active:scale-95 transition-all cursor-pointer"
+            >
+              Mark Dirty
+            </button>
+          )}
+
+          {/* Edit, Maintenance, and Delete options for Owners, Managers & Staff */}
+          {isManagerOrOwner && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); onEditRoom(u); }}
+                className="interactive p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-900 cursor-pointer ml-1"
+                title="Edit Room Details"
+              >
+                <Edit3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onReportIssue(u); }}
+                className="interactive p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-900 cursor-pointer"
+                title="Report Out of Order"
+              >
+                <Wrench className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDeleteRoom(u); }}
+                className="interactive p-1.5 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 cursor-pointer"
+                title="Delete Room"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}, (prevProps, nextProps) => {
+  return prevProps.u.id === nextProps.u.id &&
+         prevProps.u.cleanlinessStatus === nextProps.u.cleanlinessStatus &&
+         prevProps.isSelected === nextProps.isSelected &&
+         prevProps.isOccupied === nextProps.isOccupied &&
+         prevProps.activeBooking?.id === nextProps.activeBooking?.id &&
+         prevProps.isManagerOrOwner === nextProps.isManagerOrOwner;
+});
+RoomsTableRow.displayName = 'RoomsTableRow';

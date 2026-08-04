@@ -17,6 +17,8 @@ export function useMyPropertiesQuery() {
       setProperties(data.properties, data.defaultPropertyId);
       return data;
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes stale time to eliminate redundant refetches
+    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection retention
   });
 }
 
@@ -35,6 +37,8 @@ export function useActivePropertyQuery() {
       }
       return data;
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes stale time to eliminate redundant refetches
+    gcTime: 10 * 60 * 1000,
   });
 }
 

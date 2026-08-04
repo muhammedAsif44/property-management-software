@@ -5,7 +5,23 @@ import { createPortal } from 'react-dom';
 import { HelpCircle, X, Lightbulb, Plus, MousePointerClick, Layers } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 
-export const QuickHelpDrawer: React.FC = () => {
+export interface HelpStep {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+export interface QuickHelpDrawerProps {
+  title?: string;
+  subtitle?: string;
+  steps?: HelpStep[];
+}
+
+export const QuickHelpDrawer: React.FC<QuickHelpDrawerProps> = ({
+  title,
+  subtitle,
+  steps
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { t } = useTranslation();
@@ -25,8 +41,8 @@ export const QuickHelpDrawer: React.FC = () => {
               <Lightbulb className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h3 className="font-extrabold text-base text-slate-900 tracking-tight">{t('quickHelpTitle')}</h3>
-              <p className="text-xs text-slate-500 font-medium">{t('quickHelpSubtitle')}</p>
+              <h3 className="font-extrabold text-base text-slate-900 tracking-tight">{title || t('quickHelpTitle')}</h3>
+              <p className="text-xs text-slate-500 font-medium">{subtitle || t('quickHelpSubtitle')}</p>
             </div>
           </div>
           <button
@@ -39,56 +55,31 @@ export const QuickHelpDrawer: React.FC = () => {
 
         {/* Workflow Steps Content */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
-
-          {/* Step 1 */}
-          <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
-              1
-            </div>
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-slate-900 font-bold text-sm">
-                <Plus className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{t('helpGuideStep1Title')}</span>
+          {(steps || [
+            { icon: <Plus className="w-4 h-4 text-slate-500 shrink-0" />, title: t('helpGuideStep1Title'), description: t('helpGuideStep1Desc') },
+            { icon: <MousePointerClick className="w-4 h-4 text-slate-500 shrink-0" />, title: t('helpGuideStep2Title'), description: t('helpGuideStep2Desc') },
+            { icon: <Layers className="w-4 h-4 text-slate-500 shrink-0" />, title: t('helpGuideStep3Title'), description: t('helpGuideStep3Desc') }
+          ]).map((step, index) => (
+            <div key={index} className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
+                {index + 1}
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed min-w-0">{t('helpGuideStep1Desc')}</p>
-            </div>
-          </div>
-
-          {/* Step 2 */}
-          <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
-              2
-            </div>
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-slate-900 font-bold text-sm">
-                <MousePointerClick className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{t('helpGuideStep2Title')}</span>
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-1.5 text-slate-900 font-bold text-sm">
+                  {step.icon}
+                  <span>{step.title}</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed min-w-0">{step.description}</p>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed min-w-0">{t('helpGuideStep2Desc')}</p>
             </div>
-          </div>
-
-          {/* Step 3 */}
-          <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
-              3
-            </div>
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-slate-900 font-bold text-sm">
-                <Layers className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{t('helpGuideStep3Title')}</span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed min-w-0">{t('helpGuideStep3Desc')}</p>
-            </div>
-          </div>
-
+          ))}
         </div>
 
         {/* Footer */}
         <div className="p-4 border-t border-slate-100 bg-slate-50 text-center">
           <button
             onClick={() => setIsOpen(false)}
-            className="w-full py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
           >
             {t('closePreview')}
           </button>

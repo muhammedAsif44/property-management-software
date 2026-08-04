@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import { PropertyItem } from '../services/property.service';
 
 interface PropertyState {
@@ -10,33 +9,25 @@ interface PropertyState {
   setProperties: (properties: PropertyItem[], defaultPropertyId?: string) => void;
 }
 
-export const usePropertyStore = create<PropertyState>()(
-  persist(
-    (set) => ({
-      activeProperty: null,
-      properties: [],
-      defaultPropertyId: null,
+export const usePropertyStore = create<PropertyState>((set) => ({
+  activeProperty: null,
+  properties: [],
+  defaultPropertyId: null,
 
-      setActiveProperty: (property) =>
-        set({
-          activeProperty: property,
-          defaultPropertyId: property?.id || null,
-        }),
-
-      setProperties: (properties, defaultPropertyId) =>
-        set((state) => {
-          const activeId = defaultPropertyId || state.activeProperty?.id || state.defaultPropertyId;
-          const active = properties.find((p) => p.id === activeId) || state.activeProperty || properties[0] || null;
-          return {
-            properties,
-            defaultPropertyId: activeId || active?.id || null,
-            activeProperty: active,
-          };
-        }),
+  setActiveProperty: (property) =>
+    set({
+      activeProperty: property,
+      defaultPropertyId: property?.id || null,
     }),
-    {
-      name: 'orvyn_active_property_store',
-      storage: createJSONStorage(() => localStorage),
-    }
-  )
-);
+
+  setProperties: (properties, defaultPropertyId) =>
+    set((state) => {
+      const activeId = defaultPropertyId || state.activeProperty?.id || state.defaultPropertyId;
+      const active = properties.find((p) => p.id === activeId) || state.activeProperty || properties[0] || null;
+      return {
+        properties,
+        defaultPropertyId: activeId || active?.id || null,
+        activeProperty: active,
+      };
+    }),
+}));

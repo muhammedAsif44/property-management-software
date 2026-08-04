@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
+import { AppHeader } from '@/components/app-header';
 import { usePropertyStore, useActivePropertyQuery } from '@/features/properties';
 import { authService } from '@/features/auth';
 import { httpClient } from '@/lib/api/http-client';
@@ -253,52 +254,49 @@ export default function HousekeepingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/90 text-slate-900 font-sans antialiased flex relative overflow-hidden">
-      {/* Ambient Rich Emerald Glow */}
-      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
-      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
-
+    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
       {/* Left Navigation Sidebar */}
       <DashboardSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         {/* ═══ Top Header Bar ═══ */}
-        <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 px-6 flex items-center justify-between shadow-xs">
+        <AppHeader
+          actions={
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => refetch()}
+                className="w-9 h-9 flex items-center justify-center rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 transition-all cursor-pointer"
+                title="Refresh Directory"
+              >
+                <RefreshCw className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </button>
+              {isOwnerOrManager && (
+                <button
+                  onClick={() => setShowGenerateModal(true)}
+                  className="h-9 px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="truncate">Setup Rooms</span>
+                </button>
+              )}
+            </div>
+          }
+        >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-xl bg-emerald-100/80 border border-emerald-200 text-emerald-800 shadow-xs shrink-0">
-              <Droplets className="w-4 h-4 text-emerald-700" />
+            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
+              <Droplets className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">
+              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
                 Housekeeping & Operations
               </h1>
-              <p className="text-[11px] font-semibold text-emerald-700/80 truncate">
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
                 {activeProperty?.name || t('activeManagementHub')}
               </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2.5 shrink-0">
-            <LanguageSwitcher />
-            <button
-              onClick={() => refetch()}
-              className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-600 hover:text-slate-900 transition-all cursor-pointer shadow-2xs active:scale-95"
-              title="Refresh Directory"
-            >
-              <RefreshCw className="w-4 h-4 text-emerald-700" />
-            </button>
-            {isOwnerOrManager && (
-              <button
-                onClick={() => setShowGenerateModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 active:scale-95 text-white font-black text-xs shadow-md shadow-emerald-700/20 transition-all cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4 text-emerald-200" />
-                <span className="truncate">Setup Rooms</span>
-              </button>
-            )}
-          </div>
-        </header>
+        </AppHeader>
 
         {/* 100% Full-Width Body Content */}
         <div className="p-6 space-y-6 w-full">
@@ -316,36 +314,36 @@ export default function HousekeepingPage() {
               <span className="text-2xl font-black text-slate-900 mt-2 block">{summary.clean}</span>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-rose-500">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-amber-500">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600" /> Needs Cleaning
+                <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Needs Cleaning
                 </span>
-                <span className="text-xs font-black text-rose-800 bg-rose-50 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full">
                   {summary.dirty}
                 </span>
               </div>
               <span className="text-2xl font-black text-slate-900 mt-2 block">{summary.dirty}</span>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-blue-500">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-slate-400">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-blue-600" /> Inspected
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-slate-500" /> Inspected
                 </span>
-                <span className="text-xs font-black text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded-full">
                   {summary.inspected}
                 </span>
               </div>
               <span className="text-2xl font-black text-slate-900 mt-2 block">{summary.inspected}</span>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-amber-500">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-rose-500">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
-                  <Wrench className="w-3.5 h-3.5 text-amber-600" /> Out of Order
+                <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider flex items-center gap-1">
+                  <Wrench className="w-3.5 h-3.5 text-rose-600" /> Out of Order
                 </span>
-                <span className="text-xs font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-black text-rose-800 bg-rose-50 px-2 py-0.5 rounded-full">
                   {summary.outOfOrder}
                 </span>
               </div>

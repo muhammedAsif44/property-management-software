@@ -83,60 +83,71 @@ export class BookingOccupancyService {
       oooMap.set(o.roomTypeId, o._count._all);
     }
 
+    // Build bookings map (normalized payload)
+    const bookingsMap: Record<string, any> = {};
+
+    for (const b of bookings) {
+      const inStr = b.checkInDate.toISOString().split('T')[0];
+      const outStr = b.checkOutDate.toISOString().split('T')[0];
+      bookingsMap[b.id] = {
+        id: b.id,
+        guestName: b.guest.fullName,
+        guestPhone: b.guest.phone || null,
+        status: b.status,
+        checkInDate: inStr,
+        checkOutDate: outStr,
+        checkInTs: new Date(`${inStr}T00:00:00.000Z`).getTime(),
+        checkOutTs: new Date(`${outStr}T00:00:00.000Z`).getTime(),
+      };
+    }
+
     // Build occupancy map
-    const occupancy: Record<string, Record<string, { booked: number; total: number; outOfOrder: number; available: number; hasConflict: boolean; bookings: any[] }>> = {};
+    const occupancy: Record<string, Record<string, { booked: number; total: number; outOfOrder: number; available: number; hasConflict: boolean; bookingIds: string[] }>> = {};
 
     for (const rt of roomTypes) {
       occupancy[rt.id] = {};
       const roomBookings = bookingsByRoomType.get(rt.id) || [];
       const oooCount = oooMap.get(rt.id) || 0;
 
-      // Pre-convert booking dates to UTC timestamps for fast numeric comparisons
-      const parsedBookings = roomBookings.map((b) => {
-        const inStr = b.checkInDate.toISOString().split('T')[0];
-        const outStr = b.checkOutDate.toISOString().split('T')[0];
-        return {
-          id: b.id,
-          guestName: b.guest.fullName,
-          guestPhone: b.guest.phone || null,
-          status: b.status,
-          checkInDate: inStr,
-          checkOutDate: outStr,
-          checkInTs: new Date(`${inStr}T00:00:00.000Z`).getTime(),
-          checkOutTs: new Date(`${outStr}T00:00:00.000Z`).getTime(),
-        };
-      });
-
-      for (let i = 0; i < dates.length; i++) {
-        const dateStr = dates[i];
-        const dayTs = timestamps[i];
-
-        const dayBookings = parsedBookings.filter(
-          (b) => b.checkInTs <= dayTs && b.checkOutTs > dayTs,
-        );
-
-        const booked = dayBookings.length;
-        const available = Math.max(0, rt.totalUnits - booked - oooCount);
-        const hasConflict = booked > rt.totalUnits;
-
+      // Initialize all dates to 0
+      for (const dateStr of dates) {
         occupancy[rt.id][dateStr] = {
-          booked,
+          booked: 0,
           total: rt.totalUnits,
           outOfOrder: oooCount,
-          available,
-          hasConflict,
-          bookings: dayBookings.map((b) => ({
-            id: b.id,
-            guestName: b.guestName,
-            guestPhone: b.guestPhone,
-            status: b.status,
-            checkInDate: b.checkInDate,
-            checkOutDate: b.checkOutDate,
-          })),
+          available: Math.max(0, rt.totalUnits - oooCount),
+          hasConflict: false,
+          bookingIds: [],
         };
+      }
+
+      // Iterate over room bookings and increment the pre-existing date buckets (O(B) * stay duration instead of O(B) * D)
+      for (const b of roomBookings) {
+        const booking = bookingsMap[b.id];
+        let currentTs = booking.checkInTs;
+        
+        while (currentTs < booking.checkOutTs) {
+          const d = new Date(currentTs);
+          const dateStr = d.toISOString().split('T')[0];
+          const cell = occupancy[rt.id][dateStr];
+          
+          if (cell) {
+            cell.booked++;
+            cell.available = Math.max(0, cell.total - cell.booked - cell.outOfOrder);
+            cell.hasConflict = cell.booked > cell.total;
+            cell.bookingIds.push(booking.id);
+          }
+          currentTs += 86400000; // +1 Day in ms
+        }
       }
     }
 
-    return { roomTypes, dates, occupancy };
+    // Remove internal timestamps before sending to client to keep JSON clean
+    for (const key in bookingsMap) {
+      delete bookingsMap[key].checkInTs;
+      delete bookingsMap[key].checkOutTs;
+    }
+
+    return { roomTypes, dates, occupancy, bookingsMap };
   }
 }

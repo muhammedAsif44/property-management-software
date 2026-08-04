@@ -2,19 +2,97 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════
+   ENTERPRISE SEMANTIC DESIGN TOKENS
+   Linear / Stripe / Vercel Aesthetic (Light & Dark)
+   ═══════════════════════════════════════════════════ */
+
 :root {
-  --foreground-rgb: 15, 23, 42;
-  --background-rgb: 248, 250, 252;
+  /* Canvas & Surface Tokens — Light Mode */
+  --bg-app: #f9fafb;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-sidebar: #ffffff;
+  --bg-header: rgba(255, 255, 255, 0.95);
+  --bg-card: #ffffff;
+  --bg-input: #f8fafc;
+  --bg-hover: #f1f5f9;
+  --bg-active: #e2e8f0;
+
+  /* Border Tokens — Light Mode */
+  --border-subtle: #e2e8f0;
+  --border-default: #cbd5e1;
+  --border-strong: #94a3b8;
+  --border-focus: #0B6E4F;
+
+  /* Typography Tokens — Light Mode */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-disabled: #cbd5e1;
+
+  /* Brand & Status Accent Tokens */
   --primary-emerald: #0B6E4F;
+  --primary-hover: #084a36;
+  --primary-light: #eefcf6;
+
+  /* Radii & Shadows */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+
+  /* Transitions */
+  --transition-fast: 100ms;
+  --transition-base: 150ms;
+}
+
+/* Dark Theme Overrides — Rich Emerald Charcoal (Zero Navy Blue) */
+.dark {
+  /* Canvas & Surface Tokens — Dark Mode */
+  --bg-app: #080c0a;
+  --bg-surface: #0f1814;
+  --bg-elevated: #16241e;
+  --bg-sidebar: #09100d;
+  --bg-header: rgba(9, 16, 13, 0.95);
+  --bg-card: #0f1814;
+  --bg-input: #16241e;
+  --bg-hover: #192a23;
+  --bg-active: #21382f;
+
+  /* Border Tokens — Dark Mode */
+  --border-subtle: #16261f;
+  --border-default: #1d3329;
+  --border-strong: #2b4c3e;
+  --border-focus: #10b981;
+
+  /* Typography Tokens — Dark Mode */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --text-disabled: #475569;
+
+  /* Brand & Status Accent Tokens — Dark Mode */
+  --primary-emerald: #10b981;
+  --primary-hover: #059669;
+  --primary-light: rgba(16, 185, 129, 0.15);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6);
 }
 
 html {
-  font-size: 15.5px;
+  font-size: 16px;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: #f8fafc;
+  color: var(--text-primary);
+  background: var(--bg-app);
   font-family: var(--font-manrope), var(--font-noto-malayalam), system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -23,7 +101,7 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════
-   LIGHTWEIGHT PERFORMANCE ANIMATIONS
+   SUBTLE ANIMATIONS (150ms)
    ═══════════════════════════════════════════════════ */
 
 @keyframes fadeIn {
@@ -34,7 +112,7 @@ body {
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
@@ -42,15 +120,10 @@ body {
   }
 }
 
-@keyframes modalBackdropIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes modalCardIn {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -59,44 +132,70 @@ body {
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.2s ease-out forwards;
+  animation: fadeIn 0.15s ease-out forwards;
 }
 
 .animate-slideDown {
-  animation: slideDown 0.2s ease-out forwards;
-}
-
-.modal-backdrop-enter {
-  animation: modalBackdropIn 0.2s ease-out forwards;
-}
-
-.modal-card-enter {
-  animation: modalCardIn 0.2s ease-out forwards;
+  animation: slideDown 0.15s ease-out forwards;
 }
 
 /* ═══════════════════════════════════════════════════
-   FAST SKELETON LOADING
+   UI PSYCHOLOGY UTILITIES (Linear/Stripe Paradigm)
+   ═══════════════════════════════════════════════════ */
+
+/* Apply to all numeric data/metrics to prevent jitter */
+.tabular-data {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* 3-state tactile interaction: default, hover, active (pressed) */
+.interactive {
+  transition: all 150ms ease-out;
+}
+.interactive:active:not(:disabled) {
+  transform: scale(0.98);
+  filter: brightness(0.95);
+}
+
+/* Consistent neutral borders with 8px scale grid support */
+.border-divider {
+  border-color: var(--border-subtle);
+}
+
+.animate-slideUp {
+  animation: slideUp 0.15s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: slideUp 0.15s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+/* ═══════════════════════════════════════════════════
+   SKELETON LOADERS
    ═══════════════════════════════════════════════════ */
 
 .skeleton {
   background: #e2e8f0;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+.dark .skeleton {
+  background: #1e293b;
+}
+
 /* ═══════════════════════════════════════════════════
-   CLEAN UTILITIES & SURFACES
+   UTILITIES
    ═══════════════════════════════════════════════════ */
 
 @layer utilities {
-  .glass-card-premium {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  }
-
   .btn-press {
-    transition: transform 0.1s ease, background-color 0.15s ease;
+    transition: transform var(--transition-fast) ease, background-color var(--transition-base) ease;
   }
   .btn-press:active {
     transform: scale(0.97);
@@ -105,19 +204,8 @@ body {
   /* Focus Ring — Accessibility */
   .focus-ring-emerald:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #0B6E4F;
-    border-color: #0B6E4F;
-  }
-
-  .focus-ring-rose:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px #e11d48;
-    border-color: #e11d48;
-  }
-
-  /* Auth Hero Banner Gradient */
-  .emerald-gradient {
-    background: linear-gradient(135deg, #064e3b 0%, #047857 50%, #065f46 100%);
+    box-shadow: 0 0 0 2px var(--primary-emerald);
+    border-color: var(--primary-emerald);
   }
 
   /* Scrollbar hide */

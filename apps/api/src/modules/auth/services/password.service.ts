@@ -12,7 +12,7 @@ export class PasswordService {
 
   // 1. Hash Plaintext Password
   async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 10);
+    return bcrypt.hash(password, 12);
   }
 
   // 2. Compare Plaintext & Hashed Password
@@ -25,7 +25,7 @@ export class PasswordService {
     return this.jwtService.sign(
       { sub: userId, email, type: 'password_reset' },
       {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET') || 'orvyn_access_super_secret_key_2026_x89a',
+        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
         expiresIn: '15m',
       },
     );
@@ -35,7 +35,7 @@ export class PasswordService {
   verifyResetToken(token: string, expectedEmail: string) {
     try {
       const payload = this.jwtService.verify(token, {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET') || 'orvyn_access_super_secret_key_2026_x89a',
+        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
       });
 
       if (payload.type !== 'password_reset' || payload.email !== expectedEmail.toLowerCase().trim()) {

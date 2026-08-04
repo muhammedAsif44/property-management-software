@@ -9,8 +9,11 @@ import {
   Query,
   Headers,
   UseGuards,
-  Req,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
+import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
@@ -34,11 +37,11 @@ export class BookingsController {
   @Post()
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.SUPER_ADMIN)
   async createBooking(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreateBookingDto,
     @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.bookingsService.createBooking(req.user.id, dto, idempotencyKey);
+    return this.bookingsService.createBooking(user.id, dto, idempotencyKey);
   }
 
   /**
@@ -46,8 +49,8 @@ export class BookingsController {
    * List bookings with filters & pagination
    */
   @Get()
-  async getBookings(@Req() req: any, @Query() filters: BookingFiltersDto) {
-    return this.bookingsService.getBookings(req.user.id, filters);
+  async getBookings(@CurrentUser() user: AuthUser, @Query() filters: BookingFiltersDto) {
+    return this.bookingsService.getBookings(user.id, filters);
   }
 
   /**
@@ -56,12 +59,12 @@ export class BookingsController {
    */
   @Get('occupancy')
   async getOccupancy(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Query('propertyId') propertyId: string,
     @Query('from') fromDate: string,
     @Query('to') toDate: string,
   ) {
-    return this.bookingsService.getOccupancy(req.user.id, propertyId, fromDate, toDate);
+    return this.bookingsService.getOccupancy(user.id, propertyId, fromDate, toDate);
   }
 
   /**
@@ -69,8 +72,8 @@ export class BookingsController {
    * Get booking detail
    */
   @Get(':id')
-  async getBookingById(@Req() req: any, @Param('id') id: string) {
-    return this.bookingsService.getBookingById(req.user.id, id);
+  async getBookingById(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.bookingsService.getBookingById(user.id, id);
   }
 
   /**
@@ -80,11 +83,11 @@ export class BookingsController {
   @Patch(':id')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.SUPER_ADMIN)
   async updateBooking(
-    @Req() req: any,
-    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateBookingDto,
   ) {
-    return this.bookingsService.updateBooking(req.user.id, id, dto);
+    return this.bookingsService.updateBooking(user.id, id, dto);
   }
 
   /**
@@ -92,13 +95,14 @@ export class BookingsController {
    * Cancel booking with refund/forfeit
    */
   @Post(':id/cancel')
+  @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.SUPER_ADMIN)
   async cancelBooking(
-    @Req() req: any,
-    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CancelBookingDto,
   ) {
-    return this.bookingsService.cancelBooking(req.user.id, id, dto);
+    return this.bookingsService.cancelBooking(user.id, id, dto);
   }
 
   /**
@@ -106,9 +110,10 @@ export class BookingsController {
    * Transition booking to CHECKED_IN
    */
   @Post(':id/check-in')
+  @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.SUPER_ADMIN)
-  async checkIn(@Req() req: any, @Param('id') id: string) {
-    return this.bookingsService.updateBookingStatus(req.user.id, id, BookingStatus.CHECKED_IN);
+  async checkIn(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.bookingsService.updateBookingStatus(user.id, id, BookingStatus.CHECKED_IN);
   }
 
   /**
@@ -116,9 +121,10 @@ export class BookingsController {
    * Transition booking to CHECKED_OUT
    */
   @Post(':id/check-out')
+  @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.SUPER_ADMIN)
-  async checkOut(@Req() req: any, @Param('id') id: string) {
-    return this.bookingsService.updateBookingStatus(req.user.id, id, BookingStatus.CHECKED_OUT);
+  async checkOut(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.bookingsService.updateBookingStatus(user.id, id, BookingStatus.CHECKED_OUT);
   }
 
   /**
@@ -126,13 +132,14 @@ export class BookingsController {
    * Revert or update booking status (supports accidental status change reversal)
    */
   @Post(':id/status')
+  @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.SUPER_ADMIN)
   async updateStatus(
-    @Req() req: any,
-    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body('status') status: BookingStatus,
   ) {
-    return this.bookingsService.updateBookingStatus(req.user.id, id, status);
+    return this.bookingsService.updateBookingStatus(user.id, id, status);
   }
 
   /**
@@ -140,9 +147,10 @@ export class BookingsController {
    * Soft delete booking (Owner/Manager/SuperAdmin only)
    */
   @Delete(':id')
+  @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
-  async softDeleteBooking(@Req() req: any, @Param('id') id: string) {
-    return this.bookingsService.softDeleteBooking(req.user.id, id);
+  async softDeleteBooking(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.bookingsService.softDeleteBooking(user.id, id);
   }
 
   /**
@@ -152,11 +160,11 @@ export class BookingsController {
   @Post(':id/request-deletion')
   @Roles(UserRole.RECEPTION_STAFF)
   async requestDeletion(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Param('id') id: string,
     @Body() dto: RequestDeletionDto,
   ) {
-    return this.bookingsService.requestDeletion(req.user.id, id, dto);
+    return this.bookingsService.requestDeletion(user.id, id, dto);
   }
 
   /**
@@ -166,10 +174,10 @@ export class BookingsController {
   @Get('deletion-requests/pending')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
   async getDeletionRequests(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Query('propertyId') propertyId?: string,
   ) {
-    return this.bookingsService.getDeletionRequests(req.user.id, propertyId);
+    return this.bookingsService.getDeletionRequests(user.id, propertyId);
   }
 
   /**
@@ -178,8 +186,8 @@ export class BookingsController {
    */
   @Post('deletion-requests/:id/approve')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
-  async approveDeletion(@Req() req: any, @Param('id') id: string) {
-    return this.bookingsService.approveDeletion(req.user.id, id);
+  async approveDeletion(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.bookingsService.approveDeletion(user.id, id);
   }
 
   /**
@@ -188,7 +196,7 @@ export class BookingsController {
    */
   @Post('deletion-requests/:id/reject')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
-  async rejectDeletion(@Req() req: any, @Param('id') id: string) {
-    return this.bookingsService.rejectDeletion(req.user.id, id);
+  async rejectDeletion(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.bookingsService.rejectDeletion(user.id, id);
   }
 }

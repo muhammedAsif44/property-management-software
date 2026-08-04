@@ -6,6 +6,7 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
+import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -25,10 +26,10 @@ export class AnalyticsController {
    */
   @Get('dashboard')
   async getDashboardAnalytics(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Query() query: AnalyticsQueryDto,
   ) {
-    return this.analyticsService.getDashboardAnalytics(req.user.id, query.propertyId);
+    return this.analyticsService.getDashboardAnalytics(user.id, query.propertyId);
   }
 
   /**
@@ -39,9 +40,9 @@ export class AnalyticsController {
   @Post('auto-checkout')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
   async triggerAutoCheckout(
-    @Req() req: any,
+    @CurrentUser() user: AuthUser,
     @Query() query: AnalyticsQueryDto,
   ) {
-    return this.analyticsService.autoCheckoutExpiredBookings(req.user.id, query.propertyId);
+    return this.analyticsService.autoCheckoutExpiredBookings(user.id, query.propertyId);
   }
 }

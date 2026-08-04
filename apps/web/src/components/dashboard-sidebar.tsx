@@ -208,6 +208,8 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                     <Link
                       key={item.name}
                       href={item.href}
+                      prefetch={true}
+                      onMouseEnter={() => router.prefetch(item.href)}
                       onClick={() => setMobileOpen(false)}
                       className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                         item.active
@@ -254,9 +256,9 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
 
       {/* Desktop Left Sidebar (>= lg screens) */}
       <aside
-        className={`hidden lg:flex sticky top-0 h-screen shrink-0 z-40 bg-white/95 backdrop-blur-2xl border-r border-emerald-200/80 transition-all duration-300 flex-col justify-between ${
-          collapsed ? 'w-16' : 'w-60'
-        } shadow-xl shadow-emerald-950/5`}
+        className={`hidden lg:flex sticky top-0 h-screen shrink-0 z-40 bg-[#fbfcfd] dark:bg-[#09100d] border-r border-divider transition-all duration-200 flex-col justify-between ${
+          collapsed ? 'w-16' : 'w-56'
+        }`}
       >
         {/* Top Header & Brand Logo */}
         <div className="p-3 space-y-4">
@@ -303,18 +305,20 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                 <Link
                   key={item.name}
                   href={item.href}
+                  prefetch={true}
+                  onMouseEnter={() => router.prefetch(item.href)}
                   title={collapsed ? item.name : undefined}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 group relative ${
+                  className={`interactive flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold group relative ${
                     collapsed ? 'justify-center' : ''
                   } ${
                     item.active
-                      ? 'bg-gradient-to-r from-emerald-600 via-emerald-700 to-emerald-800 text-white shadow-md shadow-emerald-700/20 border border-emerald-500/30'
-                      : 'text-slate-700 hover:text-emerald-900 hover:bg-emerald-100/60'
+                      ? 'bg-slate-200/50 dark:bg-slate-800/60 text-emerald-800 dark:text-emerald-400 shadow-[inset_3px_0_0_0_#059669]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/40 shadow-[inset_3px_0_0_0_transparent]'
                   }`}
                 >
                   <Icon
-                    className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
-                      item.active ? 'text-white' : 'text-emerald-700 group-hover:text-emerald-800'
+                    className={`w-4 h-4 shrink-0 ${
+                      item.active ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'
                     }`}
                   />
                   {!collapsed && <span className="truncate min-w-0">{item.name}</span>}
@@ -340,17 +344,17 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
         </div>
 
         {/* Bottom User & Logout Footer */}
-        <div className="p-2.5 border-t border-emerald-100/80 space-y-2 bg-emerald-50/30">
+        <div className="p-3 border-t border-emerald-100/80 dark:border-slate-800 space-y-2 bg-emerald-50/30 dark:bg-slate-900/50">
           {!collapsed && (
-            <div className="p-2 rounded-xl bg-emerald-100/70 border border-emerald-200/90 text-emerald-950 shadow-xs flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-700 flex items-center justify-center font-bold shrink-0 border border-emerald-300/40">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+            <div className="p-2.5 rounded-xl bg-emerald-100/70 dark:bg-slate-800/60 border border-emerald-200/90 dark:border-slate-800 text-slate-900 dark:text-slate-200 flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold shrink-0 border border-emerald-300/40 dark:border-slate-700">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
               </div>
               <div className="overflow-hidden text-left min-w-0 flex-1">
-                <p className="text-[11px] font-black truncate text-emerald-950 capitalize">
+                <p className="text-[11px] font-extrabold truncate text-emerald-950 dark:text-slate-100 capitalize">
                   {userName || (isOwner ? t('ownerPortal') : userRole)}
                 </p>
-                <p className="text-[10px] font-bold text-emerald-700 flex items-center gap-1 truncate">
+                <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1 truncate">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   <span className="truncate">
                     {isOwner && t('ownerPortal')}

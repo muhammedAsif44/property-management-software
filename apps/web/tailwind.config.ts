@@ -1,6 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -11,15 +12,18 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-manrope)', 'sans-serif'],
+        sans: ['var(--font-manrope)', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       fontSize: {
-        '2xs': ['0.75rem', { lineHeight: '1rem' }],
-        'xs': ['0.8125rem', { lineHeight: '1.25rem' }],
-        'sm': ['0.9375rem', { lineHeight: '1.375rem' }],
-        'base': ['1.0625rem', { lineHeight: '1.625rem' }],
-        'lg': ['1.1875rem', { lineHeight: '1.75rem' }],
-        'xl': ['1.375rem', { lineHeight: '1.875rem' }],
+        '2xs': ['11px', { lineHeight: '16px' }],
+        'xs': ['12px', { lineHeight: '16px' }],
+        'sm': ['13px', { lineHeight: '20px' }],
+        'base': ['14px', { lineHeight: '20px' }],
+        'md': ['16px', { lineHeight: '24px' }],
+        'lg': ['18px', { lineHeight: '26px' }],
+        'xl': ['20px', { lineHeight: '28px' }],
+        '2xl': ['24px', { lineHeight: '32px' }],
+        '3xl': ['30px', { lineHeight: '38px' }],
       },
       colors: {
         emerald: {

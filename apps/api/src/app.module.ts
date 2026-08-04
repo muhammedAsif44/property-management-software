@@ -20,10 +20,11 @@ import { AppService } from './app.service';
       envFilePath: '.env',
     }),
 
-    // Global rate limiting: 20 requests per 60 seconds per IP
+    // Global rate limiting: 500 requests per 60 seconds per IP
+    // (B2B SaaS SPAs make many parallel requests on page load)
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 20,
+      limit: 500,
     }]),
 
     PrismaModule,

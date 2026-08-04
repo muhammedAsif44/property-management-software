@@ -26,7 +26,6 @@ export const RoomsMetricsBar: React.FC<RoomsMetricsBarProps> = ({
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Rooms</span>
           <span className="text-2xl font-black text-slate-900 mt-1 block">{totalUnitsCount}</span>
         </div>
-        <Sparkline data={[totalUnitsCount - 2, totalUnitsCount - 1, totalUnitsCount]} changePercentage={+8.5} label="ready" width={70} height={24} />
       </div>
       <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-emerald-500">
         <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block flex items-center gap-1">
@@ -34,21 +33,21 @@ export const RoomsMetricsBar: React.FC<RoomsMetricsBarProps> = ({
         </span>
         <span className="text-2xl font-black text-slate-900 mt-1 block">{cleanCount}</span>
       </div>
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-rose-500">
-        <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider block flex items-center gap-1">
-          <AlertTriangle className="w-3.5 h-3.5 text-rose-600" /> Needs Cleaning
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-amber-500">
+        <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block flex items-center gap-1">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Needs Cleaning
         </span>
         <span className="text-2xl font-black text-slate-900 mt-1 block">{dirtyCount}</span>
       </div>
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-amber-500">
-        <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block flex items-center gap-1">
-          <Wrench className="w-3.5 h-3.5 text-amber-600" /> Out of Order
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-rose-500">
+        <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider block flex items-center gap-1">
+          <Wrench className="w-3.5 h-3.5 text-rose-600" /> Out of Order
         </span>
         <span className="text-2xl font-black text-slate-900 mt-1 block">{oooCount}</span>
       </div>
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-indigo-500">
-        <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider block flex items-center gap-1">
-          <UserCheck className="w-3.5 h-3.5 text-indigo-600" /> Guest Occupied
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs border-l-4 border-l-slate-400">
+        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block flex items-center gap-1">
+          <UserCheck className="w-3.5 h-3.5 text-slate-500" /> Guest Occupied
         </span>
         <span className="text-2xl font-black text-slate-900 mt-1 block">{occupiedCount}</span>
       </div>

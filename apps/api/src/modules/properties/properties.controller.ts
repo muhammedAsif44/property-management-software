@@ -6,8 +6,11 @@ import {
   Body,
   Param,
   UseGuards,
-  Req,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
+import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { PropertiesService } from './properties.service';
 import { PropertyOnboardingService } from './services/property-onboarding.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
@@ -27,41 +30,42 @@ export class PropertiesController {
 
   @Get()
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.VIEWER, UserRole.SUPER_ADMIN)
-  async getMyProperties(@Req() req: any) {
-    return this.propertiesService.getMyProperties(req.user.id);
+  async getMyProperties(@CurrentUser() user: AuthUser) {
+    return this.propertiesService.getMyProperties(user.id);
   }
 
   @Get('active')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.VIEWER, UserRole.SUPER_ADMIN)
-  async getActiveProperty(@Req() req: any) {
-    return this.propertiesService.getActiveProperty(req.user.id);
+  async getActiveProperty(@CurrentUser() user: AuthUser) {
+    return this.propertiesService.getActiveProperty(user.id);
   }
 
   @Get(':id/onboarding')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.HOUSEKEEPING, UserRole.SUPER_ADMIN)
-  async getOnboardingData(@Req() req: any, @Param('id') id: string) {
-    return this.onboardingService.getOnboardingData(req.user.id, id);
+  async getOnboardingData(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.onboardingService.getOnboardingData(user.id, id);
   }
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
-  async createProperty(@Req() req: any, @Body() dto: CreatePropertyDto) {
-    return this.propertiesService.createProperty(req.user.id, dto);
+  async createProperty(@CurrentUser() user: AuthUser, @Body() dto: CreatePropertyDto) {
+    return this.propertiesService.createProperty(user.id, dto);
   }
 
   @Post(':id/onboarding/step')
+  @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.SUPER_ADMIN)
   async saveOnboardingStep(
-    @Req() req: any,
-    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateOnboardingDto,
   ) {
-    return this.onboardingService.saveOnboardingStep(req.user.id, id, dto);
+    return this.onboardingService.saveOnboardingStep(user.id, id, dto);
   }
 
   @Patch('switch/:propertyId')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.VIEWER, UserRole.SUPER_ADMIN)
-  async switchActiveProperty(@Req() req: any, @Param('propertyId') propertyId: string) {
-    return this.propertiesService.switchActiveProperty(req.user.id, propertyId);
+  async switchActiveProperty(@CurrentUser() user: AuthUser, @Param('propertyId', ParseUUIDPipe) propertyId: string) {
+    return this.propertiesService.switchActiveProperty(user.id, propertyId);
   }
 }

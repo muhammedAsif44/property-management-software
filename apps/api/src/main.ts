@@ -5,13 +5,21 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.filter';
+
+import { CustomLogger } from './common/logger/custom-logger.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: new CustomLogger(),
+  });
 
   // 0. Helmet: HTTP security headers (XSS, clickjacking, MIME sniffing protection)
   app.use(helmet());
-  const cookieSecret = process.env.COOKIE_SECRET || 'orvyn_cookie_secret_key_2026';
+  const cookieSecret = process.env.COOKIE_SECRET;
+  if (!cookieSecret) {
+    throw new Error('FATAL ERROR: COOKIE_SECRET environment variable is not set.');
+  }
   app.use(cookieParser(cookieSecret));
 
   // 1. Enable Global API Prefix & URI Versioning (/api/v1/...)
@@ -49,7 +57,7 @@ async function bootstrap() {
   );
 
   // 4. Global Exception Filter & Response Transform Interceptor
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(new HttpExceptionFilter(), new PrismaClientExceptionFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
 
   // 5. Start Server

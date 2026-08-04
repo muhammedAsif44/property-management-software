@@ -151,11 +151,12 @@ export interface OccupancyCell {
   outOfOrder: number;
   available: number;
   hasConflict: boolean;
-  bookings: OccupancyCellBooking[];
+  bookingIds: string[];
 }
 
 export interface OccupancyData {
   roomTypes: BookingRoomType[];
   dates: string[];
   occupancy: Record<string, Record<string, OccupancyCell>>;
+  bookingsMap: Record<string, OccupancyCellBooking>;
 }

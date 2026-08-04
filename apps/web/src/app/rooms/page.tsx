@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { httpClient } from '@/lib/api/http-client';
 import { authService } from '@/features/auth';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
+import { AppHeader } from '@/components/app-header';
 import { usePropertyStore, useActivePropertyQuery } from '@/features/properties';
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
 import {
@@ -32,16 +33,19 @@ import { RoomUnit } from '@/features/housekeeping/services/housekeeping.service'
 import { Sparkline } from '@/components/ui/sparkline';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
 import { useToast } from '@/components/ui/toast';
+import dynamic from 'next/dynamic';
 import {
   RoomsMetricsBar,
   RoomsTableView,
   RoomsGridView,
-  AddRoomModal,
-  EditRoomModal,
-  DeleteRoomModal,
-  MaintenanceModal,
-  RoomDetailDrawer,
 } from '@/features/rooms/components';
+
+// Dynamic lazy loading for heavy modals and slide-over drawers (reduces JS bundle size & improves FCP/TTI)
+const RoomDetailDrawer = dynamic(() => import('@/features/rooms/components/room-detail-drawer').then((mod) => mod.RoomDetailDrawer), { ssr: false });
+const AddRoomModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.AddRoomModal), { ssr: false });
+const EditRoomModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.EditRoomModal), { ssr: false });
+const DeleteRoomModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.DeleteRoomModal), { ssr: false });
+const MaintenanceModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.MaintenanceModal), { ssr: false });
 
 export default function RoomsPage() {
   const { t } = useTranslation();
@@ -281,56 +285,52 @@ export default function RoomsPage() {
   const occupiedCount = rawUnits.filter((u) => u.bookings && u.bookings.length > 0 && u.bookings[0].status === 'CHECKED_IN').length;
 
   return (
-    <div className="min-h-screen bg-slate-50/90 text-slate-900 font-sans antialiased flex relative overflow-hidden">
-      {/* Ambient Rich Emerald Glow */}
-      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/15 rounded-full blur-3xl pointer-events-none z-0" />
-      <div className="absolute bottom-10 -right-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none z-0" />
-
+    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
       {/* Left Navigation Sidebar */}
       <DashboardSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         {/* ═══ Top Header Bar ═══ */}
-        <header className="bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 flex flex-col shadow-xs">
-          <div className="h-16 px-6 flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="p-2 rounded-xl bg-emerald-100/80 border border-emerald-200 text-emerald-800 shadow-xs shrink-0">
-                <BedDouble className="w-4 h-4 text-emerald-700" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-sm font-black text-slate-900 tracking-tight truncate">
-                  {t('roomsAndUnits')}
-                </h1>
-                <p className="text-[11px] font-semibold text-emerald-700/80 truncate">
-                  {activeProperty?.name || t('activeManagementHub')}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 shrink-0">
-              <LanguageSwitcher />
+        <AppHeader
+          actions={
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => refetch()}
-                className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-600 hover:text-slate-900 transition-all cursor-pointer shadow-2xs active:scale-95"
+                className="w-9 h-9 flex items-center justify-center rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 transition-all cursor-pointer"
                 title="Refresh Directory"
               >
-                <RefreshCw className="w-4 h-4 text-emerald-700" />
+                <RefreshCw className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               </button>
               {isManagerOrOwner && (
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 active:scale-95 text-white font-black text-xs shadow-md shadow-emerald-700/20 transition-all cursor-pointer shrink-0"
+                  className="h-9 px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
                 >
-                  <Plus className="w-4 h-4 text-emerald-200" />
+                  <Plus className="w-3.5 h-3.5" />
                   <span className="truncate">Add Room</span>
                 </button>
               )}
             </div>
+          }
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
+              <BedDouble className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
+                {t('roomsAndUnits')}
+              </h1>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
+                {activeProperty?.name || t('activeManagementHub')}
+              </p>
+            </div>
           </div>
+        </AppHeader>
 
-          {/* Navigation Tabs */}
-          <div className="px-6 flex items-center gap-6 border-t border-slate-100 text-xs font-bold text-slate-500">
+        {/* Navigation Tabs Bar */}
+        <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 lg:px-6 flex items-center gap-6 text-xs font-semibold text-slate-500">
             <button
               onClick={() => setActiveTab('units')}
               className={`py-2.5 border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
@@ -360,10 +360,9 @@ export default function RoomsPage() {
               </span>
             </button>
           </div>
-        </header>
 
         {/* Page Content */}
-        <div className="p-6 space-y-6 w-full">
+        <div className="p-4 lg:p-6 space-y-6 w-full flex-1 overflow-y-auto">
           {/* Top Summary Metrics */}
           <RoomsMetricsBar
             totalUnitsCount={totalUnitsCount}

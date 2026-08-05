@@ -15,6 +15,9 @@ import { HealthModule } from './modules/health/health.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { AgenciesModule } from './modules/agencies/agencies.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { GuestsModule } from './modules/guests/guests.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -45,6 +48,9 @@ import { AppService } from './app.service';
     PaymentsModule,
     AgenciesModule,
     InvoicesModule,
+    GuestsModule,
+    ReportsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

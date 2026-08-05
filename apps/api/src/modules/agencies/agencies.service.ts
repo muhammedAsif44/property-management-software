@@ -84,9 +84,87 @@ export class AgenciesService {
   }
 
   /**
+   * 2b. Get Agency Details with Bookings & Settlement Ledger
+   */
+  async getAgencyDetails(userId: string, agencyId: string) {
+    const agency = await this.prisma.agency.findUnique({
+      where: { id: agencyId },
+      include: {
+        bookings: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            guest: true,
+            roomType: true,
+          },
+        },
+        settlements: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            processedBy: {
+              select: { email: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!agency) {
+      throw new NotFoundException('Agency not found');
+    }
+
+    const aAny = agency as any;
+
+    return {
+      agency: {
+        ...agency,
+        defaultTacRate: agency.defaultTacRate?.toNumber() || 0,
+        totalTac: agency.totalTac.toNumber(),
+        tacPaid: agency.tacPaid.toNumber(),
+        pendingTac: agency.pendingTac.toNumber(),
+      },
+      bookings: (aAny.bookings || []).map((b: any) => ({
+        ...b,
+        baseAmount: b.baseAmount ? b.baseAmount.toNumber() : 0,
+        totalAmount: b.totalAmount ? b.totalAmount.toNumber() : 0,
+        tacAmount: b.tacAmount?.toNumber() || 0,
+        tacRateAtBooking: b.tacRateAtBooking?.toNumber() || 0,
+      })),
+      settlements: (aAny.settlements || []).map((s: any) => ({
+        ...s,
+        amount: s.amount ? s.amount.toNumber() : 0,
+        createdByUser: s.processedBy,
+      })),
+    };
+  }
+
+  /**
    * 3. Commission Settlement (Atomic Single Transaction)
    */
-  async settleCommission(userId: string, agencyId: string, dto: SettleAgencyDto) {
+  async settleCommission(userId: string, agencyId: string, dto: SettleAgencyDto, idempotencyKey?: string) {
+    if (!idempotencyKey) {
+      throw new BadRequestException('Idempotency-Key header is required for financial transactions');
+    }
+
+    // Idempotency Check: Return existing successful settlement if it matches
+    const existingSettlement = await this.prisma.agencySettlement.findUnique({
+      where: { idempotencyKey },
+      include: { agency: true }
+    });
+
+    if (existingSettlement) {
+      return {
+        message: 'Commission settled successfully (Idempotent Cached Response)',
+        agency: {
+          id: existingSettlement.agency.id,
+          name: existingSettlement.agency.name,
+          totalTac: existingSettlement.agency.totalTac.toNumber(),
+          tacPaid: existingSettlement.agency.tacPaid.toNumber(),
+          pendingTac: existingSettlement.agency.pendingTac.toNumber(),
+        },
+      };
+    }
+
     const agency = await this.prisma.agency.findUnique({
       where: { id: agencyId },
     });
@@ -103,7 +181,17 @@ export class AgenciesService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // 1. Update Agency running totals
+      // 1. Create immutable AgencySettlement transaction
+      const settlement = await tx.agencySettlement.create({
+        data: {
+          agencyId,
+          amount: settleAmount,
+          idempotencyKey,
+          processedById: userId,
+        }
+      });
+
+      // 2. Update Agency running totals
       const updatedAgency = await tx.agency.update({
         where: { id: agencyId },
         data: {
@@ -112,7 +200,7 @@ export class AgenciesService {
         },
       });
 
-      // 2. Selectively update pending bookings for this agency
+      // 3. Selectively update pending bookings for this agency
       const pendingBookings = await tx.booking.findMany({
         where: {
           agencyId,
@@ -126,8 +214,10 @@ export class AgenciesService {
       const settledBookingIds: string[] = [];
 
       for (const b of pendingBookings) {
-        const bTac = b.tacAmount || (agency.defaultTacRate ? b.baseAmount.mul(agency.defaultTacRate).div(100) : new Prisma.Decimal(0));
-        if (bTac.greaterThan(0) && remainingToSettle.greaterThanOrEqualTo(bTac)) {
+        const bTac = b.tacAmount ?? (agency.defaultTacRate ? b.baseAmount.mul(agency.defaultTacRate).div(100) : new Prisma.Decimal(0));
+        if (bTac.equals(0)) {
+          settledBookingIds.push(b.id);
+        } else if (bTac.greaterThan(0) && remainingToSettle.greaterThanOrEqualTo(bTac)) {
           settledBookingIds.push(b.id);
           remainingToSettle = remainingToSettle.minus(bTac);
         }
@@ -136,7 +226,10 @@ export class AgenciesService {
       if (settledBookingIds.length > 0) {
         await tx.booking.updateMany({
           where: { id: { in: settledBookingIds } },
-          data: { tacStatus: TacStatus.SETTLED },
+          data: { 
+            tacStatus: TacStatus.SETTLED,
+            settlementId: settlement.id
+          },
         });
       }
 

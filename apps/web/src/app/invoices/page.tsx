@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import {
   FileText,
+  CreditCard,
   Plus,
   Check,
   Eye,
@@ -13,7 +15,17 @@ import {
   Wand2,
   Code2,
   Palette,
-  RotateCcw,
+  Search,
+  Filter,
+  DollarSign,
+  Building2,
+  Receipt,
+  ArrowUpRight,
+  Send,
+  AlertCircle,
+  Calendar,
+  Layers,
+  CheckCheck,
 } from 'lucide-react';
 import { AppHeader } from '@/components/app-header';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
@@ -23,6 +35,19 @@ import {
   useSaveDraftTemplateMutation,
   usePublishTemplateMutation,
 } from '@/features/invoices/api/use-invoices';
+import { useBookingsQuery } from '@/features/bookings/api/use-bookings';
+import { usePropertyStore } from '@/features/properties';
+import { Booking } from '@/features/bookings/types/booking.types';
+import { calculateTac } from '@/lib/utils/financial-math';
+
+const PaymentEntryModal = dynamic(
+  () => import('@/features/payments/components/payment-entry-modal').then((m) => m.PaymentEntryModal),
+  { ssr: false }
+);
+const InvoicePreviewModal = dynamic(
+  () => import('@/features/invoices/components/invoice-preview-modal').then((m) => m.InvoicePreviewModal),
+  { ssr: false }
+);
 
 // Pre-built template presets for non-technical users
 const PRESET_TEMPLATES = {
@@ -45,6 +70,88 @@ const PRESET_TEMPLATES = {
 
 export default function InvoicesPage() {
   const { t } = useTranslation();
+  const activeProperty = usePropertyStore((s) => s.activeProperty);
+  
+  const [activeTab, setActiveTab] = useState<'invoices' | 'payments' | 'templates'>('invoices');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PAID' | 'DUE' | 'AGENCY'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Selected modals
+  const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<Booking | null>(null);
+  const [selectedPaymentBooking, setSelectedPaymentBooking] = useState<Booking | null>(null);
+
+  // Fetch Bookings for financial ledger
+  const { data: bookingsData, isLoading: isBookingsLoading } = useBookingsQuery({
+    propertyId: activeProperty?.id,
+    limit: 100,
+  });
+
+  const resData: any = bookingsData;
+  const bookings: Booking[] = Array.isArray(resData)
+    ? resData
+    : (resData?.bookings || resData?.data?.bookings || (Array.isArray(resData?.data) ? resData.data : []));
+
+  // Calculated Financial Metrics
+  const summaryMetrics = useMemo(() => {
+    let totalInvoiced = 0;
+    let collectedRevenue = 0;
+    let pendingBalance = 0;
+    let totalTacCommission = 0;
+
+    bookings.forEach((b) => {
+      const gross = Number(b.totalAmount || 0);
+      const paid = Number(b.advancePaid || 0);
+      const due = Number(b.balanceDue || 0);
+      totalInvoiced += gross;
+      collectedRevenue += paid;
+      pendingBalance += due;
+
+      if (b.channel === 'AGENCY' || b.agencyId) {
+        const rate = Number(b.tacRateAtBooking || b.agency?.defaultTacRate || 10);
+        const { tacAmount } = calculateTac(gross, rate);
+        totalTacCommission += tacAmount;
+      }
+    });
+
+    return {
+      totalInvoiced,
+      collectedRevenue,
+      pendingBalance,
+      totalTacCommission,
+    };
+  }, [bookings]);
+
+  // Filtered Bookings for Invoice Ledger
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((b) => {
+      // Status filter
+      if (statusFilter === 'PAID' && (b.balanceDue || 0) > 0) return false;
+      if (statusFilter === 'DUE' && (b.balanceDue || 0) <= 0) return false;
+      if (statusFilter === 'AGENCY' && b.channel !== 'AGENCY' && !b.agencyId) return false;
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const guestName = b.guest?.fullName?.toLowerCase() || '';
+        const guestPhone = b.guest?.phone?.toLowerCase() || '';
+        const agencyName = b.agency?.name?.toLowerCase() || '';
+        const invNum = `inv-${b.id.slice(0, 8)}`.toLowerCase();
+        const agyNum = `agy-${b.id.slice(0, 8)}`.toLowerCase();
+
+        return (
+          guestName.includes(q) ||
+          guestPhone.includes(q) ||
+          agencyName.includes(q) ||
+          invNum.includes(q) ||
+          agyNum.includes(q)
+        );
+      }
+
+      return true;
+    });
+  }, [bookings, statusFilter, searchQuery]);
+
+  // Template customizer states
   const [editorMode, setEditorMode] = useState<'visual' | 'code'>('visual');
   const [templateName, setTemplateName] = useState('Standard Hotel Invoice');
   const [accentColor, setAccentColor] = useState('#059669');
@@ -62,14 +169,14 @@ export default function InvoicesPage() {
       <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Official Guest Stay Invoice</p>
     </div>
     <div style="text-align: right;">
-      <span style="font-size: 16px; font-weight: 800; color: #1e293b; display: block;">{{invoice_number}}</span>
+      <span style="font-size: 16px; font-weight: 800; color: #1e40af; display: block;">{{invoice_number}}</span>
       <span style="font-size: 12px; color: #64748b;">Date: {{check_in_date}}</span>
     </div>
   </div>
 
   <div style="margin-top: 30px; display: flex; justify-content: space-between; background: #f8fafc; padding: 16px; border-radius: 12px;">
     <div>
-      <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Billed Guest</p>
+      <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Billed Guest / Agency</p>
       <p style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a;">{{guest_name}}</p>
       <p style="margin: 2px 0 0 0; font-size: 12px; color: #475569;">{{guest_email}} | {{guest_phone}}</p>
     </div>
@@ -104,390 +211,679 @@ export default function InvoicesPage() {
 
   ${
     bank
-      ? `<div style="margin-top: 24px; padding: 12px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 12px; color: #1e40af;">
-          <strong>Direct Bank Transfer:</strong> Account: 9988776655 | IFSC: HDFC0001234 | Bank: HDFC Bank
-         </div>`
+      ? `
+  <div style="margin-top: 24px; padding: 16px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; font-size: 12px;">
+    <strong style="color: #166534; display: block; margin-bottom: 4px;">Bank Settlement Details:</strong>
+    <span style="color: #15803d;">Bank: HDFC Bank | A/C: 50200012345678 | IFSC: HDFC0001234 | UPI: azura@hdfcbank</span>
+  </div>`
       : ''
   }
 
-  <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
+  <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b;">
     ${footer}
   </div>
-</div>
-  `.trim();
+</div>`;
   };
 
-  const [htmlContent, setHtmlContent] = useState(() =>
-    generateVisualHtml('#059669', 'Thank you for staying with us! Generated by Orvyn PMS.', false),
+  const [htmlContent, setHtmlContent] = useState(
+    generateVisualHtml('#059669', 'Thank you for staying with us! Generated by Orvyn PMS.', false)
   );
 
-  const { data: templatesData, isLoading } = useTemplatesQuery();
+  const { data: templatesData, isLoading: isTemplatesLoading } = useTemplatesQuery();
   const saveDraftMutation = useSaveDraftTemplateMutation();
   const publishMutation = usePublishTemplateMutation();
-
-  const handleApplyPreset = (presetKey: keyof typeof PRESET_TEMPLATES) => {
-    const p = PRESET_TEMPLATES[presetKey];
-    setTemplateName(p.name);
-    setAccentColor(p.accentColor);
-    setFooterNote(p.footerNote);
-    const newHtml = generateVisualHtml(p.accentColor, p.footerNote, showBankDetails);
-    setHtmlContent(newHtml);
-    setIsSaved(false);
-  };
 
   const handleVisualParamChange = (newColor: string, newFooter: string, newBank: boolean) => {
     setAccentColor(newColor);
     setFooterNote(newFooter);
     setShowBankDetails(newBank);
-    const newHtml = generateVisualHtml(newColor, newFooter, newBank);
-    setHtmlContent(newHtml);
+    setHtmlContent(generateVisualHtml(newColor, newFooter, newBank));
     setIsSaved(false);
   };
 
-  const handleCodeChange = (val: string) => {
-    setHtmlContent(val);
+  const handleApplyPreset = (preset: typeof PRESET_TEMPLATES.STANDARD) => {
+    setTemplateName(preset.name);
+    handleVisualParamChange(preset.accentColor, preset.footerNote, showBankDetails);
+  };
+
+  const handleCodeChange = (newCode: string) => {
+    setHtmlContent(newCode);
     setIsSaved(false);
   };
 
-  const handleSaveDraft = () => {
+  const handleSave = () => {
     saveDraftMutation.mutate(
       {
         name: templateName,
         htmlContent,
+        themeConfig: { accentColor, footerNote, showBankDetails, editorMode },
       },
       {
-        onSuccess: () => {
-          setIsSaved(true);
-        },
-      },
+        onSuccess: () => setIsSaved(true),
+      }
     );
   };
 
-  const templates = templatesData?.templates || [];
+  const handlePublish = (templateId: string) => {
+    publishMutation.mutate(templateId);
+  };
+
+  const formatDate = (d: string) => {
+    if (!d) return '—';
+    const dateStr = d.includes('T') ? d : `${d}T00:00:00`;
+    const dt = new Date(dateStr);
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const formatCurrency = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
+    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative bg-slate-50/50 dark:bg-slate-950">
       {/* Left Navigation Sidebar */}
       <DashboardSidebar />
 
-      {/* Main Content Area */}
+      {/* Main Workspace Area */}
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         <AppHeader />
 
-        <main className="w-full px-6 py-6 space-y-6 flex-1 max-w-[1400px]">
-          {/* Page Title & Breadcrumb Header */}
-          <div className="flex items-center justify-between min-w-0">
-            <div className="min-w-0">
-              <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white truncate">
-                {t('invoicesAndBilling')}
+        {/* ═══ ENTERPRISE FINANCIAL KPI METRICS BAR ═══ */}
+        <div className="px-6 pt-6 pb-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                <Receipt className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                {t('invoicesWorkspaceTitle')}
               </h1>
-              <p className="text-xs font-medium text-neutral-500 dark:text-slate-400 truncate mt-0.5">
-                No-Code Invoice Designer & Published Templates
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-0.5">
+                Manage guest tax invoices, agency commercial billing, payments ledger, and customizable templates
               </p>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-1 shadow-2xs">
+              <button
+                onClick={() => setActiveTab('invoices')}
+                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'invoices'
+                    ? 'bg-emerald-700 text-white shadow-md'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>{t('allInvoicesTab')}</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('payments')}
+                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'payments'
+                    ? 'bg-emerald-700 text-white shadow-md'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>{t('paymentLedgerTab')}</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('templates')}
+                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'templates'
+                    ? 'bg-emerald-700 text-white shadow-md'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Palette className="w-4 h-4" />
+                <span>{t('templatesTab')}</span>
+              </button>
             </div>
           </div>
 
-          {/* Templates Grid & Designer Split */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column: Template List & Quick Presets */}
-            <div className="space-y-6">
-              {/* Ready-to-Use Presets (No-Code Edge Case Fix) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-3">
-                <div className="flex items-center gap-2">
-                  <Wand2 className="w-4 h-4 text-emerald-600" />
-                  <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
-                    Ready Presets (No Coding)
-                  </h3>
+          {/* KPI Analytics Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* 1. Total Invoiced */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
+              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-wider">{t('totalInvoiced')}</span>
+                <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  <Receipt className="w-4 h-4" />
                 </div>
-                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                  Click any pre-designed template to customize your hotel invoices with zero HTML coding required:
-                </p>
+              </div>
+              <p className="text-lg font-black text-slate-900 dark:text-white">
+                {formatCurrency(summaryMetrics.totalInvoiced)}
+              </p>
+              <p className="text-[11px] font-bold text-slate-400">Across {bookings.length} reservations</p>
+            </div>
 
-                <div className="space-y-2 pt-1">
+            {/* 2. Collected Revenue */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
+              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-wider">{t('collectedRevenue')}</span>
+                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                {formatCurrency(summaryMetrics.collectedRevenue)}
+              </p>
+              <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">Advance & Payments Received</p>
+            </div>
+
+            {/* 3. Pending Balance Due */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
+              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-wider">{t('pendingBalance')}</span>
+                <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300">
+                  <AlertCircle className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-lg font-black text-rose-600 dark:text-rose-400">
+                {formatCurrency(summaryMetrics.pendingBalance)}
+              </p>
+              <p className="text-[11px] font-bold text-rose-700 dark:text-rose-400">Outstanding Balance</p>
+            </div>
+
+            {/* 4. Agency TAC Commissions */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
+              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-wider">{t('agencyTacCommissions')}</span>
+                <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                  <Building2 className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-lg font-black text-blue-600 dark:text-blue-400">
+                {formatCurrency(summaryMetrics.totalTacCommission)}
+              </p>
+              <p className="text-[11px] font-bold text-blue-700 dark:text-blue-400">Travel Partner Commissions</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ TAB 1: ALL INVOICES LEDGER WORKSPACE ═══ */}
+        {activeTab === 'invoices' && (
+          <main className="px-6 pb-12 space-y-4 flex-1">
+            {/* Filter & Search Header */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search invoice #, guest, or agency..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+                <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 flex gap-1 text-xs font-bold border border-slate-200 dark:border-slate-700">
                   <button
-                    onClick={() => handleApplyPreset('STANDARD')}
-                    className="w-full text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition-all flex items-center justify-between group cursor-pointer"
+                    onClick={() => setStatusFilter('ALL')}
+                    className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                      statusFilter === 'ALL'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
                   >
-                    <div>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white block">Standard Hotel</span>
-                      <span className="text-[10px] text-slate-400">Emerald theme & clean summary</span>
-                    </div>
-                    <span className="w-3 h-3 rounded-full bg-[#059669] shrink-0" />
+                    All Invoices
                   </button>
-
                   <button
-                    onClick={() => handleApplyPreset('CORPORATE')}
-                    className="w-full text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-all flex items-center justify-between group cursor-pointer"
+                    onClick={() => setStatusFilter('PAID')}
+                    className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                      statusFilter === 'PAID'
+                        ? 'bg-emerald-600 text-white font-black shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
                   >
-                    <div>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white block">Corporate Tax</span>
-                      <span className="text-[10px] text-slate-400">Indigo theme for business billing</span>
-                    </div>
-                    <span className="w-3 h-3 rounded-full bg-[#2563eb] shrink-0" />
+                    Fully Paid
                   </button>
-
                   <button
-                    onClick={() => handleApplyPreset('LUXURY')}
-                    className="w-full text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-all flex items-center justify-between group cursor-pointer"
+                    onClick={() => setStatusFilter('DUE')}
+                    className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                      statusFilter === 'DUE'
+                        ? 'bg-rose-600 text-white font-black shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
                   >
-                    <div>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white block">Resort & Luxury Spa</span>
-                      <span className="text-[10px] text-slate-400">Warm amber premium styling</span>
-                    </div>
-                    <span className="w-3 h-3 rounded-full bg-[#d97706] shrink-0" />
+                    Balance Due
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('AGENCY')}
+                    className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                      statusFilter === 'AGENCY'
+                        ? 'bg-blue-600 text-white font-black shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Agency TAC
                   </button>
                 </div>
               </div>
+            </div>
 
-              {/* Published Templates List */}
-              <div className="space-y-4">
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white truncate">
-                  {t('published')} Templates
-                </h2>
-                {isLoading ? (
-                  <div className="py-8 text-center text-xs text-slate-400">Loading templates...</div>
-                ) : templates.length === 0 ? (
-                  <div className="p-6 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                    <FileText className="w-6 h-6 text-slate-300 mx-auto mb-2" />
-                    <p className="text-xs font-semibold text-slate-500">No custom templates yet.</p>
+            {/* Invoices Table */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <th className="p-4 pl-6">Invoice # & Channel</th>
+                      <th className="p-4">Billed Guest / Agency</th>
+                      <th className="p-4">Stay Dates</th>
+                      <th className="p-4">Total Amount</th>
+                      <th className="p-4">Advance Paid</th>
+                      <th className="p-4">Balance Due</th>
+                      <th className="p-4 pr-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
+                    {isBookingsLoading ? (
+                      <tr>
+                        <td colSpan={7} className="p-12 text-center text-slate-500 font-bold">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-600 mb-2" />
+                          <span>Loading invoice records...</span>
+                        </td>
+                      </tr>
+                    ) : filteredBookings.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-12 text-center text-slate-500 font-bold">
+                          <Receipt className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                          <p className="text-sm font-black text-slate-800 dark:text-white">No Invoices Found</p>
+                          <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search criteria</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredBookings.map((b) => {
+                        const isAgency = b.channel === 'AGENCY' || !!b.agencyId;
+                        const invNumber = isAgency
+                          ? `AGY-${b.id.slice(0, 8).toUpperCase()}`
+                          : `INV-${b.id.slice(0, 8).toUpperCase()}`;
+
+                        const billedTo = isAgency
+                          ? b.agency?.name || 'Travel Agency Partner'
+                          : b.guest?.fullName || 'Guest';
+
+                        const subBilled = isAgency
+                          ? `Passenger: ${b.guest?.fullName || 'Guest'}`
+                          : b.guest?.phone || b.guest?.email || '—';
+
+                        const isFullyPaid = (b.balanceDue || 0) <= 0;
+
+                        return (
+                          <tr
+                            key={b.id}
+                            className="hover:bg-slate-50/80 dark:hover:bg-slate-850/50 transition-colors"
+                          >
+                            {/* Invoice # & Channel */}
+                            <td className="p-4 pl-6">
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={`p-2 rounded-xl shrink-0 ${
+                                    isAgency
+                                      ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                                      : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                                  }`}
+                                >
+                                  {isAgency ? <Building2 className="w-4 h-4" /> : <Receipt className="w-4 h-4" />}
+                                </div>
+                                <div>
+                                  <span className="font-black text-slate-900 dark:text-white font-mono text-xs block">
+                                    {invNumber}
+                                  </span>
+                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                                    {b.channel}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Billed Guest / Agency */}
+                            <td className="p-4">
+                              <p className="font-black text-slate-900 dark:text-white truncate">{billedTo}</p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                                {subBilled}
+                              </p>
+                            </td>
+
+                            {/* Stay Dates */}
+                            <td className="p-4">
+                              <span className="font-extrabold text-slate-800 dark:text-slate-200 block text-[11px]">
+                                {formatDate(b.checkInDate)} &rarr; {formatDate(b.checkOutDate)}
+                              </span>
+                              <span className="text-[10px] font-semibold text-slate-500">
+                                {b.roomType?.name || 'Deluxe Room'}
+                              </span>
+                            </td>
+
+                            {/* Total Amount */}
+                            <td className="p-4">
+                              <span className="font-black text-slate-900 dark:text-white">
+                                {formatCurrency(b.totalAmount)}
+                              </span>
+                            </td>
+
+                            {/* Advance Paid */}
+                            <td className="p-4">
+                              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                                {formatCurrency(b.advancePaid)}
+                              </span>
+                            </td>
+
+                            {/* Balance Due */}
+                            <td className="p-4">
+                              {isFullyPaid ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                                  <CheckCheck className="w-3 h-3 text-emerald-600" />
+                                  PAID IN FULL
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                                  DUE: {formatCurrency(b.balanceDue)}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="p-4 pr-6 text-right">
+                              <div className="inline-flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => setSelectedInvoiceBooking(b)}
+                                  className="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 cursor-pointer"
+                                  title="Preview & Issue Invoice"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                                  <span>Preview</span>
+                                </button>
+
+                                {!isFullyPaid && (
+                                  <button
+                                    onClick={() => setSelectedPaymentBooking(b)}
+                                    className="h-8 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    title="Record Payment"
+                                  >
+                                    <CreditCard className="w-3.5 h-3.5" />
+                                    <span>Pay</span>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </main>
+        )}
+
+        {/* ═══ TAB 2: PAYMENT TRANSACTIONS LEDGER ═══ */}
+        {activeTab === 'payments' && (
+          <main className="px-6 pb-12 space-y-4 flex-1">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-emerald-600" />
+                  Recorded Payments & Receipts
+                </h3>
+                <span className="text-xs font-bold text-slate-500">
+                  Real-time transaction history across all reservations
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <th className="p-4 pl-6">Transaction Ref</th>
+                      <th className="p-4">Guest / Booking</th>
+                      <th className="p-4">Payment Method</th>
+                      <th className="p-4">Amount Received</th>
+                      <th className="p-4">Date & Time</th>
+                      <th className="p-4 pr-6 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
+                    {bookings.map((b) => {
+                      if (!b.advancePaid || b.advancePaid <= 0) return null;
+
+                      return (
+                        <tr key={`pay-${b.id}`} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="p-4 pl-6 font-mono font-black text-slate-900 dark:text-white">
+                            TXN-{b.id.slice(0, 8).toUpperCase()}
+                          </td>
+                          <td className="p-4 font-extrabold text-slate-900 dark:text-white">
+                            {b.guest?.fullName || 'Guest'}
+                            <span className="block text-[11px] font-semibold text-slate-500">
+                              {b.roomType?.name || 'Deluxe Room'}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              <CreditCard className="w-3 h-3 text-emerald-600" />
+                              CASH / UPI / CARD
+                            </span>
+                          </td>
+                          <td className="p-4 font-black text-emerald-600 dark:text-emerald-400">
+                            {formatCurrency(b.advancePaid)}
+                          </td>
+                          <td className="p-4 text-slate-500 font-medium">{formatDate(b.createdAt)}</td>
+                          <td className="p-4 pr-6 text-right">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              CONFIRMED
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </main>
+        )}
+
+        {/* ═══ TAB 3: INVOICE TEMPLATE CUSTOMIZER WORKSPACE ═══ */}
+        {activeTab === 'templates' && (
+          <main className="px-6 pb-12 space-y-6 flex-1 max-w-[1400px]">
+            {/* Template Presets Bar */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-2xs">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Template Presets
+                  </h3>
+                  <p className="text-xs font-bold text-slate-800 dark:text-white mt-0.5">
+                    Select a pre-designed layout or customize your property brand styling below
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleApplyPreset(PRESET_TEMPLATES.STANDARD)}
+                    className="px-3.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-black transition-all cursor-pointer"
+                  >
+                    Standard Hotel
+                  </button>
+                  <button
+                    onClick={() => handleApplyPreset(PRESET_TEMPLATES.CORPORATE)}
+                    className="px-3.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs font-black transition-all cursor-pointer"
+                  >
+                    Corporate Tax
+                  </button>
+                  <button
+                    onClick={() => handleApplyPreset(PRESET_TEMPLATES.LUXURY)}
+                    className="px-3.5 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-black transition-all cursor-pointer"
+                  >
+                    Luxury Resort
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Template Editor Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column: Visual / Code Editor Controls */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xs space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="flex items-center gap-2">
+                    <Palette className="w-5 h-5 text-emerald-600" />
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                      Invoice Brand Customizer
+                    </h3>
+                  </div>
+
+                  <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 flex gap-1 text-xs font-bold border border-slate-200 dark:border-slate-700">
+                    <button
+                      onClick={() => setEditorMode('visual')}
+                      className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                        editorMode === 'visual'
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      Visual Mode
+                    </button>
+                    <button
+                      onClick={() => setEditorMode('code')}
+                      className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                        editorMode === 'code'
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      Code Mode
+                    </button>
+                  </div>
+                </div>
+
+                {editorMode === 'visual' ? (
+                  <div className="space-y-4 text-xs">
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Template Name
+                      </label>
+                      <input
+                        type="text"
+                        value={templateName}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Brand Accent Color
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={accentColor}
+                          onChange={(e) => handleVisualParamChange(e.target.value, footerNote, showBankDetails)}
+                          className="w-10 h-10 rounded-xl cursor-pointer border-0"
+                        />
+                        <span className="font-mono font-extrabold text-slate-700 dark:text-slate-300">
+                          {accentColor}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Footer Note
+                      </label>
+                      <input
+                        type="text"
+                        value={footerNote}
+                        onChange={(e) => handleVisualParamChange(accentColor, e.target.value, showBankDetails)}
+                        className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                      />
+                    </div>
+
+                    <div className="pt-2">
+                      <label className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showBankDetails}
+                          onChange={(e) => handleVisualParamChange(accentColor, footerNote, e.target.checked)}
+                          className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                        />
+                        <span>Include Bank Settlement Instructions</span>
+                      </label>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {templates.map((tpl: any) => (
-                      <div
-                        key={tpl.id}
-                        className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs space-y-2 min-w-0"
-                      >
-                        <div className="flex items-center justify-between min-w-0">
-                          <h3 className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                            {tpl.name}
-                          </h3>
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                              tpl.status === 'PUBLISHED'
-                                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                                : 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-                            }`}
-                          >
-                            v{tpl.version} {tpl.status}
-                          </span>
-                        </div>
-                        {tpl.status === 'DRAFT' && (
-                          <button
-                            onClick={() => publishMutation.mutate(tpl.id)}
-                            disabled={publishMutation.isPending}
-                            className="w-full py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                          >
-                            {publishMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
-                            <span>{t('publish')}</span>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Right Column: Designer Tool (Visual Form Builder or HTML Code Editor) */}
-            <div className="lg:col-span-2">
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
-                {/* Header Strip with Title, Mode Switcher & Save Button */}
-                <div className="flex flex-wrap items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 gap-3 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <h2 className="text-base font-semibold text-slate-900 dark:text-white truncate">
-                      {t('templateDesigner')}
-                    </h2>
-                  </div>
-
-                  {/* Mode Switcher: Visual (No-Code) vs Advanced HTML */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold">
-                      <button
-                        onClick={() => setEditorMode('visual')}
-                        className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                          editorMode === 'visual'
-                            ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs'
-                            : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                      >
-                        <Wand2 className="w-3.5 h-3.5" />
-                        <span>Visual Form (No-Code)</span>
-                      </button>
-                      <button
-                        onClick={() => setEditorMode('code')}
-                        className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                          editorMode === 'code'
-                            ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs'
-                            : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                      >
-                        <Code2 className="w-3.5 h-3.5" />
-                        <span>HTML Editor</span>
-                      </button>
-                    </div>
-
-                    {/* Draft State Indicator */}
-                    <div className="flex items-center gap-3 ml-2">
-                      {isSaved ? (
-                        <span className="text-xs font-medium text-neutral-500 dark:text-slate-400 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                          All saved
-                        </span>
-                      ) : (
-                        <span className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-amber-500" />
-                          Unsaved
-                        </span>
-                      )}
-
-                      <button
-                        onClick={handleSaveDraft}
-                        disabled={saveDraftMutation.isPending}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        {saveDraftMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                        <span>Save Draft</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Template Name Input */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    {t('templateName')}
-                  </label>
-                  <input
-                    type="text"
-                    value={templateName}
-                    onChange={(e) => {
-                      setTemplateName(e.target.value);
-                      setIsSaved(false);
-                    }}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
-
-                {/* Visual Form Builder Mode (Default for Non-Technical Staff) */}
-                {editorMode === 'visual' ? (
-                  <div className="space-y-4 p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
-                    <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-slate-700">
-                      <Palette className="w-4 h-4 text-emerald-600" />
-                      <h3 className="text-xs font-extrabold text-slate-900 dark:text-white">
-                        Visual Invoice Controls (No Coding Required)
-                      </h3>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                      {/* Theme Accent Color Picker */}
-                      <div>
-                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Header Accent Color
-                        </label>
-                        <div className="flex items-center gap-2">
-                          {['#059669', '#2563eb', '#d97706', '#dc2626', '#4f46e5', '#0f172a'].map((c) => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => handleVisualParamChange(c, footerNote, showBankDetails)}
-                              style={{ backgroundColor: c }}
-                              className={`w-7 h-7 rounded-lg transition-transform cursor-pointer border ${
-                                accentColor === c ? 'scale-110 ring-2 ring-emerald-500 border-white' : 'border-transparent'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Bank Details Checkbox */}
-                      <div>
-                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Invoice Options
-                        </label>
-                        <label className="flex items-center gap-2 pt-1 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={showBankDetails}
-                            onChange={(e) =>
-                              handleVisualParamChange(accentColor, footerNote, e.target.checked)
-                            }
-                            className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <span>Include Bank Transfer Instructions</span>
-                        </label>
-                      </div>
-
-                      {/* Custom Footer Message */}
-                      <div className="sm:col-span-2">
-                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Footer Thank-You Message
-                        </label>
-                        <input
-                          type="text"
-                          value={footerNote}
-                          onChange={(e) =>
-                            handleVisualParamChange(accentColor, e.target.value, showBankDetails)
-                          }
-                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium focus:outline-none focus:border-emerald-600"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Advanced HTML Code Editor Mode */
-                  <div className="space-y-4">
-                    {/* Placeholder Helper Strip */}
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 space-y-2">
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Available Placeholders:</span>
-                      <div className="flex flex-wrap gap-1.5 text-emerald-700 dark:text-emerald-400 font-mono text-[11px]">
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800">{'{{guest_name}}'}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800">{'{{property_name}}'}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800">{'{{invoice_number}}'}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800">{'{{room_type}}'}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800">{'{{check_in_date}}'}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800">{'{{check_out_date}}'}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800">{'{{total_amount}}'}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800">{'{{total_paid}}'}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800">{'{{balance_due}}'}</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-base font-semibold text-slate-900 dark:text-white mb-2">
-                        HTML Template Source
-                      </label>
-                      <div className="rounded-xl overflow-hidden border border-slate-800 shadow-inner bg-slate-900">
-                        <textarea
-                          value={htmlContent}
-                          onChange={(e) => handleCodeChange(e.target.value)}
-                          rows={12}
-                          className="w-full h-72 p-4 bg-slate-900 text-emerald-400 font-mono text-xs focus:outline-none overflow-y-auto resize-none leading-relaxed"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Section 3: Live Render Preview Panel */}
-                <div>
-                  <span className="block text-base font-semibold text-slate-900 dark:text-white mb-2">
-                    Live Render Preview
-                  </span>
-                  <div className="w-full h-96 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white shadow-xs">
-                    <iframe
-                      srcDoc={htmlContent}
-                      title="Live Render Preview"
-                      className="w-full h-full border-0 overflow-y-auto"
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs">
+                      HTML Source Code
+                    </label>
+                    <textarea
+                      value={htmlContent}
+                      onChange={(e) => handleCodeChange(e.target.value)}
+                      rows={14}
+                      className="w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none resize-none leading-relaxed"
                     />
                   </div>
+                )}
+
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-400">
+                    {isSaved ? 'Saved as draft' : 'Unsaved changes'}
+                  </span>
+                  <button
+                    onClick={handleSave}
+                    disabled={saveDraftMutation.isPending}
+                    className="px-5 py-2.5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
+                  >
+                    {saveDraftMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    <span>Save Template</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: Live Render Preview Panel */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xs space-y-4">
+                <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-emerald-600" />
+                  Live Render Preview
+                </h3>
+
+                <div className="w-full h-[480px] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white shadow-inner">
+                  <iframe
+                    srcDoc={htmlContent}
+                    title="Invoice Live Preview"
+                    className="w-full h-full border-0 bg-white"
+                  />
                 </div>
               </div>
             </div>
-          </div>
-        </main>
+          </main>
+        )}
       </div>
+
+      {/* Invoice Preview Modal */}
+      {selectedInvoiceBooking && (
+        <InvoicePreviewModal
+          bookingId={selectedInvoiceBooking.id}
+          bookingData={selectedInvoiceBooking}
+          isOpen={!!selectedInvoiceBooking}
+          onClose={() => setSelectedInvoiceBooking(null)}
+        />
+      )}
+
+      {/* Record Payment Modal */}
+      {selectedPaymentBooking && (
+        <PaymentEntryModal
+          bookingId={selectedPaymentBooking.id}
+          booking={selectedPaymentBooking}
+          isOpen={!!selectedPaymentBooking}
+          onClose={() => setSelectedPaymentBooking(null)}
+        />
+      )}
     </div>
   );
 }

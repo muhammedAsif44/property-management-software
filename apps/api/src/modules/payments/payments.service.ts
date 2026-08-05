@@ -69,15 +69,14 @@ export class PaymentsService {
         _sum: { amount: true },
       });
 
-      const totalPaid = aggregate._sum.amount || new Prisma.Decimal(0);
-      const newBalanceDue = booking.totalAmount.minus(totalPaid);
+      const totalPaid = (aggregate._sum.amount || new Prisma.Decimal(0)).plus(booking.advancePaid || 0);
+      const newBalanceDue = Prisma.Decimal.max(new Prisma.Decimal(0), booking.totalAmount.minus(totalPaid));
 
       // 3. Update booking balanceDue and increment version (Optimistic Concurrency)
       const updatedBooking = await tx.booking.update({
         where: { id: bookingId },
         data: {
           balanceDue: newBalanceDue,
-          advancePaid: totalPaid.greaterThan(0) ? totalPaid : booking.advancePaid,
           version: { increment: 1 },
         },
       });
@@ -137,13 +136,18 @@ export class PaymentsService {
 
     const totalPaidSum = payments.reduce(
       (sum, p) => sum.plus(p.amount),
+      new Prisma.Decimal(booking.advancePaid || 0),
+    );
+
+    const balanceDue = Prisma.Decimal.max(
       new Prisma.Decimal(0),
+      booking.totalAmount.minus(totalPaidSum),
     );
 
     return {
       totalAmount: booking.totalAmount.toNumber(),
       totalPaid: totalPaidSum.toNumber(),
-      balanceDue: booking.totalAmount.minus(totalPaidSum).toNumber(),
+      balanceDue: balanceDue.toNumber(),
       payments: payments.map((p) => ({
         id: p.id,
         amount: p.amount.toNumber(),

@@ -4,30 +4,53 @@ import { useTranslation } from '@/lib/i18n';
 import { useBookingPaymentsQuery, useRecordPaymentMutation } from '../api/use-payments';
 
 export function PaymentEntryModal({
-  bookingId,
+  bookingId: propBookingId,
+  booking,
   isOpen,
   onClose,
 }: {
-  bookingId: string;
+  bookingId?: string;
+  booking?: any;
   isOpen: boolean;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const effectiveBookingId = propBookingId || booking?.id || '';
+
   const [amount, setAmount] = useState('');
   const [mode, setMode] = useState('CASH');
   const [referenceNote, setReferenceNote] = useState('');
   const [isRefund, setIsRefund] = useState(false);
 
-  const { data, isLoading } = useBookingPaymentsQuery(bookingId);
-  const recordMutation = useRecordPaymentMutation(bookingId);
+  const { data, isLoading } = useBookingPaymentsQuery(effectiveBookingId);
+  const recordMutation = useRecordPaymentMutation(effectiveBookingId);
+
+  const totalAmount = Number(booking?.totalAmount ?? data?.totalAmount ?? 0);
+  const bookingAdvance = Number(booking?.advancePaid || 0);
+  const queryPaid = Number(data?.totalPaid || 0);
+  const totalPaid = Math.max(queryPaid, bookingAdvance);
+
+  const balanceDue =
+    data?.balanceDue !== undefined && data?.balanceDue !== null
+      ? Number(data.balanceDue)
+      : booking?.balanceDue !== undefined && booking?.balanceDue !== null
+      ? Number(booking.balanceDue)
+      : Math.max(0, totalAmount - totalPaid);
 
   useEffect(() => {
     if (isOpen) {
-      setAmount('');
+      const initialDue =
+        data?.balanceDue !== undefined && data?.balanceDue !== null
+          ? Number(data.balanceDue)
+          : booking?.balanceDue !== undefined && booking?.balanceDue !== null
+          ? Number(booking.balanceDue)
+          : Math.max(0, totalAmount - totalPaid);
+
+      setAmount(initialDue > 0 ? String(initialDue) : '');
       setReferenceNote('');
       setIsRefund(false);
     }
-  }, [isOpen]);
+  }, [isOpen, booking?.id, booking?.balanceDue, data?.balanceDue, totalAmount, totalPaid]);
 
   if (!isOpen) return null;
 
@@ -84,19 +107,19 @@ export function PaymentEntryModal({
           <div>
             <span className="text-slate-500 dark:text-slate-400 block truncate">{t('totalAmount')}</span>
             <span className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
-              ₹{data?.totalAmount?.toFixed(2) || '0.00'}
+              ₹{totalAmount.toFixed(2)}
             </span>
           </div>
           <div>
             <span className="text-slate-500 dark:text-slate-400 block truncate">{t('totalPaid')}</span>
             <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 truncate">
-              ₹{data?.totalPaid?.toFixed(2) || '0.00'}
+              ₹{totalPaid.toFixed(2)}
             </span>
           </div>
           <div>
             <span className="text-slate-500 dark:text-slate-400 block truncate">{t('balanceDue')}</span>
             <span className="text-sm font-extrabold text-rose-600 dark:text-rose-400 truncate">
-              ₹{data?.balanceDue?.toFixed(2) || '0.00'}
+              ₹{balanceDue.toFixed(2)}
             </span>
           </div>
         </div>

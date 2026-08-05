@@ -61,6 +61,9 @@ export interface Booking {
   advancePaid: number;
   balanceDue: number;
   tacStatus?: TacStatus;
+  tacRateAtBooking?: number;
+  tacAmount?: number;
+  propertyAmount?: number;
   cancellationReason?: string;
   refundAmount?: number;
   idempotencyKey?: string;

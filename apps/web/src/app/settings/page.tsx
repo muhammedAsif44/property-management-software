@@ -21,6 +21,7 @@ import {
   Step5InvoiceTheme,
   Step6BankDetails,
 } from '@/features/properties';
+import { AdminNotificationComposer } from '@/features/notifications/components/admin-notification-composer';
 import {
   Lock,
   Mail,
@@ -290,28 +291,21 @@ function Settings3ColumnContent() {
 
       {/* Main Workspace Frame */}
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        {/* Persistent Top Header */}
+        {/* Persistent Top Header with Screenshot-Matching Header Pill */}
         <AppHeader>
           <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-lg bg-slate-100 dark:bg-[#0f1814] border border-slate-200 dark:border-[#1d3329] text-slate-600 dark:text-slate-400">
-              <Settings className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
-                {t('settingsTitle')}
-              </h1>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
-                {t(
-                  activeSection === 'general' ? 'settingsGeneralDesc' :
-                  activeSection === 'appearance' ? 'settingsAppearanceDesc' :
-                  activeSection === 'account' ? 'settingsAccountDesc' :
-                  activeSection === 'notifications' ? 'settingsNotificationsDesc' :
-                  activeSection === 'billing' ? 'settingsBillingDesc' :
-                  activeSection === 'developer' ? 'settingsDeveloperDesc' :
-                  activeSection === 'advanced' ? 'settingsAdvancedDesc' :
-                  'settingsGeneralDesc'
-                )}
-              </p>
+            <div className="flex items-center gap-3 bg-slate-50/90 dark:bg-slate-850 px-4 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-2xs min-w-0">
+              <div className="w-8 h-8 rounded-full bg-slate-900 text-emerald-400 flex items-center justify-center shrink-0">
+                <Settings className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <h1 className="text-xs font-black text-slate-900 dark:text-white leading-tight truncate">
+                  {t('settingsTitle')}
+                </h1>
+                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 leading-tight truncate">
+                  Workspace & App Preferences
+                </span>
+              </div>
             </div>
           </div>
         </AppHeader>
@@ -321,13 +315,13 @@ function Settings3ColumnContent() {
           
           {/* ─── COLUMN 2: Fixed Settings Navigation Column ─── */}
           <aside
-            className="hidden md:flex flex-col w-56 shrink-0 border-r border-slate-200/80 dark:border-[#1d3329] bg-white/60 dark:bg-[#09100d] p-3 overflow-y-auto"
+            className="hidden md:flex flex-col w-60 shrink-0 border-r border-slate-200/80 dark:border-[#1d3329] bg-white/60 dark:bg-[#09100d] p-3.5 overflow-y-auto"
             aria-label="Settings sub-navigation"
           >
             {/* Section Sub-Header */}
             <div className="px-2.5 py-1.5 mb-2 border-b border-slate-200/60 dark:border-[#1d3329] flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-                <Sliders className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                <Sliders className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 Workspace Settings
               </span>
             </div>
@@ -336,7 +330,7 @@ function Settings3ColumnContent() {
             <nav className="space-y-4 flex-1">
               {SETTINGS_GROUPS.map((group, groupIdx) => (
                 <div key={groupIdx} className="space-y-1">
-                  <span className="px-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  <span className="px-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                     {group.title}
                   </span>
                   <div className="space-y-0.5 pt-0.5">
@@ -347,10 +341,10 @@ function Settings3ColumnContent() {
                         <button
                           key={item.key}
                           onClick={() => setActiveSection(item.key)}
-                          className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-150 cursor-pointer text-left ${
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all duration-150 cursor-pointer text-left ${
                             isActive
-                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 font-semibold shadow-2xs border-l-2 border-emerald-600 dark:border-emerald-500'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-[#192a23]'
+                              ? 'bg-emerald-50/80 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200 font-black shadow-2xs border-l-3 border-emerald-600 dark:border-emerald-500'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-[#192a23] font-bold'
                           }`}
                         >
                           <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
@@ -416,10 +410,10 @@ function Settings3ColumnContent() {
                         title={t('settingsLanguage')}
                         description={t('settingsLanguageDesc')}
                       >
-                        <div className="flex items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-[#16241e]/60 rounded-lg border border-slate-200/80 dark:border-[#1d3329]">
+                        <div className="flex items-center justify-between gap-4 p-4 bg-slate-50/80 dark:bg-slate-850 rounded-xl border border-slate-200/80 dark:border-slate-800">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{t('interfaceLanguage')}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">English / മലയാളം</p>
+                            <p className="text-xs font-black text-slate-900 dark:text-white">{t('interfaceLanguage')}</p>
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">English / മലയാളം</p>
                           </div>
                           <LanguageSwitcher />
                         </div>
@@ -430,12 +424,12 @@ function Settings3ColumnContent() {
                         title={t('settingsTimezone')}
                         description={t('settingsTimezoneDesc')}
                       >
-                        <div className="flex items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-[#16241e]/60 rounded-lg border border-slate-200/80 dark:border-[#1d3329]">
+                        <div className="flex items-center justify-between gap-4 p-4 bg-slate-50/80 dark:bg-slate-850 rounded-xl border border-slate-200/80 dark:border-slate-800">
                           <div>
-                            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">UTC+05:30 (Asia/Kolkata)</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Indian Standard Time (IST)</p>
+                            <p className="text-xs font-black text-slate-900 dark:text-white">UTC+05:30 (Asia/Kolkata)</p>
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">Indian Standard Time (IST)</p>
                           </div>
-                          <span className="px-2.5 py-1 rounded-md bg-slate-200 dark:bg-[#16241e] text-slate-700 dark:text-slate-300 text-xs font-semibold">
+                          <span className="px-3 py-1 rounded-full bg-slate-200/80 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-extrabold">
                             Default
                           </span>
                         </div>
@@ -446,14 +440,14 @@ function Settings3ColumnContent() {
                         title={t('settingsDateFormat')}
                         description={t('settingsDateFormatDesc')}
                       >
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           {['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'].map((format, idx) => (
                             <button
                               key={format}
-                              className={`p-3 rounded-lg border text-xs font-mono font-medium text-center transition-all cursor-pointer ${
+                              className={`p-3.5 rounded-xl border text-xs font-mono font-bold text-center transition-all cursor-pointer ${
                                 idx === 0
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-300 font-semibold'
-                                  : 'bg-white dark:bg-[#0f1814] border-slate-200 dark:border-[#1d3329] text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 font-extrabold shadow-2xs'
+                                  : 'bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-750 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
                               }`}
                             >
                               {format}
@@ -467,12 +461,12 @@ function Settings3ColumnContent() {
                         title={t('settingsCurrency')}
                         description={t('settingsCurrencyDesc')}
                       >
-                        <div className="flex items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-[#16241e]/60 rounded-lg border border-slate-200/80 dark:border-[#1d3329]">
+                        <div className="flex items-center justify-between gap-4 p-4 bg-slate-50/80 dark:bg-slate-850 rounded-xl border border-slate-200/80 dark:border-slate-800">
                           <div>
-                            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">INR (₹) — Indian Rupee</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Primary Currency</p>
+                            <p className="text-xs font-black text-slate-900 dark:text-white">INR (₹) — Indian Rupee</p>
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">Primary Currency</p>
                           </div>
-                          <span className="px-2.5 py-1 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-semibold border border-emerald-200 dark:border-emerald-800">
+                          <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-extrabold border border-emerald-200 dark:border-emerald-800">
                             Active
                           </span>
                         </div>
@@ -860,6 +854,10 @@ function Settings3ColumnContent() {
                   {/* ═══ 10. NOTIFICATIONS ═══ */}
                   {activeSection === 'notifications' && (
                     <div className="space-y-6">
+                      { (user?.role === 'OWNER' || user?.role === 'MANAGER' || user?.role === 'SUPER_ADMIN') && (
+                        <AdminNotificationComposer />
+                      )}
+                      
                       <SettingsCard
                         icon={Mail}
                         title={t('settingsEmailNotifications')}
@@ -995,14 +993,14 @@ interface SettingsCardProps {
 
 function SettingsCard({ icon: Icon, title, description, children }: SettingsCardProps) {
   return (
-    <div className="bg-white dark:bg-[#0f1814] rounded-xl border border-slate-200/80 dark:border-[#1d3329] p-5 space-y-4 transition-all duration-150 hover:shadow-xs">
-      <div className="flex items-start gap-3">
-        <div className="p-2 rounded-lg bg-slate-50 dark:bg-[#16241e]/60 border border-slate-200/80 dark:border-[#1d3329] text-slate-500 dark:text-slate-400 shrink-0">
-          <Icon className="w-4 h-4" />
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 space-y-5 transition-all duration-200 hover:shadow-xs">
+      <div className="flex items-start gap-3.5 border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0">
+          <Icon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{title}</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{description}</p>
+          <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight truncate">{title}</h3>
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5 min-w-0 break-words">{description}</p>
         </div>
       </div>
       <div>{children}</div>

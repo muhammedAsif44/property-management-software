@@ -87,6 +87,13 @@ export default function DashboardPage() {
     }
   }, [queryError, propQueryError, router]);
 
+  // Redirect Housekeeping staff directly to their dedicated task workspace
+  useEffect(() => {
+    if (isHousekeeper) {
+      router.push('/housekeeping');
+    }
+  }, [isHousekeeper, router]);
+
   const handleAutoCheckout = () => {
     autoCheckoutMutation.mutate();
   };

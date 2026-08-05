@@ -223,12 +223,15 @@ export class BookingCreationService {
       // If agency booking, increment pending TAC & save tacAmount on booking
       if (dto.agencyId && tacStatus === TacStatus.PENDING) {
         const agency = await tx.agency.findUnique({ where: { id: dto.agencyId } });
-        if (agency?.defaultTacRate) {
-          const calculatedTac = baseAmount.mul(agency.defaultTacRate).div(100);
-          await tx.booking.update({
-            where: { id: booking.id },
-            data: { tacAmount: calculatedTac },
-          });
+        const rate = agency?.defaultTacRate || new Prisma.Decimal(0);
+        const calculatedTac = baseAmount.mul(rate).div(100);
+        
+        await tx.booking.update({
+          where: { id: booking.id },
+          data: { tacAmount: calculatedTac },
+        });
+        
+        if (calculatedTac.greaterThan(0)) {
           await tx.agency.update({
             where: { id: dto.agencyId },
             data: {

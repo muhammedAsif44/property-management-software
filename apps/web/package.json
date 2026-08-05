@@ -16,6 +16,7 @@
     "@orvyn/ui": "workspace:*",
     "@orvyn/utils": "workspace:*",
     "@tanstack/react-query": "^5.62.7",
+    "date-fns": "^4.4.0",
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "react": "^19.0.0",

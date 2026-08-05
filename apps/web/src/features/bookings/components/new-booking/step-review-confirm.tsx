@@ -5,10 +5,12 @@ import { useTranslation } from '@/lib/i18n';
 import { CreateBookingPayload } from '../../types/booking.types';
 import { RoomType } from './step-room-dates';
 import { Edit3, User, BedDouble, CreditCard, IndianRupee, CheckCircle2, CalendarDays, Users, Utensils } from 'lucide-react';
+import { calculateTac } from '@/lib/utils/financial-math';
 
 interface StepReviewConfirmProps {
   form: Partial<CreateBookingPayload>;
   selectedRoom?: RoomType;
+  agencies?: any[];
   baseAmount: number;
   facilityTotal: number;
   advancePaid: number;
@@ -82,6 +84,7 @@ function ReviewItem({ label, value }: { label: string; value: React.ReactNode })
 export function StepReviewConfirm({
   form,
   selectedRoom,
+  agencies = [],
   baseAmount,
   facilityTotal,
   advancePaid,
@@ -161,6 +164,29 @@ export function StepReviewConfirm({
               <span className="text-slate-900">{t('estimatedTotal')}</span>
               <span className="text-emerald-800 animate-counterPop">₹{totalEstimate.toLocaleString('en-IN')}</span>
             </div>
+
+            {form.channel === 'AGENCY' && form.agencyId && (() => {
+              const agency = agencies.find((a: any) => a.id === form.agencyId);
+              const rate = Number(agency?.defaultTacRate || 10);
+              const { tacAmount, propertyAmount } = calculateTac(totalEstimate, rate);
+
+              return (
+                <div className="p-3 bg-blue-50/90 rounded-xl border border-blue-200 space-y-1.5 text-xs mt-3 mb-3">
+                  <div className="flex justify-between font-extrabold text-blue-900">
+                    <span>Booking Source: Travel Agency</span>
+                    <span className="font-black">{agency?.name || 'TAC Partner'}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-blue-800">
+                    <span>TAC Commission Rate ({rate}%)</span>
+                    <span>- ₹{tacAmount.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between font-black text-blue-950 border-t border-blue-200 pt-1.5 mt-1.5">
+                    <span>Net Property Amount</span>
+                    <span>₹{propertyAmount.toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              );
+            })()}
             {advancePaid > 0 && (
               <div className="flex justify-between text-sm font-extrabold pt-1">
                 <span className={balanceDue > 0 ? 'text-amber-700' : 'text-emerald-700'}>

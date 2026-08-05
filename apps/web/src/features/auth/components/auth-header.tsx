@@ -1,13 +1,17 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { LanguageSwitcher } from '@/lib/i18n';
+import { LanguageSwitcher, useTranslation } from '@/lib/i18n';
 
 interface AuthHeaderProps {
   currentTab: 'login' | 'signup';
 }
 
 export const AuthHeader: React.FC<AuthHeaderProps> = ({ currentTab }) => {
+  const { t } = useTranslation();
+
   return (
     <header className="w-full flex flex-wrap items-center justify-between gap-4 px-4 sm:px-10 py-2 sm:py-3 max-w-7xl mx-auto z-20">
       {/* Prominent High-Quality Brand Logo */}
@@ -33,24 +37,25 @@ export const AuthHeader: React.FC<AuthHeaderProps> = ({ currentTab }) => {
             href="/login"
             className={`px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
               currentTab === 'login'
-                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
             }`}
           >
-            Sign In
+            {t('signInTitle')}
           </Link>
           <Link
             href="/signup/owner"
             className={`px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
               currentTab === 'signup'
-                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
             }`}
           >
-            Register Company
+            {t('registerCompany')}
           </Link>
         </div>
       </div>
     </header>
   );
 };
+

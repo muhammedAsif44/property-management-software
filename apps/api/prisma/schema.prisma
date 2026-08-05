@@ -85,6 +85,7 @@ model User {
   deletionRequestsDecided   BookingDeletionRequest[] @relation("DeletionDecidedBy")
   housekeepingTasksAssigned HousekeepingTask[]       @relation("HousekeepingTaskAssignedTo")
   invoicesGenerated         Invoice[]                @relation("InvoiceGeneratedBy")
+  processedAgencySettlements AgencySettlement[]
 
   @@index([organizationId])
   @@index([deletedAt])
@@ -348,6 +349,7 @@ model Booking {
   idempotencyKey     String?        @unique @map("idempotency_key")
   createdByUserId    String         @map("created_by_user_id")
   roomUnitId         String?        @map("room_unit_id")
+  settlementId       String?        @map("settlement_id")
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
   deletedAt          DateTime?      @map("deleted_at")
@@ -358,6 +360,7 @@ model Booking {
   roomType          RoomType                 @relation(fields: [roomTypeId], references: [id])
   roomUnit          RoomUnit?                @relation(fields: [roomUnitId], references: [id], onDelete: SetNull)
   agency            Agency?                  @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+  settlement        AgencySettlement?        @relation(fields: [settlementId], references: [id], onDelete: SetNull)
   createdByUser     User                     @relation("BookingCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   bookingFacilities BookingFacility[]
   payments          Payment[]
@@ -470,10 +473,32 @@ model Agency {
   isActive       Boolean  @default(true) @map("is_active")
 
   // Relations
-  property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  bookings Booking[]
+  property   Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bookings   Booking[]
+  settlements AgencySettlement[]
 
   @@map("agencies")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 13.5. Agency Settlements
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model AgencySettlement {
+  id             String    @id @default(uuid())
+  agencyId       String    @map("agency_id")
+  amount         Decimal   @db.Decimal(12, 2)
+  idempotencyKey String    @unique @map("idempotency_key")
+  processedById  String    @map("processed_by_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  agency         Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  processedBy    User      @relation(fields: [processedById], references: [id], onDelete: Restrict)
+  bookings       Booking[]
+
+  @@index([agencyId, createdAt])
+  @@map("agency_settlements")
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

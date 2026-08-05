@@ -1,33 +1,38 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
-import { usePropertyStore, useActivePropertyQuery } from '@/features/properties';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/components/ui/toast';
 import { useOccupancyQuery } from '@/features/bookings/api/use-bookings';
-import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
-import { QuickHelpDrawer } from '@/components/quick-help-drawer';
+import { TargetRect } from '@/features/bookings/components/booking-preview-popover';
+import { OccupancyCellBooking } from '@/features/bookings/types/booking.types';
+import { useActivePropertyQuery, usePropertyStore } from '@/features/properties';
+import { useTranslation } from '@/lib/i18n';
+import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, RotateCcw, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
-const BookingPreviewPopover = dynamic(() => import('@/features/bookings/components/booking-preview-popover').then(m => m.BookingPreviewPopover), { ssr: false });
-import { OccupancyCell, OccupancyCellBooking } from '@/features/bookings/types/booking.types';
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Building2,
-  Loader2,
-  RefreshCw,
-  CalendarDays,
-  AlertTriangle,
-  RotateCcw,
-  Plus,
-  Search,
-  CheckCircle2,
-  HelpCircle,
-  Lightbulb,
-  Info,
-  Calendar,
-} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+// Modular Calendar Components
+import { CalendarCell, StatusFilterType } from '@/features/bookings/components/calendar/calendar-cell';
+import { CalendarMetricsBar } from '@/features/bookings/components/calendar/calendar-metrics-bar';
+import { CalendarStatusLegend } from '@/features/bookings/components/calendar/calendar-status-legend';
+import { CalendarToolbar } from '@/features/bookings/components/calendar/calendar-toolbar';
+import { UnitCell } from '@/features/bookings/components/calendar/unit-cell';
+import { CalendarKpiHeader } from '@/features/bookings/components/calendar/calendar-kpi-header';
+
+const BookingPreviewPopover = dynamic(
+  () => import('@/features/bookings/components/booking-preview-popover').then((m) => m.BookingPreviewPopover),
+  { ssr: false }
+);
+const BookingDetailsDrawer = dynamic(
+  () => import('@/features/bookings/components/booking-details-drawer').then((m) => m.BookingDetailsDrawer),
+  { ssr: false }
+);
+const RoomCalendarContextMenu = dynamic(
+  () => import('@/features/bookings/components/room-calendar-context-menu').then((m) => m.RoomCalendarContextMenu),
+  { ssr: false }
+);
 
 /* ─── Helpers ─── */
 const todayStr = () => new Date().toISOString().split('T')[0];
@@ -44,189 +49,276 @@ const formatRangeLabel = (start: string, end: string) => {
   return `${s.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} — ${e.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
 };
 
-const VIEW_MODE = {
-  FORTNIGHT: 14,
-  MONTH: 30
-} as const;
-
-/* ─── Cell logic ─── */
-function getCellStyle(cell: OccupancyCell | undefined, total: number) {
-  if (!cell) return { bg: 'bg-transparent', text: 'text-slate-200', border: 'border-transparent', ring: '', opacity: 'opacity-20' };
-  const booked = cell.booked || 0;
-  if (booked === 0) return { bg: 'bg-transparent', text: 'text-slate-300', border: 'border-transparent', ring: '', opacity: 'opacity-25' };
-  
-  const pct = (booked / total) * 100;
-  const hasConflict = cell.hasConflict;
-
-  if (hasConflict) return { bg: 'bg-red-600', text: 'text-white', border: 'border-red-700', ring: 'ring-2 ring-red-500 shadow-md shadow-red-500/30 z-10 animate-pulse', opacity: 'opacity-100' };
-  if (booked >= total) return { bg: 'bg-rose-500', text: 'text-white', border: 'border-rose-600', ring: 'shadow-sm shadow-rose-500/30 font-extrabold', opacity: 'opacity-100' };
-  if (pct > 50) return { bg: 'bg-amber-500', text: 'text-white', border: 'border-amber-600', ring: 'shadow-sm shadow-amber-500/30 font-extrabold', opacity: 'opacity-100' };
-  if (pct > 0) return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-700', ring: 'shadow-sm shadow-emerald-600/30 font-extrabold', opacity: 'opacity-100' };
-  return { bg: 'bg-transparent', text: 'text-slate-200', border: 'border-transparent', ring: '', opacity: 'opacity-20' };
-}
-
-import { Skeleton } from '@/components/ui/skeleton';
-
-/* ─── Skeleton Rows ─── */
+/* ─── Skeleton Loader ─── */
 function CalendarSkeleton() {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] overflow-hidden">
-      {/* Header Row Skeleton */}
-      <div className="flex bg-slate-50 dark:bg-slate-800/50 border-b border-divider p-3 gap-1">
-        <div className="w-[180px] shrink-0" />
-        <div className="flex flex-1 gap-1 overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden p-4 space-y-4">
+      <div className="flex gap-2">
+        <Skeleton className="w-56 h-12 rounded-xl shrink-0 opacity-60" />
+        <div className="flex flex-1 gap-2 overflow-hidden">
           {Array.from({ length: 14 }).map((_, i) => (
-            <Skeleton key={`h-${i}`} className="h-10 w-11 rounded-md shrink-0 opacity-50" />
+            <Skeleton key={`h-${i}`} className="h-12 w-14 rounded-xl shrink-0 opacity-50" />
           ))}
         </div>
       </div>
-      
-      {/* Body Rows */}
-      <div className="p-3 space-y-3">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Skeleton className="w-[180px] h-11 rounded-lg shrink-0" />
-            <div className="flex gap-1 flex-1 overflow-hidden">
-              {Array.from({ length: 14 }).map((_, j) => (
-                <Skeleton key={j} className="w-11 h-11 rounded-md shrink-0 opacity-40" />
-              ))}
-            </div>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className="flex gap-2 items-center">
+          <Skeleton className="w-56 h-14 rounded-xl shrink-0 opacity-70" />
+          <div className="flex flex-1 gap-2 overflow-hidden">
+            {Array.from({ length: 14 }).map((_, j) => (
+              <Skeleton key={j} className="w-14 h-14 rounded-xl shrink-0 opacity-40" />
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-/* ─── Memoized Calendar Cell ─── */
-const CalendarCell = React.memo(({
-  h,
-  rt,
-  cell,
-  cellKey,
-  isPopoverOpen,
-  popover,
-  bookingsMap,
-  filteredRoomTypesLength,
-  handleCellClick,
-  setPopover,
-  t
-}: any) => {
-  const style = getCellStyle(cell, rt.totalUnits);
-  const booked = cell?.booked || 0;
-  const total = cell?.total || rt.totalUnits;
-  
-  // Resolve bookings from normalized bookingIds map
-  const cellBookings = React.useMemo(() => {
-    if (!cell?.bookingIds || !bookingsMap) return [];
-    return cell.bookingIds.map((id: string) => bookingsMap[id]).filter(Boolean);
-  }, [cell?.bookingIds, bookingsMap]);
-
-  const hasBookings = cellBookings.length > 0;
-  
-  const dateLabel = new Date(h.date + 'T00:00:00').toLocaleDateString('en-IN', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-  });
-
-  return (
-    <td
-      className={`p-1 text-center border-b border-r border-slate-100 relative ${
-        filteredRoomTypesLength <= 2 ? 'h-[90px]' : filteredRoomTypesLength <= 4 ? 'h-[75px]' : 'h-[72px]'
-      } ${
-        h.isToday ? 'bg-emerald-50/40' : h.isWeekend ? 'bg-slate-50/50' : 'bg-white'
-      }`}
-    >
-      <button
-        onClick={() => handleCellClick(cellKey, cellBookings, `${rt.name} · ${dateLabel}`)}
-        disabled={!hasBookings}
-        className={`w-full h-full min-h-[56px] rounded-lg flex flex-col items-center justify-center text-xs font-bold transition-all duration-200 border ${style.bg} ${style.text} ${style.border} ${style.ring} ${style.opacity} ${
-          hasBookings ? 'cursor-pointer hover:scale-[1.03] hover:shadow-lg hover:brightness-110' : 'cursor-default'
-        }`}
-        title={
-          cell?.hasConflict
-            ? t('conflictWarning')
-            : cellBookings.map((b: any) => b.guestName).join(', ') || ''
-        }
-      >
-        {booked > 0 ? (
-          <span className="leading-none tracking-tight text-sm tabular-data">{booked}</span>
-        ) : (
-          <span className="w-1 h-1 rounded-full bg-slate-300 opacity-60"></span>
-        )}
-        {booked > 0 && <span className="text-[10px] font-bold opacity-90 leading-none mt-1">/{total}</span>}
-      </button>
-
-      {/* Popover */}
-      {isPopoverOpen && (
-        <BookingPreviewPopover
-          bookings={popover?.bookings || []}
-          dateLabel={popover?.label || ''}
-          onClose={() => setPopover(null)}
-        />
-      )}
-    </td>
-  );
-});
-CalendarCell.displayName = 'CalendarCell';
-
 export default function OccupancyPage() {
   const router = useRouter();
   const { t } = useTranslation();
+  const toast = useToast();
   useActivePropertyQuery();
   const activeProperty = usePropertyStore((s) => s.activeProperty);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  // Drag to scroll refs
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const hasDraggedRef = useRef(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
 
-  // Date range state: 14-day or 30-day (Month) view
-  const [spanDays, setSpanDays] = useState<typeof VIEW_MODE.FORTNIGHT | typeof VIEW_MODE.MONTH>(VIEW_MODE.FORTNIGHT);
+  // Date range state
+  const [spanDays, setSpanDays] = useState<number>(14);
   const [startDate, setStartDate] = useState(todayStr);
-  const [endDate, setEndDate] = useState(() => addDays(todayStr(), VIEW_MODE.FORTNIGHT));
+  const [endDate, setEndDate] = useState(() => addDays(todayStr(), 14));
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Crosshair hover coordinates
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);
+
+  // Grid Range Selection State (Check-in -> Check-out)
+  const [selectedCheckIn, setSelectedCheckIn] = useState<{ roomTypeId: string; date: string } | null>(null);
+
+  // Status Filter State
+  const [activeStatusFilter, setActiveStatusFilter] = useState<StatusFilterType>('ALL');
+
+  // Expandable category rows state
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+  // Right-Side Booking Details Drawer state
+  const [selectedDrawerBookingId, setSelectedDrawerBookingId] = useState<string | null>(null);
+
+  // Right-Click Context Menu State
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    date: string;
+    roomTypeId?: string;
+    roomTypeName?: string;
+  } | null>(null);
+
   // Popover state
-  type PopoverState = { key: string; bookings: OccupancyCellBooking[]; label: string } | null;
+  type PopoverState = {
+    key: string;
+    bookings: OccupancyCellBooking[];
+    label: string;
+    targetRect: TargetRect;
+    roomTypeName?: string;
+  } | null;
   const [popover, setPopover] = useState<PopoverState>(null);
 
-  const { data, isLoading, isError, refetch } = useOccupancyQuery(activeProperty?.id || '', startDate, endDate);
+  const toggleCategoryExpand = (rtId: string) => {
+    setExpandedCategories((prev) => ({ ...prev, [rtId]: !prev[rtId] }));
+  };
 
-  const handleChangeSpan = useCallback((days: typeof VIEW_MODE.FORTNIGHT | typeof VIEW_MODE.MONTH) => {
-    setSpanDays(days);
-    setEndDate(addDays(startDate, days));
-    setPopover(null);
-  }, [startDate]);
+  const { data, isLoading, isError, refetch } = useOccupancyQuery(
+    activeProperty?.id || '',
+    startDate,
+    endDate
+  );
 
-  const handleShiftDays = useCallback((dir: number) => {
-    const amount = spanDays === VIEW_MODE.FORTNIGHT ? 7 : 15;
-    setStartDate((s) => addDays(s, dir * amount));
-    setEndDate((e) => addDays(e, dir * amount));
-    setPopover(null);
-  }, [spanDays]);
+  const handleSelectDateCell = useCallback(
+    (roomTypeId: string, clickedDate: string) => {
+      if (hasDraggedRef.current) return;
+      
+      if (!selectedCheckIn) {
+        // First Click -> Set Check-In
+        setSelectedCheckIn({ roomTypeId, date: clickedDate });
+        toast.info(
+          `Check-In date (${clickedDate}) selected. Now click your Check-Out date on the calendar.`,
+          'Check-In Set'
+        );
+        return;
+      }
+
+      // If clicking same check-in date again, toggle it off
+      if (selectedCheckIn?.roomTypeId === roomTypeId && selectedCheckIn.date === clickedDate) {
+        setSelectedCheckIn(null);
+        return;
+      }
+
+      // Second Click on same room category -> If clickedDate > checkInDate -> Complete Range!
+      if (selectedCheckIn.roomTypeId === roomTypeId && clickedDate > selectedCheckIn.date) {
+        const checkInDate = selectedCheckIn.date;
+        const checkOutDate = clickedDate;
+        setSelectedCheckIn(null);
+        router.push(
+          `/bookings/new?checkInDate=${checkInDate}&checkOutDate=${checkOutDate}&roomTypeId=${roomTypeId}`
+        );
+        return;
+      }
+
+      // If clicked on different room category or date <= checkIn -> Update Check-In selection
+      setSelectedCheckIn({ roomTypeId, date: clickedDate });
+      toast.info(
+        `Check-In date updated (${clickedDate}). Click your Check-Out date on the calendar.`,
+        'Check-In Updated'
+      );
+    },
+    [selectedCheckIn, router, toast]
+  );
+
+  // Global Keyboard Shortcuts (T for Today, / for Search, Esc for Close/Cancel Range)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 't' || e.key === 'T') {
+        handleGoToToday();
+      } else if (e.key === '/') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === 'Escape') {
+        if (selectedCheckIn) {
+          setSelectedCheckIn(null);
+          toast.info('Check-In range selection cancelled', 'Cancelled');
+        } else {
+          setPopover(null);
+          setSelectedDrawerBookingId(null);
+          setContextMenu(null);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [selectedCheckIn, toast]);
+
+  // Drag-to-scroll handlers
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    setIsDragging(true);
+    hasDraggedRef.current = false;
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeft(scrollContainerRef.current.scrollLeft);
+  };
+
+  const onMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const onMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+    if (Math.abs(walk) > 5) {
+      hasDraggedRef.current = true;
+    }
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleChangeSpan = useCallback(
+    (days: number) => {
+      setSpanDays(days);
+      setEndDate(addDays(startDate, days));
+      setPopover(null);
+      setSelectedCheckIn(null);
+    },
+    [startDate]
+  );
+
+  const handleShiftDays = useCallback(
+    (dir: number) => {
+      const amount = spanDays === 14 ? 7 : spanDays === 7 ? 4 : 15;
+      setStartDate((s) => addDays(s, dir * amount));
+      setEndDate((e) => addDays(e, dir * amount));
+      setPopover(null);
+      setSelectedCheckIn(null);
+    },
+    [spanDays]
+  );
 
   const handleGoToToday = useCallback(() => {
     setStartDate(todayStr());
     setEndDate(addDays(todayStr(), spanDays));
     setPopover(null);
+    setSelectedCheckIn(null);
   }, [spanDays]);
 
-  const handleCellClick = useCallback((key: string, bookings: OccupancyCellBooking[], label: string) => {
-    if (bookings.length === 0) return;
-    if (popover?.key === key) {
-      setPopover(null);
-      return;
-    }
-    setPopover({ key, bookings, label });
-  }, [popover?.key]);
+  const handleCellClick = useCallback(
+    (
+      key: string,
+      bookings: OccupancyCellBooking[],
+      label: string,
+      targetRect: TargetRect,
+      roomTypeName?: string
+    ) => {
+      if (hasDraggedRef.current) return;
+      if (bookings.length === 0) return;
+      if (popover?.key === key) {
+        setPopover(null);
+        return;
+      }
+      setPopover({ key, bookings, label, targetRect, roomTypeName });
+    },
+    [popover?.key]
+  );
 
-  // Memoize formatted day headers (optimized date math)
+  const handleContextMenuCell = useCallback(
+    (x: number, y: number, date: string, roomTypeId?: string, roomTypeName?: string) => {
+      setContextMenu({ x, y, date, roomTypeId, roomTypeName });
+    },
+    []
+  );
+
+  const exportCSV = useCallback(() => {
+    if (!data?.roomTypes || !data?.dates) return;
+    let csvContent = 'data:text/csv;charset=utf-8,Room Type,' + data.dates.join(',') + '\n';
+    for (const rt of data.roomTypes) {
+      const row = [rt.name];
+      for (const d of data.dates) {
+        const booked = data.occupancy?.[rt.id]?.[d]?.booked || 0;
+        row.push(`${booked}/${rt.totalUnits}`);
+      }
+      csvContent += row.join(',') + '\n';
+    }
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `occupancy-${startDate}-to-${endDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Occupancy grid exported to CSV', 'Export Success');
+  }, [data, startDate, endDate, toast]);
+
+  // Memoize formatted day headers
   const dayHeaders = useMemo(() => {
     if (!data?.dates || data.dates.length === 0) return [];
-    
-    // Parse the first date once, then increment by 86,400,000ms (1 day)
+
     const baseTs = new Date(data.dates[0] + 'T00:00:00').getTime();
     const today = todayStr();
-    
+
     return data.dates.map((d, index) => {
-      const dt = new Date(baseTs + (index * 86400000));
+      const dt = new Date(baseTs + index * 86400000);
       return {
         date: d,
         day: dt.getDate(),
@@ -238,15 +330,13 @@ export default function OccupancyPage() {
     });
   }, [data?.dates]);
 
-  // Filtered Room Types (optimized search)
+  // Filtered Room Types
   const filteredRoomTypes = useMemo(() => {
     if (!data?.roomTypes) return [];
     if (!searchTerm.trim()) return data.roomTypes;
-    
+
     const normalizedSearch = searchTerm.toLowerCase().trim();
-    return data.roomTypes.filter((rt) =>
-      rt.name.toLowerCase().includes(normalizedSearch)
-    );
+    return data.roomTypes.filter((rt) => rt.name.toLowerCase().includes(normalizedSearch));
   }, [data?.roomTypes, searchTerm]);
 
   // Summary stats
@@ -273,282 +363,327 @@ export default function OccupancyPage() {
   }, [data]);
 
   return (
-    <div className="min-h-screen text-slate-900 font-sans antialiased flex relative overflow-hidden">
-
+    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative overflow-hidden bg-slate-50/70 dark:bg-slate-950">
       <DashboardSidebar />
 
       {/* Main Content */}
       <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen overflow-y-auto">
-        {/* ═══ Top Header Bar ═══ */}
-        <header className="bg-white/90 backdrop-blur-xl border-b border-emerald-200/80 sticky top-0 z-30 flex flex-col shadow-xs">
-          <div className="h-14 px-6 flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              <button
-                onClick={() => router.push('/bookings')}
-                className="p-2 rounded-xl hover:bg-slate-100 transition-all cursor-pointer shrink-0"
-                title="Back to Bookings"
-              >
-                <ArrowLeft className="w-4 h-4 text-slate-600" />
-              </button>
-              <div className="p-2 rounded-xl bg-emerald-100/80 border border-emerald-200 text-emerald-800 shadow-xs shrink-0">
-                <CalendarDays className="w-4 h-4 text-emerald-700" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-sm font-black text-slate-900 tracking-tight truncate flex items-center gap-1.5">
-                  <span>{activeProperty?.name || 'Property'}</span>
-                </h1>
-                <p className="text-[11px] font-bold text-slate-500 truncate">
-                  {t('occupancyCalendar')}
-                </p>
-              </div>
-            </div>
+        {/* Modular Header Toolbar */}
+        <CalendarToolbar
+          propertyName={activeProperty?.name}
+          spanDays={spanDays}
+          startDate={startDate}
+          endDate={endDate}
+          onChangeSpan={handleChangeSpan}
+          onShiftDays={handleShiftDays}
+          onGoToToday={handleGoToToday}
+          onExportCSV={exportCSV}
+          onRefetch={refetch}
+          formatRangeLabel={formatRangeLabel}
+        />
 
-            <div className="flex items-center gap-2.5 shrink-0">
-              {/* Span Selector Pill */}
-              <div className="flex items-center bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/80 shrink-0">
-                <button
-                  onClick={() => handleChangeSpan(VIEW_MODE.FORTNIGHT)}
-                  className={`px-2.5 py-1 text-[11px] font-black rounded-lg transition-all cursor-pointer ${
-                    spanDays === VIEW_MODE.FORTNIGHT ? 'bg-white text-emerald-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  14 Days
-                </button>
-                <button
-                  onClick={() => handleChangeSpan(VIEW_MODE.MONTH)}
-                  className={`px-2.5 py-1 text-[11px] font-black rounded-lg transition-all cursor-pointer ${
-                    spanDays === VIEW_MODE.MONTH ? 'bg-white text-emerald-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  30 Days (Month)
-                </button>
-              </div>
+        {/* Modular Summary Metrics Bar */}
+        <CalendarMetricsBar
+          summaryStats={summaryStats}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          searchInputRef={searchInputRef}
+        />
 
-              {/* Date Navigation */}
-              <div className="flex items-center gap-1 bg-white border border-slate-200/80 rounded-xl px-1 py-1 shadow-2xs">
-                <button
-                  onClick={() => handleShiftDays(-1)}
-                  className="p-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
-                  title={t('shiftWeekBack')}
-                >
-                  <ChevronLeft className="w-4 h-4 text-slate-600" />
-                </button>
-                <span className="text-[11px] font-bold text-slate-700 px-2 whitespace-nowrap min-w-0 truncate">
-                  {formatRangeLabel(startDate, endDate)}
-                </span>
-                <button
-                  onClick={() => handleShiftDays(1)}
-                  className="p-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
-                  title={t('shiftWeekForward')}
-                >
-                  <ChevronRight className="w-4 h-4 text-slate-600" />
-                </button>
-              </div>
-
-              <button
-                onClick={handleGoToToday}
-                className="px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200/80 text-slate-700 font-extrabold text-xs transition-all cursor-pointer active:scale-95 shadow-2xs"
-              >
-                {t('todayLabel')}
-              </button>
-
-              <QuickHelpDrawer />
-
-              <button
-                onClick={() => refetch()}
-                className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-600 hover:text-slate-900 transition-all cursor-pointer shadow-2xs active:scale-95"
-                title="Refresh"
-              >
-                <RefreshCw className="w-4 h-4 text-emerald-700" />
-              </button>
-
-              <button
-                onClick={() => router.push('/bookings/new')}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 text-white font-black text-xs shadow-md shadow-emerald-700/20 active:scale-95 transition-all cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4 text-emerald-200" />
-                <span className="hidden sm:inline truncate">{t('newBooking')}</span>
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* ═══ Summary Stats Bar (SaaS Metrics Pills) ═══ */}
-        {summaryStats && (
-          <div className="px-6 py-2 bg-white/80 backdrop-blur-md border-b border-divider flex items-center justify-between gap-4 flex-wrap z-10 relative">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-divider">
-                <div className="w-2 h-2 rounded-full bg-slate-300" />
-                <span className="text-xs font-bold tabular-data text-slate-900">{summaryStats.availableToday}</span>
-                <span className="text-[11px] font-semibold text-slate-500">{t('available')}</span>
-              </div>
-
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-divider">
-                <div className="w-2 h-2 rounded-full bg-slate-400" />
-                <span className="text-xs font-bold tabular-data text-slate-900">{summaryStats.bookedToday}</span>
-                <span className="text-[11px] font-semibold text-slate-500">{t('occupied')}</span>
-              </div>
-
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-divider">
-                <div className="w-2 h-2 rounded-full bg-slate-500" />
-                <span className="text-xs font-bold tabular-data text-slate-900">{summaryStats.oooToday}</span>
-                <span className="text-[11px] font-semibold text-slate-500">{t('outOfOrderUnits')}</span>
-              </div>
-
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-divider">
-                <span className="text-xs font-bold tabular-data text-slate-900">
-                  {summaryStats.occupancyPct}%
-                </span>
-                <span className="text-[11px] font-semibold text-slate-500">{t('occupancyRate')}</span>
-              </div>
-
-              {summaryStats.conflicts > 0 && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-50 border border-rose-200">
-                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                  <span className="text-[11px] font-bold text-rose-700">{summaryStats.conflicts} {t('conflictDetected')}</span>
+        {/* Main Body: Grid & Interactive Status Filter */}
+        <div className="p-4 sm:p-6 space-y-4 flex flex-col">
+          {/* Active Range Selection Banner */}
+          {selectedCheckIn && (
+            <div className="bg-emerald-800 text-white px-4 py-3 rounded-2xl shadow-lg flex items-center justify-between gap-4 border border-emerald-700 animate-fadeIn">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-emerald-700 text-white flex items-center justify-center shrink-0 border border-emerald-600">
+                  <CalendarCheck className="w-4 h-4" />
                 </div>
-              )}
-            </div>
-
-            {/* Search & Future Filter Slots */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="relative w-72 sm:w-80">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search by room, category, guest, or ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-2xs"
-                />
+                <div className="min-w-0">
+                  <p className="text-xs font-black truncate">
+                    Check-In Selected: <span className="underline decoration-emerald-400">{selectedCheckIn.date}</span>
+                  </p>
+                  <p className="text-[11px] font-medium text-emerald-200 truncate">
+                    Click your Check-Out date on the calendar row to auto-open booking wizard with pre-filled dates.
+                  </p>
+                </div>
               </div>
 
-              {/* Future Filter Trigger Slot */}
               <button
-                className="interactive px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-divider text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
-                title="Filters"
+                onClick={() => setSelectedCheckIn(null)}
+                className="px-3.5 py-1.5 rounded-full bg-emerald-900 hover:bg-emerald-950 text-white font-black text-xs transition-all cursor-pointer border border-emerald-700 shrink-0 flex items-center gap-1"
               >
-                <span>Filter</span>
+                <X className="w-3.5 h-3.5" />
+                Cancel (Esc)
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ═══ Main Body: Calendar Grid & Operational Insights ═══ */}
-        <div className="p-4 sm:p-6 space-y-6 flex flex-col">
           {isLoading ? (
             <CalendarSkeleton />
           ) : isError ? (
-            <div className="text-center py-16 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
-              <AlertTriangle className="w-12 h-12 text-red-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-slate-600 mb-2">Failed to load room calendar data</h3>
+            <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+              <AlertTriangle className="w-12 h-12 text-rose-400 mx-auto mb-4" />
+              <h3 className="text-base font-bold text-slate-700 dark:text-slate-300 mb-2">
+                Failed to load room calendar data
+              </h3>
               <button
                 onClick={() => refetch()}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-all cursor-pointer"
+                className="px-4 py-2 rounded-full bg-emerald-800 text-white font-extrabold text-xs hover:bg-emerald-900 transition-all cursor-pointer shadow-sm"
               >
-                <RotateCcw className="w-4 h-4 inline mr-1.5" />
+                <RotateCcw className="w-3.5 h-3.5 inline mr-1.5" />
                 Retry
               </button>
             </div>
           ) : !data || !data.roomTypes?.length ? (
-            <div className="text-center py-16 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
-              <Building2 className="w-14 h-14 text-slate-200 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-slate-500">{t('noRoomTypesConfigured')}</h3>
-              <p className="text-sm text-slate-400 mt-1">Add room types in Property Settings to start visualizing your room calendar.</p>
+            <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+              <Building2 className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
+              <h3 className="text-base font-bold text-slate-600 dark:text-slate-400">
+                {t('noRoomTypesConfigured')}
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Configure room categories in Property Settings to populate the Tape Chart.
+              </p>
             </div>
           ) : (
             <>
-              {/* Table Container */}
-              <div className="bg-white rounded-xl border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col">
-                <div className="overflow-x-auto relative">
-                  <table className="w-full text-sm border-collapse">
+              {/* KPI Analytics Header Bar */}
+              <CalendarKpiHeader
+                totalUnits={summaryStats?.totalRooms}
+                bookedUnits={summaryStats?.bookedToday}
+                availableUnits={summaryStats?.availableToday}
+                occupancyRate={summaryStats?.occupancyPct}
+              />
+
+              {/* Modular Status Legend Filter Bar */}
+              <CalendarStatusLegend
+                activeStatusFilter={activeStatusFilter}
+                setActiveStatusFilter={setActiveStatusFilter}
+              />
+
+              {/* Calendar Grid Matrix */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col">
+                <div 
+                  ref={scrollContainerRef}
+                  onMouseDown={onMouseDown}
+                  onMouseLeave={onMouseLeave}
+                  onMouseUp={onMouseUp}
+                  onMouseMove={onMouseMove}
+                  className={`overflow-x-auto relative scrollbar-none select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                >
+                  <table className="w-full text-sm border-collapse pointer-events-auto">
                     <thead>
-                      <tr className="bg-slate-100/90 sticky top-0 z-20 shadow-xs border-b border-slate-200">
-                        <th className="sticky left-0 bg-slate-100/95 z-30 px-5 py-3 text-left font-black text-xs uppercase tracking-wider text-slate-700 border-b border-r border-slate-200 min-w-[220px] shadow-[4px_0_12px_-4px_rgba(0,0,0,0.08)]">
+                      <tr className="bg-slate-100/90 dark:bg-slate-800/90 sticky top-0 z-20 shadow-2xs border-b border-slate-200 dark:border-slate-750">
+                        {/* Left Sticky Room Category Header */}
+                        <th className="sticky left-0 bg-slate-100/95 dark:bg-slate-800/95 z-30 px-4 py-3 text-left font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-750 min-w-[240px] shadow-[4px_0_12px_-4px_rgba(0,0,0,0.06)]">
                           {t('roomType')}
                         </th>
-                        {dayHeaders.map((h) => (
-                          <th
-                            key={h.date}
-                            className={`px-1 py-2 text-center border-b border-r border-slate-200/70 min-w-[64px] transition-colors ${
-                              h.isToday ? 'bg-emerald-100/80 border-b-2 border-b-emerald-600' : h.isWeekend ? 'bg-slate-200/60' : 'bg-slate-100/90'
-                            }`}
-                          >
-                            <span className="block text-[9.5px] text-slate-500 uppercase font-bold tracking-widest">{h.dayName}</span>
-                            <span className={`inline-block mt-0.5 ${h.isToday ? 'bg-emerald-600 text-white font-black text-xs px-1.5 py-0.5 rounded-md shadow-2xs' : 'text-[15px] font-black text-slate-900'}`}>
-                              {h.day}
-                            </span>
-                            {h.day === 1 && (
-                              <span className="block text-[9px] text-slate-500 font-bold mt-0.5">{h.monthShort}</span>
-                            )}
-                          </th>
-                        ))}
+
+                        {/* Date Columns */}
+                        {dayHeaders.map((h) => {
+                          const isColumnHovered = hoveredDate === h.date;
+
+                          return (
+                            <th
+                              key={h.date}
+                              className={`text-center border-b border-r border-slate-200/70 dark:border-slate-800 transition-colors ${
+                                spanDays === 30 ? 'w-9 min-w-[36px] max-w-[36px] p-0.5' : 'min-w-[64px] px-1 py-2'
+                              } ${
+                                isColumnHovered
+                                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white font-black'
+                                  : h.isToday
+                                    ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-b-2 border-b-emerald-600 shadow-2xs'
+                                    : h.isWeekend
+                                      ? 'bg-slate-200/60 dark:bg-slate-800/60'
+                                      : 'bg-slate-100/90 dark:bg-slate-800/90'
+                              }`}
+                            >
+                              <span
+                                className={`block text-[9.5px] uppercase font-bold tracking-widest ${
+                                  h.isToday
+                                    ? 'text-emerald-800 dark:text-emerald-300 font-black'
+                                    : 'text-slate-500 dark:text-slate-400'
+                                }`}
+                              >
+                                {h.dayName}
+                              </span>
+                              <span
+                                className={`inline-block mt-0.5 ${
+                                  h.isToday
+                                    ? 'bg-emerald-700 text-white text-xs font-black px-2 py-0.5 rounded-full shadow-2xs'
+                                    : 'text-sm font-black text-slate-900 dark:text-slate-100'
+                                }`}
+                              >
+                                {h.day}
+                              </span>
+                              {h.day === 1 && (
+                                <span
+                                  className={`block text-[9px] font-bold mt-0.5 ${
+                                    h.isToday
+                                      ? 'text-emerald-700 dark:text-emerald-400 font-bold'
+                                      : 'text-slate-500 dark:text-slate-400'
+                                  }`}
+                                >
+                                  {h.monthShort}
+                                </span>
+                              )}
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRoomTypes.map((rt) => (
-                        <tr key={rt.id} className="group hover:bg-slate-50/80 transition-colors">
-                          <td className="sticky left-0 bg-white group-hover:bg-slate-50/90 z-10 px-5 py-5 border-b border-r border-slate-200/80 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.08)] transition-colors">
-                            <p className="font-bold text-slate-900 text-sm tracking-tight truncate min-w-0">{rt.name}</p>
-                            <p className="text-xs text-slate-500 font-semibold mt-0.5">{rt.totalUnits} {t('units')}</p>
-                          </td>
-                          {dayHeaders.map((h) => {
-                            const cell = data.occupancy?.[rt.id]?.[h.date];
-                            const cellKey = `${rt.id}-${h.date}`;
-                            const isPopoverOpen = popover?.key === cellKey;
-                            
-                            return (
-                              <CalendarCell
-                                key={h.date}
-                                h={h}
-                                rt={rt}
-                                cell={cell}
-                                cellKey={cellKey}
-                                isPopoverOpen={isPopoverOpen}
-                                popover={popover}
-                                bookingsMap={data.bookingsMap}
-                                filteredRoomTypesLength={filteredRoomTypes.length}
-                                handleCellClick={handleCellClick}
-                                setPopover={setPopover}
-                                t={t}
-                              />
-                            );
-                          })}
-                        </tr>
-                      ))}
+                      {filteredRoomTypes.map((rt) => {
+                        const isExpanded = !!expandedCategories[rt.id];
+                        const unitNumbers = Array.from(
+                          { length: rt.totalUnits },
+                          (_, i) => 101 + i
+                        );
+                        const isRowHovered = hoveredRoomId === rt.id;
+
+                        return (
+                          <React.Fragment key={rt.id}>
+                            {/* Category Summary Row */}
+                            <tr
+                              className={`group transition-colors ${
+                                isRowHovered ? 'bg-slate-100/80 dark:bg-slate-850/60' : 'hover:bg-slate-50/80 dark:hover:bg-slate-850/50'
+                              }`}
+                            >
+                              <td className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 z-10 px-4 py-3 border-b border-r border-slate-200/80 dark:border-slate-800 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.06)] transition-colors">
+                                <div className="flex items-center justify-between gap-2 min-w-0">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 shrink-0">
+                                      <BedDouble className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="font-bold text-slate-900 dark:text-white text-xs tracking-tight truncate">
+                                        {rt.name}
+                                      </p>
+                                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 block truncate">
+                                        {rt.totalUnits} {t('units')}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    onClick={() => toggleCategoryExpand(rt.id)}
+                                    className="p-1 rounded-full hover:bg-slate-200/60 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer shrink-0"
+                                    title={isExpanded ? t('collapseUnits') : t('expandUnits')}
+                                  >
+                                    <ChevronDown
+                                      className={`w-4 h-4 transition-transform duration-200 ${
+                                        isExpanded ? 'rotate-180 text-emerald-600' : ''
+                                      }`}
+                                    />
+                                  </button>
+                                </div>
+                              </td>
+
+                              {/* Category Level Cells */}
+                              {dayHeaders.map((h) => {
+                                const cell = data.occupancy?.[rt.id]?.[h.date];
+                                const cellKey = `${rt.id}-${h.date}`;
+
+                                return (
+                                  <CalendarCell
+                                    key={h.date}
+                                    h={h}
+                                    rt={rt}
+                                    cell={cell}
+                                    cellKey={cellKey}
+                                    bookingsMap={data.bookingsMap}
+                                    handleCellClick={handleCellClick}
+                                    handleContextMenuCell={handleContextMenuCell}
+                                    activeStatusFilter={activeStatusFilter}
+                                    hoveredDate={hoveredDate}
+                                    hoveredRoomId={hoveredRoomId}
+                                    setHoveredDate={setHoveredDate}
+                                    setHoveredRoomId={setHoveredRoomId}
+                                    selectedCheckIn={selectedCheckIn}
+                                    onSelectDateCell={handleSelectDateCell}
+                                  />
+                                );
+                              })}
+                            </tr>
+
+                            {/* Expanded Room Unit Rows */}
+                            {isExpanded &&
+                              unitNumbers.map((unitNum) => (
+                                <tr
+                                  key={`${rt.id}-unit-${unitNum}`}
+                                  className="bg-slate-50/60 dark:bg-slate-950/40 hover:bg-slate-100/80 transition-colors"
+                                >
+                                  <td className="sticky left-0 bg-slate-100/90 dark:bg-slate-950 z-10 pl-8 pr-4 py-2.5 border-b border-r border-slate-200/80 dark:border-slate-800/80 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.04)]">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+                                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                                      <span className="truncate">
+                                        Room {unitNum}
+                                      </span>
+                                    </div>
+                                  </td>
+
+                                  {dayHeaders.map((h) => {
+                                    const cell = data.occupancy?.[rt.id]?.[h.date];
+                                    return (
+                                      <UnitCell
+                                        key={`unit-${unitNum}-${h.date}`}
+                                        h={h}
+                                        unitNumber={unitNum}
+                                        cell={cell}
+                                        bookingsMap={data.bookingsMap}
+                                        handleContextMenuCell={handleContextMenuCell}
+                                        rtId={rt.id}
+                                        selectedCheckIn={selectedCheckIn}
+                                        onSelectDateCell={handleSelectDateCell}
+                                      />
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
-
-                {/* Table Footer Legend */}
-                <div className="px-6 py-4 bg-white border-t border-slate-200/80 flex items-center gap-6 flex-wrap shadow-sm z-20 relative rounded-b-2xl">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-slate-100 border border-slate-200" />
-                    <span className="text-xs font-semibold text-slate-600">{t('available')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
-                    <span className="text-xs font-semibold text-slate-600">{t('partiallyBooked')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-amber-500 shadow-sm" />
-                    <span className="text-xs font-semibold text-slate-600">{t('mostlyBooked')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-rose-500 shadow-sm" />
-                    <span className="text-xs font-semibold text-slate-600">{t('fullyBooked')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-600 ring-2 ring-red-500/50 shadow-sm animate-pulse" />
-                    <span className="text-xs font-semibold text-red-600">{t('overbooked')}</span>
-                  </div>
-                </div>
               </div>
-
             </>
           )}
         </div>
       </div>
+
+      {/* Floating Portal Popover Layer */}
+      {popover && (
+        <BookingPreviewPopover
+          targetRect={popover.targetRect}
+          bookings={popover.bookings}
+          dateLabel={popover.label}
+          roomTypeName={popover.roomTypeName}
+          onClose={() => setPopover(null)}
+          onOpenDrawer={(bookingId) => {
+            setSelectedDrawerBookingId(bookingId);
+          }}
+        />
+      )}
+
+      {/* Right-Side Booking Details Drawer */}
+      {selectedDrawerBookingId && (
+        <BookingDetailsDrawer
+          bookingId={selectedDrawerBookingId}
+          onClose={() => setSelectedDrawerBookingId(null)}
+        />
+      )}
+
+      {/* Right-Click Context Menu Layer */}
+      {contextMenu && (
+        <RoomCalendarContextMenu
+          menuState={contextMenu}
+          onClose={() => setContextMenu(null)}
+          onNewBooking={(date, roomTypeId) => {
+            router.push(`/bookings/new?checkInDate=${date}&roomTypeId=${roomTypeId || ''}`);
+          }}
+        />
+      )}
     </div>
   );
 }

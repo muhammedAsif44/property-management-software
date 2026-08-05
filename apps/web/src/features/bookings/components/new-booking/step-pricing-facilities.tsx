@@ -5,6 +5,7 @@ import { useTranslation } from '@/lib/i18n';
 import { CreateBookingPayload } from '../../types/booking.types';
 import { RoomType } from './step-room-dates';
 import { IndianRupee, CheckCircle2, StickyNote, Coffee, Utensils, UtensilsCrossed, Soup } from 'lucide-react';
+import { calculateTac } from '@/lib/utils/financial-math';
 
 export interface Amenity {
   id: string;
@@ -17,6 +18,7 @@ interface StepPricingFacilitiesProps {
   form: Partial<CreateBookingPayload>;
   amenities: Amenity[];
   selectedRoom?: RoomType;
+  agencies?: any[];
   onChange: (field: string, value: any) => void;
   toggleFacility: (id: string) => void;
 }
@@ -34,13 +36,23 @@ export function StepPricingFacilities({
   form,
   amenities,
   selectedRoom,
+  agencies = [],
   onChange,
   toggleFacility,
 }: StepPricingFacilitiesProps) {
   const { t } = useTranslation();
 
-  // Live pricing calculation
-  const baseAmount = Number(form.baseAmount ?? selectedRoom?.basePrice ?? 0);
+  // Live pricing calculation based on nights
+  const checkIn = form.checkInDate ? new Date(form.checkInDate) : null;
+  const checkOut = form.checkOutDate ? new Date(form.checkOutDate) : null;
+  const nights = checkIn && checkOut && checkOut > checkIn
+    ? Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (86400 * 1000)))
+    : 1;
+
+  const nightlyPrice = Number(selectedRoom?.basePrice || 0);
+  const autoCalculatedBaseAmount = nightlyPrice * nights;
+  const baseAmount = Number(form.baseAmount ?? autoCalculatedBaseAmount ?? 0);
+
   const facilityTotal = (form.facilityIds || []).reduce((sum, id) => {
     const a = amenities.find((x) => x.id === id);
     return sum + Number(a?.price || 0);
@@ -120,7 +132,14 @@ export function StepPricingFacilities({
         {/* ── Amount Inputs with Currency Prefix ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">{t('baseAmount')} *</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">{t('baseAmount')} *</label>
+              {nights > 0 && nightlyPrice > 0 && (
+                <span className="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                  ₹{nightlyPrice.toLocaleString('en-IN')}/night × {nights} {nights === 1 ? 'night' : 'nights'}
+                </span>
+              )}
+            </div>
             <div className="relative">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs pointer-events-none flex items-center gap-0.5">
                 <IndianRupee className="w-3.5 h-3.5" />
@@ -128,9 +147,9 @@ export function StepPricingFacilities({
               <input
                 type="number"
                 min={0}
-                value={form.baseAmount || selectedRoom?.basePrice || ''}
+                value={form.baseAmount ?? (autoCalculatedBaseAmount || '')}
                 onChange={(e) => onChange('baseAmount', parseFloat(e.target.value) || 0)}
-                className="w-full pl-9 pr-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200"
+                className="w-full pl-9 pr-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-black focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200"
               />
             </div>
           </div>
@@ -166,26 +185,51 @@ export function StepPricingFacilities({
           />
         </div>
 
-        {/* ── Live Pricing Summary ── */}
-        <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200/80 space-y-2 animate-fadeIn">
-          <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider mb-2">Live Estimate</h4>
+        {/* ── Live Pricing Summary & TAC Breakdown ── */}
+        <div className="p-4 bg-emerald-50/80 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/80 space-y-2 animate-fadeIn">
+          <h4 className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider mb-2">Live Estimate</h4>
           <div className="flex justify-between text-xs font-semibold">
-            <span className="text-slate-600">{t('baseAmount')}</span>
-            <span className="font-bold text-slate-900">₹{baseAmount.toLocaleString('en-IN')}</span>
+            <span className="text-slate-600 dark:text-slate-400">{t('baseAmount')}</span>
+            <span className="font-bold text-slate-900 dark:text-white">₹{baseAmount.toLocaleString('en-IN')}</span>
           </div>
           {facilityTotal > 0 && (
             <div className="flex justify-between text-xs font-semibold">
-              <span className="text-slate-600">{t('facilities')}</span>
-              <span className="font-bold text-slate-900">₹{facilityTotal.toLocaleString('en-IN')}</span>
+              <span className="text-slate-600 dark:text-slate-400">{t('facilities')}</span>
+              <span className="font-bold text-slate-900 dark:text-white">₹{facilityTotal.toLocaleString('en-IN')}</span>
             </div>
           )}
-          <hr className="border-emerald-200 my-1" />
+          <hr className="border-emerald-200 dark:border-emerald-800/60 my-1" />
           <div className="flex justify-between text-sm font-black">
-            <span className="text-emerald-900">{t('estimatedTotal')}</span>
-            <span className="text-emerald-900 animate-counterPop">₹{liveTotal.toLocaleString('en-IN')}</span>
+            <span className="text-emerald-900 dark:text-emerald-200">{t('estimatedTotal')}</span>
+            <span className="text-emerald-900 dark:text-emerald-200 animate-counterPop">₹{liveTotal.toLocaleString('en-IN')}</span>
           </div>
+
+          {/* TAC Commission Breakdown (Conditional for Agency Channel) */}
+          {form.channel === 'AGENCY' && form.agencyId && (() => {
+            const agency = (agencies || []).find((a) => a.id === form.agencyId);
+            const rate = Number(agency?.defaultTacRate || 10);
+            const { tacAmount, propertyAmount } = calculateTac(liveTotal, rate);
+
+            return (
+              <div className="p-3 bg-blue-50/90 dark:bg-blue-950/50 rounded-xl border border-blue-200 dark:border-blue-800 space-y-1.5 text-xs mt-3">
+                <div className="flex justify-between font-extrabold text-blue-900 dark:text-blue-300">
+                  <span>Booking Source: Travel Agency</span>
+                  <span className="font-black">{agency?.name || 'TAC Partner'}</span>
+                </div>
+                <div className="flex justify-between font-semibold text-blue-800 dark:text-blue-400">
+                  <span>TAC Commission Rate ({rate}%)</span>
+                  <span>- ₹{tacAmount.toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between font-black text-blue-950 dark:text-blue-200 border-t border-blue-200 dark:border-blue-800 pt-1.5">
+                  <span>Net Property Amount</span>
+                  <span>₹{propertyAmount.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            );
+          })()}
+
           {advancePaid > 0 && (
-            <div className="flex justify-between text-xs font-bold text-emerald-700 pt-1">
+            <div className="flex justify-between text-xs font-bold text-emerald-700 dark:text-emerald-400 pt-1">
               <span>{t('balanceDue') || 'Balance Due'}</span>
               <span>₹{liveBalance.toLocaleString('en-IN')}</span>
             </div>

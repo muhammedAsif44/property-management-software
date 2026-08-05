@@ -7,7 +7,7 @@ import { authService } from '@/features/auth';
 import { usePropertyStore } from '@/features/properties';
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Bell } from 'lucide-react';
+import { NotificationInbox } from '@/features/notifications/components/notification-inbox';
 
 interface AppHeaderProps {
   /** Left side content — typically page title or property info */
@@ -84,14 +84,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ children, actions }) => {
         {/* Language Switcher */}
         <LanguageSwitcher />
 
-        {/* Notifications placeholder */}
-        <button
-          className="interactive relative flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-divider text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-          aria-label="Notifications"
-          title="Notifications"
-        >
-          <Bell className="w-4 h-4" />
-        </button>
+        {/* Notifications */}
+        <NotificationInbox />
 
         <div className="w-px h-5 bg-divider mx-1" aria-hidden="true" />
 

@@ -46,8 +46,9 @@ export class BookingService {
     return raw?.data || raw;
   }
 
-  async checkIn(id: string): Promise<Booking> {
-    const raw = await httpClient.post<any>(`/bookings/${id}/check-in`);
+  async checkIn(id: string, roomUnitId?: string): Promise<Booking> {
+    const body = roomUnitId ? { roomUnitId } : undefined;
+    const raw = await httpClient.post<any>(`/bookings/${id}/check-in`, body);
     return raw?.data || raw;
   }
 

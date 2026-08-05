@@ -37,6 +37,10 @@ const InvoicePreviewModal = dynamic(
   () => import('@/features/invoices/components/invoice-preview-modal').then((m) => m.InvoicePreviewModal),
   { ssr: false }
 );
+const AssignRoomUnitModal = dynamic(
+  () => import('@/features/bookings/components/assign-room-unit-modal').then((m) => m.AssignRoomUnitModal),
+  { ssr: false }
+);
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   CONFIRMED: { label: 'Confirmed', color: 'text-emerald-800 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800', dot: 'bg-emerald-500' },
@@ -112,6 +116,7 @@ export default function BookingDetailPage() {
 
   const [showPaymentModal, setShowPaymentModal] = useState<Booking | null>(null);
   const [showInvoicePreviewModal, setShowInvoicePreviewModal] = useState<Booking | null>(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
 
   if (isLoading) {
     return (
@@ -181,14 +186,21 @@ export default function BookingDetailPage() {
         <AppHeader
           actions={
             <div className="flex items-center gap-2">
-              {/* Record Payment Action */}
-              <button
-                onClick={() => setShowPaymentModal(booking)}
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <CreditCard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Pay</span>
-              </button>
+              {/* Record Payment Action - Rendered ONLY if there is unpaid balance */}
+              {hasUnpaidBalance ? (
+                <button
+                  onClick={() => setShowPaymentModal(booking)}
+                  className="px-3.5 py-1.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+                >
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Record Payment</span>
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-black border border-emerald-200 dark:border-emerald-800">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Fully Paid
+                </span>
+              )}
 
               {/* Invoice Preview Action */}
               <button
@@ -199,27 +211,50 @@ export default function BookingDetailPage() {
                 <span>Invoice</span>
               </button>
 
-              {/* Primary Check-In / Check-Out */}
-              {booking.status === 'CONFIRMED' && (
-                <button
-                  onClick={() => checkInMutation.mutate(booking.id)}
-                  disabled={checkInMutation.isPending}
-                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  {checkInMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
-                  <span>{t('checkIn')}</span>
-                </button>
-              )}
-              {booking.status === 'CHECKED_IN' && (
-                <button
-                  onClick={() => checkOutMutation.mutate(booking.id)}
-                  disabled={checkOutMutation.isPending}
-                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  {checkOutMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
-                  <span>{t('checkOut')}</span>
-                </button>
-              )}
+              {/* Primary Check-In / Assign Room / Check-Out */}
+              {(() => {
+                const hasUnit = booking.unitNumber || (booking as any).roomNumber || (booking as any).unitId || (booking as any).roomUnitId || (booking as any).assignedUnit;
+
+                if (booking.status === 'CONFIRMED') {
+                  if (!hasUnit) {
+                    return (
+                      <button
+                        onClick={() => setShowAssignModal(true)}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs border border-amber-600"
+                        title="Assign a Room Unit before Check-In"
+                      >
+                        <BedDouble className="w-3.5 h-3.5" />
+                        <span>Assign Room Unit</span>
+                      </button>
+                    );
+                  }
+                  return (
+                    <button
+                      onClick={() => checkInMutation.mutate(booking.id)}
+                      disabled={checkInMutation.isPending}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      {checkInMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
+                      <span>{t('checkIn')}</span>
+                    </button>
+                  );
+                }
+
+                if (booking.status === 'CHECKED_IN') {
+                  return (
+                    <button
+                      onClick={() => checkOutMutation.mutate(booking.id)}
+                      disabled={checkOutMutation.isPending}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      {checkOutMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+                      <span>{t('checkOut')}</span>
+                    </button>
+                  );
+                }
+
+                return null;
+              })()}
 
               {/* Status Badge */}
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${statusCfg.bg} ${statusCfg.color}`}>
@@ -514,13 +549,20 @@ export default function BookingDetailPage() {
                   </button>
                 )}
 
-                <button
-                  onClick={() => setShowPaymentModal(booking)}
-                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Record Payment</span>
-                </button>
+                {hasUnpaidBalance ? (
+                  <button
+                    onClick={() => setShowPaymentModal(booking)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Record Payment</span>
+                  </button>
+                ) : (
+                  <div className="w-full py-2.5 px-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 font-extrabold text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Fully Paid (₹0 Balance)</span>
+                  </div>
+                )}
 
                 <button
                   onClick={() => setShowInvoicePreviewModal(booking)}
@@ -557,10 +599,17 @@ export default function BookingDetailPage() {
           <InvoicePreviewModal
             bookingId={showInvoicePreviewModal.id}
             isOpen={!!showInvoicePreviewModal}
+            bookingData={showInvoicePreviewModal}
             onClose={() => setShowInvoicePreviewModal(null)}
           />
         )}
       </div>
+      {/* Assign Room Unit Modal */}
+      <AssignRoomUnitModal
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        booking={booking}
+      />
     </div>
   );
 }

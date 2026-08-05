@@ -70,7 +70,12 @@ export default function AdminDashboardPage() {
   const [loginError, setLoginError] = useState('');
   const [loadingLogin, setLoadingLogin] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'approvals' | 'organizations' | 'security'>('approvals');
+  const [activeTab, setActiveTab] = useState<'approvals' | 'organizations' | 'security' | 'announcements'>('approvals');
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementMessage, setAnnouncementMessage] = useState('');
+  const [announcementType, setAnnouncementType] = useState('SYSTEM');
+  const [announcementTargetRole, setAnnouncementTargetRole] = useState('ALL');
+  const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
   const [pendingOwners, setPendingOwners] = useState<PendingOwner[]>([]);
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [loadingOwners, setLoadingOwners] = useState(false);
@@ -520,6 +525,18 @@ export default function AdminDashboardPage() {
                 >
                   <ShieldCheck className="w-4 h-4" />
                   <span>Security & Audit</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('announcements')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-xs transition-all duration-200 ${
+                    activeTab === 'announcements'
+                      ? 'bg-[#360CAF] text-white shadow-lg shadow-[#360CAF]/25'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <Bell className="w-4 h-4" />
+                  <span>Announcements</span>
                 </button>
 
               </nav>
@@ -999,6 +1016,118 @@ export default function AdminDashboardPage() {
                   <p className="text-slate-500 text-xs mt-1 max-w-md mx-auto">
                     All Super Admin actions are logged with session revocation capabilities.
                   </p>
+                </div>
+              )}
+
+              {/* Announcements View */}
+              {activeTab === 'announcements' && (
+                <div className="bg-white rounded-3xl border border-slate-200/90 p-8 shadow-sm space-y-6">
+                  <div className="border-b border-slate-100 pb-4">
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <Bell className="w-5 h-5 text-[#360CAF]" />
+                      Global Announcements & Push Notifications
+                    </h3>
+                    <p className="text-slate-500 text-xs mt-1">
+                      Broadcast system update announcements and in-app alerts across all property instances. Mobile push plumbing is pre-wired.
+                    </p>
+                  </div>
+
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!announcementTitle || !announcementMessage) {
+                        showToast('Please provide a title and message.', 'error');
+                        return;
+                      }
+                      setSendingAnnouncement(true);
+                      try {
+                        const res = await authenticatedFetch(`${API_BASE}/admin/notifications`, {
+                          method: 'POST',
+                          body: JSON.stringify({
+                            title: announcementTitle,
+                            message: announcementMessage,
+                            type: announcementType,
+                            targetRole: announcementTargetRole === 'ALL' ? undefined : announcementTargetRole,
+                          }),
+                        });
+                        if (res.ok) {
+                          showToast('Global Announcement broadcasted successfully!', 'success');
+                          setAnnouncementTitle('');
+                          setAnnouncementMessage('');
+                        } else {
+                          const errData = await res.json().catch(() => ({}));
+                          showToast(errData.message || 'Failed to send announcement.', 'error');
+                        }
+                      } catch (err: any) {
+                        showToast(err.message || 'Error broadcasting announcement.', 'error');
+                      } finally {
+                        setSendingAnnouncement(false);
+                      }
+                    }}
+                    className="space-y-4 max-w-xl text-xs"
+                  >
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Announcement Title</label>
+                      <input
+                        type="text"
+                        value={announcementTitle}
+                        onChange={(e) => setAnnouncementTitle(e.target.value)}
+                        placeholder="e.g. Scheduled System Maintenance / Platform Upgrade"
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 font-medium text-slate-900 focus:outline-none focus:border-[#360CAF]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Notification Type</label>
+                        <select
+                          value={announcementType}
+                          onChange={(e) => setAnnouncementType(e.target.value)}
+                          className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 font-medium text-slate-900 focus:outline-none focus:border-[#360CAF]"
+                        >
+                          <option value="SYSTEM">System Announcement</option>
+                          <option value="ALERT">Urgent Alert</option>
+                          <option value="BOOKING">Booking Update</option>
+                          <option value="PAYMENT">Payment Reminder</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Target Audience</label>
+                        <select
+                          value={announcementTargetRole}
+                          onChange={(e) => setAnnouncementTargetRole(e.target.value)}
+                          className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 font-medium text-slate-900 focus:outline-none focus:border-[#360CAF]"
+                        >
+                          <option value="ALL">All Users & Staff</option>
+                          <option value="OWNER">Property Owners Only</option>
+                          <option value="MANAGER">Managers Only</option>
+                          <option value="RECEPTIONIST">Reception Staff Only</option>
+                          <option value="HOUSEKEEPING">Housekeeping Staff Only</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Message Content</label>
+                      <textarea
+                        value={announcementMessage}
+                        onChange={(e) => setAnnouncementMessage(e.target.value)}
+                        rows={4}
+                        placeholder="Enter the full text of the announcement..."
+                        className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-200 font-medium text-slate-900 focus:outline-none focus:border-[#360CAF] resize-none"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={sendingAnnouncement}
+                      className="px-6 py-3 rounded-2xl bg-[#360CAF] hover:bg-[#2b0991] text-white font-black transition-all shadow-lg shadow-[#360CAF]/25 cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <Bell className="w-4 h-4" />
+                      <span>{sendingAnnouncement ? 'Broadcasting...' : 'Broadcast Announcement'}</span>
+                    </button>
+                  </form>
                 </div>
               )}
 

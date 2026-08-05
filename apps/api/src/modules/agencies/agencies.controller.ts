@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  Headers,
 } from '@nestjs/common';
 import { AgenciesService } from './agencies.service';
 import { CreateAgencyDto } from './dto/create-agency.dto';
@@ -51,6 +52,19 @@ export class AgenciesController {
   }
 
   /**
+   * GET /api/v1/agencies/:id
+   * Get single agency detail with bookings and settlements
+   */
+  @Get('agencies/:id')
+  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.SUPER_ADMIN)
+  async getAgencyDetails(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) agencyId: string,
+  ) {
+    return this.agenciesService.getAgencyDetails(user.id, agencyId);
+  }
+
+  /**
    * POST /api/v1/agencies/:id/settle
    * Settle pending agency commission (Owner, Manager ONLY!)
    */
@@ -61,7 +75,8 @@ export class AgenciesController {
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) agencyId: string,
     @Body() dto: SettleAgencyDto,
+    @Headers('Idempotency-Key') idempotencyKey: string,
   ) {
-    return this.agenciesService.settleCommission(user.id, agencyId, dto);
+    return this.agenciesService.settleCommission(user.id, agencyId, dto, idempotencyKey);
   }
 }

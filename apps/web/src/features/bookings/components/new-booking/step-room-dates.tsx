@@ -320,7 +320,7 @@ export function StepRoomDates({ form, roomTypes, agencies, onChange }: StepRoomD
           </div>
         </div>
 
-        {/* ── Agency Selector (conditional slide-down) ── */}
+        {/* ── Agency Selector (conditional slide-down - filters inactive agencies) ── */}
         {form.channel === 'AGENCY' && (
           <div className="animate-slideDown">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">{t('selectAgency')}</label>
@@ -330,11 +330,13 @@ export function StepRoomDates({ form, roomTypes, agencies, onChange }: StepRoomD
               className="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 cursor-pointer transition-all duration-200"
             >
               <option value="">{t('chooseAgency')}</option>
-              {agencies.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name} ({a.defaultTacRate}% TAC)
-                </option>
-              ))}
+              {(agencies || [])
+                .filter((a: any) => a.isActive !== false && a.status !== 'INACTIVE')
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} ({a.defaultTacRate}% TAC)
+                  </option>
+                ))}
             </select>
           </div>
         )}

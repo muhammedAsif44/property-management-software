@@ -73,6 +73,7 @@ const DeleteBookingModal = dynamic(() => import('@/features/bookings/components/
 const RevertStatusModal = dynamic(() => import('@/features/bookings/components/revert-status-modal').then(m => m.RevertStatusModal), { ssr: false });
 const PaymentEntryModal = dynamic(() => import('@/features/payments/components/payment-entry-modal').then(m => m.PaymentEntryModal), { ssr: false });
 const InvoicePreviewModal = dynamic(() => import('@/features/invoices/components/invoice-preview-modal').then(m => m.InvoicePreviewModal), { ssr: false });
+const AssignRoomUnitModal = dynamic(() => import('@/features/bookings/components/assign-room-unit-modal').then(m => m.AssignRoomUnitModal), { ssr: false });
 
 const CHANNEL_CONFIG: Record<string, { label: string; icon: any }> = {
   WALK_IN: { label: 'Walk-In', icon: Users },
@@ -173,6 +174,7 @@ export default function BookingsPage() {
   const [showRevertModal, setShowRevertModal] = useState<{ booking: Booking; targetStatus: 'CONFIRMED' | 'CHECKED_IN' } | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState<Booking | null>(null);
   const [showInvoicePreviewModal, setShowInvoicePreviewModal] = useState<Booking | null>(null);
+  const [showAssignModal, setShowAssignModal] = useState<Booking | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   // Close open dropdown on outside click
@@ -245,6 +247,14 @@ export default function BookingsPage() {
   };
 
   const handleCheckInWithUndo = (id: string) => {
+    const b = bookings.find((item: Booking) => item.id === id);
+    const hasUnit = b && (b.unitNumber || (b as any).roomNumber || (b as any).unitId || (b as any).roomUnitId || (b as any).assignedUnit);
+
+    if (b && !hasUnit) {
+      setShowAssignModal(b);
+      return;
+    }
+
     checkInMutation.mutate(id, {
       onSuccess: () => {
         toast.showUndoToast(
@@ -255,6 +265,12 @@ export default function BookingsPage() {
           },
           'Check-In Complete'
         );
+      },
+      onError: (err: any) => {
+        if (err?.message?.toLowerCase().includes('room unit')) {
+          toast.warning('Please assign a room unit to complete check-in.', 'Room Unit Required');
+          router.push(`/bookings/${id}`);
+        }
       },
     });
   };
@@ -312,7 +328,7 @@ export default function BookingsPage() {
               <QuickHelpDrawer />
               <button
                 onClick={() => router.push('/bookings/room-calendar')}
-                className="h-9 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-3 rounded-full bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span className="hidden sm:inline truncate">{t('occupancyCalendar')}</span>
@@ -320,7 +336,7 @@ export default function BookingsPage() {
               {isOwnerOrManager && (
                 <button
                   onClick={() => router.push('/bookings/approvals')}
-                  className="interactive h-9 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-divider text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                  className="interactive h-9 px-3 rounded-full bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-divider text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
                 >
                   <div className="w-2 h-2 rounded-full bg-amber-500 shadow-sm" />
                   <span className="hidden sm:inline truncate">{t('approvalQueue')}</span>
@@ -328,25 +344,27 @@ export default function BookingsPage() {
               )}
               <button
                 onClick={() => router.push('/bookings/new')}
-                className="h-9 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs shadow-md shadow-emerald-900/20 active:scale-95 transition-all cursor-pointer shrink-0"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="truncate">{t('newBooking')}</span>
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">{t('newBooking')}</span>
               </button>
             </div>
           }
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
-              <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
-                {t('bookingManagement')}
-              </h1>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
-                {activeProperty?.name || t('activeManagementHub')}
-              </p>
+            <div className="flex items-center gap-3 bg-slate-50/90 dark:bg-slate-850 px-4 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-2xs min-w-0">
+              <div className="w-8 h-8 rounded-full bg-slate-900 text-emerald-400 flex items-center justify-center shrink-0">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <h1 className="text-xs font-black text-slate-900 dark:text-white leading-tight truncate">
+                  {activeProperty?.name || 'Azura Resorts & Spa'}
+                </h1>
+                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 leading-tight truncate">
+                  Bookings Management
+                </span>
+              </div>
             </div>
           </div>
         </AppHeader>
@@ -617,45 +635,68 @@ export default function BookingsPage() {
                           {/* 6. Actions — Enterprise SaaS Action Dropdown & Labeled Buttons */}
                           <td className="p-4 pr-5 text-right relative">
                             <div className="inline-flex items-center justify-end gap-1.5 shrink-0">
-                              {/* Check-In / Check-Out Badge Button */}
-                              {b.status === 'CONFIRMED' && (
-                                <button
-                                  onClick={() => handleCheckInWithUndo(b.id)}
-                                  disabled={checkInMutation.isPending}
-                                  className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all flex items-center gap-1 cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
-                                >
-                                  {checkInMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <LogIn className="w-3 h-3" />}
-                                  <span>{t('checkIn')}</span>
-                                </button>
-                              )}
-                              {b.status === 'CHECKED_IN' && (
-                                <button
-                                  onClick={() => handleCheckOutWithUndo(b.id)}
-                                  disabled={checkOutMutation.isPending}
-                                  className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all flex items-center gap-1 cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
-                                >
-                                  {checkOutMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <LogOut className="w-3 h-3" />}
-                                  <span>{t('checkOut')}</span>
-                                </button>
-                              )}
+                              {/* Check-In / Assign Room / Check-Out Contextual Action Button */}
+                              {(() => {
+                                const hasUnit = b.unitNumber || (b as any).roomNumber || (b as any).unitId || (b as any).roomUnitId || (b as any).assignedUnit;
+
+                                if (b.status === 'CONFIRMED') {
+                                  if (!hasUnit) {
+                                    return (
+                                      <button
+                                        onClick={() => handleCheckInWithUndo(b.id)}
+                                        className="h-8 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 border border-amber-600"
+                                        title="Assign a Room Unit before Check-In"
+                                      >
+                                        <BedDouble className="w-3.5 h-3.5" />
+                                        <span>Assign Room</span>
+                                      </button>
+                                    );
+                                  }
+                                  return (
+                                    <button
+                                      onClick={() => handleCheckInWithUndo(b.id)}
+                                      disabled={checkInMutation.isPending}
+                                      className="h-8 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
+                                    >
+                                      {checkInMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
+                                      <span>{t('checkIn')}</span>
+                                    </button>
+                                  );
+                                }
+
+                                if (b.status === 'CHECKED_IN') {
+                                  return (
+                                    <button
+                                      onClick={() => handleCheckOutWithUndo(b.id)}
+                                      disabled={checkOutMutation.isPending}
+                                      className="h-8 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
+                                    >
+                                      {checkOutMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+                                      <span>{t('checkOut')}</span>
+                                    </button>
+                                  );
+                                }
+
+                                return null;
+                              })()}
 
                               {/* Labeled Quick Action 1: Record Payment */}
                               <button
                                 onClick={() => setShowPaymentModal(b)}
-                                className="h-7 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                                className="h-8 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
                                 title="Record Payment"
                               >
-                                <CreditCard className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                <CreditCard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                                 <span>Pay</span>
                               </button>
 
                               {/* Labeled Quick Action 2: Invoice Preview */}
                               <button
                                 onClick={() => setShowInvoicePreviewModal(b)}
-                                className="h-7 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                                className="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
                                 title="Invoice Preview"
                               >
-                                <FileText className="w-3 h-3 text-slate-600 dark:text-slate-300" />
+                                <FileText className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
                                 <span>Invoice</span>
                               </button>
 
@@ -666,10 +707,10 @@ export default function BookingsPage() {
                                     e.stopPropagation();
                                     setOpenDropdownId(openDropdownId === b.id ? null : b.id);
                                   }}
-                                  className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-all cursor-pointer"
+                                  className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-all cursor-pointer"
                                   title="More Actions"
                                 >
-                                  <MoreHorizontal className="w-3.5 h-3.5" />
+                                  <MoreHorizontal className="w-4 h-4" />
                                 </button>
 
                                 {/* Dropdown Menu (Opens Upward for Bottom Rows to Avoid Table Clipping) */}
@@ -879,6 +920,12 @@ export default function BookingsPage() {
           ]}
         />
       </div>
+      {/* Assign Room Unit Modal */}
+      <AssignRoomUnitModal
+        isOpen={!!showAssignModal}
+        onClose={() => setShowAssignModal(null)}
+        booking={showAssignModal}
+      />
     </div>
   );
 }

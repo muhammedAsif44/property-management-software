@@ -192,22 +192,22 @@ export class BookingLifecycleService {
       // Update TAC accounting if baseAmount changed on pending agency booking
       if (dto.baseAmount !== undefined && booking.agencyId && booking.tacStatus === TacStatus.PENDING) {
         const agency = await tx.agency.findUnique({ where: { id: booking.agencyId } });
-        if (agency?.defaultTacRate) {
-          const newBase = new Prisma.Decimal(dto.baseAmount);
-          const oldTac = booking.tacAmount || booking.baseAmount.mul(agency.defaultTacRate).div(100);
-          const newTac = newBase.mul(agency.defaultTacRate).div(100);
-          const diff = newTac.minus(oldTac);
+        const newBase = new Prisma.Decimal(dto.baseAmount);
+        
+        const rate = agency?.defaultTacRate || new Prisma.Decimal(0);
+        const oldTac = booking.tacAmount ?? booking.baseAmount.mul(rate).div(100);
+        const newTac = newBase.mul(rate).div(100);
+        const diff = newTac.minus(oldTac);
 
-          if (!diff.isZero()) {
-            updateData.tacAmount = newTac;
-            await tx.agency.update({
-              where: { id: booking.agencyId },
-              data: {
-                totalTac: { increment: diff },
-                pendingTac: { increment: diff },
-              },
-            });
-          }
+        if (!diff.isZero()) {
+          updateData.tacAmount = newTac;
+          await tx.agency.update({
+            where: { id: booking.agencyId },
+            data: {
+              totalTac: { increment: diff },
+              pendingTac: { increment: diff },
+            },
+          });
         }
       }
 
@@ -252,8 +252,9 @@ export class BookingLifecycleService {
       // TAC Reversal: If agency booking with pending TAC
       if (booking.agencyId && booking.tacStatus === TacStatus.PENDING) {
         const agency = await tx.agency.findUnique({ where: { id: booking.agencyId } });
-        if (agency?.defaultTacRate) {
-          const tacAmount = booking.baseAmount.mul(agency.defaultTacRate).div(100);
+        const tacAmount = booking.tacAmount ?? (agency?.defaultTacRate ? booking.baseAmount.mul(agency.defaultTacRate).div(100) : new Prisma.Decimal(0));
+        
+        if (tacAmount.greaterThan(0)) {
           await tx.agency.update({
             where: { id: booking.agencyId },
             data: {
@@ -263,6 +264,14 @@ export class BookingLifecycleService {
           });
         }
       }
+
+      // Decrement Guest Total Visits (since the booking was cancelled before checkout)
+      await tx.guest.updateMany({
+        where: { id: booking.guestId, totalVisits: { gt: 0 } },
+        data: {
+          totalVisits: { decrement: 1 },
+        },
+      });
 
       return tx.booking.update({
         where: { id: bookingId },
@@ -360,8 +369,9 @@ export class BookingLifecycleService {
       let restoredTacStatus = booking.tacStatus;
       if (booking.status === BookingStatus.CANCELLED && newStatus === BookingStatus.CONFIRMED && booking.agencyId) {
         const agency = await tx.agency.findUnique({ where: { id: booking.agencyId } });
-        if (agency?.defaultTacRate) {
-          const tacAmount = booking.baseAmount.mul(agency.defaultTacRate).div(100);
+        const tacAmount = booking.tacAmount ?? (agency?.defaultTacRate ? booking.baseAmount.mul(agency.defaultTacRate).div(100) : new Prisma.Decimal(0));
+        
+        if (tacAmount.greaterThan(0)) {
           await tx.agency.update({
             where: { id: booking.agencyId },
             data: {
@@ -369,6 +379,8 @@ export class BookingLifecycleService {
               pendingTac: { increment: tacAmount },
             },
           });
+          restoredTacStatus = TacStatus.PENDING;
+        } else if (agency) {
           restoredTacStatus = TacStatus.PENDING;
         }
       }

@@ -25,6 +25,8 @@ import {
   Menu,
   X,
   Droplets,
+  BarChart3,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -52,11 +54,13 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
   const userObj = profileData?.user || profileData?.data?.user || profileData;
   const userName = userObj?.owner?.fullName || userObj?.fullName || userObj?.email || '';
 
-  const userRole = profileData?.user?.role || profileData?.data?.user?.role || 'OWNER';
+  const userRole = profileData?.user?.role || profileData?.data?.user?.role || userObj?.role || 'OWNER';
   const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN';
   const isManager = userRole === 'MANAGER';
   const isManagerOrOwner = isOwner || isManager;
   const isHousekeeping = userRole === 'HOUSEKEEPING';
+  const isReceptionist = userRole === 'RECEPTIONIST';
+  const isViewer = userRole === 'VIEWER';
 
   const rawNavigationItems = [
     {
@@ -71,7 +75,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       href: '/housekeeping',
       icon: Droplets,
       active: pathname.startsWith('/housekeeping'),
-      visible: isHousekeeping,
+      visible: true,
     },
     {
       name: t('properties'),
@@ -107,14 +111,13 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       icon: BedDouble,
       active: pathname.startsWith('/rooms'),
       badge: t('comingSoon'),
-      visible: !isHousekeeping,
+      visible: true,
     },
     {
       name: t('guests'),
       href: '/guests',
       icon: Users,
       active: pathname.startsWith('/guests'),
-      badge: t('comingSoon'),
       visible: !isHousekeeping,
     },
     {
@@ -132,11 +135,25 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       visible: isManagerOrOwner && !isHousekeeping,
     },
     {
+      name: t('reportsAndAnalytics') || 'Reports & Analytics',
+      href: '/reports',
+      icon: BarChart3,
+      active: pathname.startsWith('/reports'),
+      visible: isManagerOrOwner,
+    },
+    {
       name: t('settings'),
       href: '/settings',
       icon: Settings,
       active: pathname === '/settings',
       visible: !isHousekeeping,
+    },
+    {
+      name: 'Super Admin',
+      href: '/super-admin',
+      icon: ShieldAlert,
+      active: pathname.startsWith('/super-admin'),
+      visible: userRole === 'SUPER_ADMIN',
     },
   ];
 
@@ -262,13 +279,13 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
 
       {/* Desktop Left Sidebar (>= lg screens) */}
       <aside
-        className={`hidden lg:flex sticky top-0 h-screen shrink-0 z-40 bg-[#fbfcfd] dark:bg-[#09100d] border-r border-divider transition-all duration-200 flex-col justify-between ${
+        className={`hidden lg:flex sticky top-0 h-screen shrink-0 z-40 bg-[#fbfcfd] dark:bg-[#09100d] border-r border-slate-200/80 dark:border-slate-800 transition-all duration-200 flex-col justify-between overflow-hidden ${
           collapsed ? 'w-16' : 'w-56'
         }`}
       >
-        {/* Top Header & Brand Logo */}
-        <div className="p-3 space-y-4">
-          <div className="flex items-center justify-between px-1">
+        {/* Top Header, Logo & Scrollable Nav Area */}
+        <div className="p-3 space-y-3 flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-none">
+          <div className="flex items-center justify-between px-1 shrink-0">
             <Link href="/dashboard" className="flex items-center gap-2 group overflow-hidden">
               <div className="relative flex items-center justify-center shrink-0">
                 <Image
@@ -296,13 +313,13 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
 
           {/* Property Switcher Integration */}
           {!collapsed && (
-            <div className="pt-1">
+            <div className="pt-1 shrink-0">
               <PropertySwitcher />
             </div>
           )}
 
           {/* Navigation Links */}
-          <nav className="space-y-1 pt-1">
+          <nav className="space-y-1 pt-1 flex-1 overflow-y-auto scrollbar-none">
             {navigationItems.map((item) => {
               const Icon = item.icon;
               const isClickable = item.href !== '#';
@@ -349,8 +366,8 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
           </nav>
         </div>
 
-        {/* Bottom User & Logout Footer */}
-        <div className="p-3 border-t border-emerald-100/80 dark:border-slate-800 space-y-2 bg-emerald-50/30 dark:bg-slate-900/50">
+        {/* Bottom User & Logout Footer - Always Pinned at Bottom */}
+        <div className="p-3 border-t border-slate-200/80 dark:border-slate-800 space-y-2 bg-emerald-50/40 dark:bg-slate-900/60 shrink-0">
           {!collapsed && (
             <div className="p-2.5 rounded-xl bg-emerald-100/70 dark:bg-slate-800/60 border border-emerald-200/90 dark:border-slate-800 text-slate-900 dark:text-slate-200 flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold shrink-0 border border-emerald-300/40 dark:border-slate-700">
@@ -375,7 +392,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
 
           <button
             onClick={handleLogout}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition-all duration-200 border border-rose-100 hover:border-rose-200 ${
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition-all duration-200 border border-rose-100 hover:border-rose-200 cursor-pointer ${
               collapsed ? 'justify-center' : ''
             }`}
             title={t('signOut')}

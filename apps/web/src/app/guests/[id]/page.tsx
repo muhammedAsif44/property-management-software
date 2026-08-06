@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { GuestProfileCard } from '@/features/guests/components/guest-profile-card';
 import { StayHistoryTimeline } from '@/features/guests/components/stay-history-timeline';
 
+import { formatDisplayName } from '@/lib/utils';
+
 export default function GuestDetailPage() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -21,20 +23,21 @@ export default function GuestDetailPage() {
   useActivePropertyQuery();
   const activeProperty = usePropertyStore((s) => s.activeProperty);
   
-  const { data: guest, isLoading } = useGuestQuery(activeProperty?.id || null, guestId);
+  const { data: rawGuest, isLoading } = useGuestQuery(activeProperty?.id || null, guestId);
+  const guest = (rawGuest as any)?.data?.id ? (rawGuest as any).data : rawGuest;
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
+    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative bg-slate-50/50 dark:bg-slate-950">
       <DashboardSidebar />
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         <AppHeader>
           <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" onClick={() => router.push('/guests')} className="mr-2">
+            <Button variant="ghost" size="sm" onClick={() => router.push('/guests')} className="mr-2">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
-                {guest ? guest.fullName : t('guestDetails')}
+                {guest?.fullName ? formatDisplayName(guest.fullName) : t('guestDetails')}
               </h1>
               <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
                 {activeProperty?.name || t('activeManagementHub')}
@@ -43,7 +46,7 @@ export default function GuestDetailPage() {
           </div>
         </AppHeader>
 
-        <div className="p-6 max-w-[1200px] w-full mx-auto flex-1">
+        <main className="p-4 sm:p-6 space-y-6 w-full flex-1">
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
@@ -62,7 +65,7 @@ export default function GuestDetailPage() {
               </div>
             </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );

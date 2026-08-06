@@ -29,16 +29,16 @@ export function useGuestsQuery(
   return useQuery({
     queryKey: [GUESTS_QUERY_KEY, propertyId, options],
     queryFn: async () => {
-      if (!propertyId) return null;
-      const params = new URLSearchParams({ propertyId });
+      const params = new URLSearchParams();
+      if (propertyId) params.append('propertyId', propertyId);
       if (options?.search) params.append('search', options.search);
       if (options?.page) params.append('page', options.page.toString());
       if (options?.limit) params.append('limit', options.limit.toString());
 
-      const res = await api.get<any>(`/v1/guests?${params.toString()}`);
+      const res = await api.get<any>(`/guests?${params.toString()}`);
       return res;
     },
-    enabled: !!propertyId,
+    enabled: true,
   });
 }
 
@@ -47,7 +47,7 @@ export function useGuestQuery(propertyId: string | null, id: string | null) {
     queryKey: [GUESTS_QUERY_KEY, propertyId, id],
     queryFn: async () => {
       if (!propertyId || !id) return null;
-      const res = await api.get<GuestDetails>(`/v1/guests/${id}?propertyId=${propertyId}`);
+      const res = await api.get<GuestDetails>(`/guests/${id}?propertyId=${propertyId}`);
       return res;
     },
     enabled: !!propertyId && !!id,

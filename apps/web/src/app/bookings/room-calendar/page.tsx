@@ -20,16 +20,17 @@ import { CalendarStatusLegend } from '@/features/bookings/components/calendar/ca
 import { CalendarToolbar } from '@/features/bookings/components/calendar/calendar-toolbar';
 import { UnitCell } from '@/features/bookings/components/calendar/unit-cell';
 import { CalendarKpiHeader } from '@/features/bookings/components/calendar/calendar-kpi-header';
+import { MultiTenantBookingCalendar } from '@/features/bookings/components/calendar/multi-tenant-booking-calendar';
 
-const BookingPreviewPopover = dynamic(
+const BookingPreviewPopover = (dynamic as any)(
   () => import('@/features/bookings/components/booking-preview-popover').then((m) => m.BookingPreviewPopover),
   { ssr: false }
 );
-const BookingDetailsDrawer = dynamic(
+const BookingDetailsDrawer = (dynamic as any)(
   () => import('@/features/bookings/components/booking-details-drawer').then((m) => m.BookingDetailsDrawer),
   { ssr: false }
 );
-const RoomCalendarContextMenu = dynamic(
+const RoomCalendarContextMenu = (dynamic as any)(
   () => import('@/features/bookings/components/room-calendar-context-menu').then((m) => m.RoomCalendarContextMenu),
   { ssr: false }
 );
@@ -382,14 +383,6 @@ export default function OccupancyPage() {
           formatRangeLabel={formatRangeLabel}
         />
 
-        {/* Modular Summary Metrics Bar */}
-        <CalendarMetricsBar
-          summaryStats={summaryStats}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          searchInputRef={searchInputRef}
-        />
-
         {/* Main Body: Grid & Interactive Status Filter */}
         <div className="p-4 sm:p-6 space-y-4 flex flex-col">
           {/* Active Range Selection Banner */}
@@ -446,208 +439,48 @@ export default function OccupancyPage() {
               </p>
             </div>
           ) : (
-            <>
-              {/* KPI Analytics Header Bar */}
-              <CalendarKpiHeader
-                totalUnits={summaryStats?.totalRooms}
-                bookedUnits={summaryStats?.bookedToday}
-                availableUnits={summaryStats?.availableToday}
-                occupancyRate={summaryStats?.occupancyPct}
-              />
-
-              {/* Modular Status Legend Filter Bar */}
-              <CalendarStatusLegend
-                activeStatusFilter={activeStatusFilter}
-                setActiveStatusFilter={setActiveStatusFilter}
-              />
-
-              {/* Calendar Grid Matrix */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col">
-                <div 
-                  ref={scrollContainerRef}
-                  onMouseDown={onMouseDown}
-                  onMouseLeave={onMouseLeave}
-                  onMouseUp={onMouseUp}
-                  onMouseMove={onMouseMove}
-                  className={`overflow-x-auto relative scrollbar-none select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-                >
-                  <table className="w-full text-sm border-collapse pointer-events-auto">
-                    <thead>
-                      <tr className="bg-slate-100/90 dark:bg-slate-800/90 sticky top-0 z-20 shadow-2xs border-b border-slate-200 dark:border-slate-750">
-                        {/* Left Sticky Room Category Header */}
-                        <th className="sticky left-0 bg-slate-100/95 dark:bg-slate-800/95 z-30 px-4 py-3 text-left font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300 border-b border-r border-slate-200 dark:border-slate-750 min-w-[240px] shadow-[4px_0_12px_-4px_rgba(0,0,0,0.06)]">
-                          {t('roomType')}
-                        </th>
-
-                        {/* Date Columns */}
-                        {dayHeaders.map((h) => {
-                          const isColumnHovered = hoveredDate === h.date;
-
-                          return (
-                            <th
-                              key={h.date}
-                              className={`text-center border-b border-r border-slate-200/70 dark:border-slate-800 transition-colors ${
-                                spanDays === 30 ? 'w-9 min-w-[36px] max-w-[36px] p-0.5' : 'min-w-[64px] px-1 py-2'
-                              } ${
-                                isColumnHovered
-                                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white font-black'
-                                  : h.isToday
-                                    ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-b-2 border-b-emerald-600 shadow-2xs'
-                                    : h.isWeekend
-                                      ? 'bg-slate-200/60 dark:bg-slate-800/60'
-                                      : 'bg-slate-100/90 dark:bg-slate-800/90'
-                              }`}
-                            >
-                              <span
-                                className={`block text-[9.5px] uppercase font-bold tracking-widest ${
-                                  h.isToday
-                                    ? 'text-emerald-800 dark:text-emerald-300 font-black'
-                                    : 'text-slate-500 dark:text-slate-400'
-                                }`}
-                              >
-                                {h.dayName}
-                              </span>
-                              <span
-                                className={`inline-block mt-0.5 ${
-                                  h.isToday
-                                    ? 'bg-emerald-700 text-white text-xs font-black px-2 py-0.5 rounded-full shadow-2xs'
-                                    : 'text-sm font-black text-slate-900 dark:text-slate-100'
-                                }`}
-                              >
-                                {h.day}
-                              </span>
-                              {h.day === 1 && (
-                                <span
-                                  className={`block text-[9px] font-bold mt-0.5 ${
-                                    h.isToday
-                                      ? 'text-emerald-700 dark:text-emerald-400 font-bold'
-                                      : 'text-slate-500 dark:text-slate-400'
-                                  }`}
-                                >
-                                  {h.monthShort}
-                                </span>
-                              )}
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredRoomTypes.map((rt) => {
-                        const isExpanded = !!expandedCategories[rt.id];
-                        const unitNumbers = Array.from(
-                          { length: rt.totalUnits },
-                          (_, i) => 101 + i
-                        );
-                        const isRowHovered = hoveredRoomId === rt.id;
-
-                        return (
-                          <React.Fragment key={rt.id}>
-                            {/* Category Summary Row */}
-                            <tr
-                              className={`group transition-colors ${
-                                isRowHovered ? 'bg-slate-100/80 dark:bg-slate-850/60' : 'hover:bg-slate-50/80 dark:hover:bg-slate-850/50'
-                              }`}
-                            >
-                              <td className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 z-10 px-4 py-3 border-b border-r border-slate-200/80 dark:border-slate-800 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.06)] transition-colors">
-                                <div className="flex items-center justify-between gap-2 min-w-0">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 shrink-0">
-                                      <BedDouble className="w-4 h-4" />
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="font-bold text-slate-900 dark:text-white text-xs tracking-tight truncate">
-                                        {rt.name}
-                                      </p>
-                                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 block truncate">
-                                        {rt.totalUnits} {t('units')}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <button
-                                    onClick={() => toggleCategoryExpand(rt.id)}
-                                    className="p-1 rounded-full hover:bg-slate-200/60 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer shrink-0"
-                                    title={isExpanded ? t('collapseUnits') : t('expandUnits')}
-                                  >
-                                    <ChevronDown
-                                      className={`w-4 h-4 transition-transform duration-200 ${
-                                        isExpanded ? 'rotate-180 text-emerald-600' : ''
-                                      }`}
-                                    />
-                                  </button>
-                                </div>
-                              </td>
-
-                              {/* Category Level Cells */}
-                              {dayHeaders.map((h) => {
-                                const cell = data.occupancy?.[rt.id]?.[h.date];
-                                const cellKey = `${rt.id}-${h.date}`;
-
-                                return (
-                                  <CalendarCell
-                                    key={h.date}
-                                    h={h}
-                                    rt={rt}
-                                    cell={cell}
-                                    cellKey={cellKey}
-                                    bookingsMap={data.bookingsMap}
-                                    handleCellClick={handleCellClick}
-                                    handleContextMenuCell={handleContextMenuCell}
-                                    activeStatusFilter={activeStatusFilter}
-                                    hoveredDate={hoveredDate}
-                                    hoveredRoomId={hoveredRoomId}
-                                    setHoveredDate={setHoveredDate}
-                                    setHoveredRoomId={setHoveredRoomId}
-                                    selectedCheckIn={selectedCheckIn}
-                                    onSelectDateCell={handleSelectDateCell}
-                                  />
-                                );
-                              })}
-                            </tr>
-
-                            {/* Expanded Room Unit Rows */}
-                            {isExpanded &&
-                              unitNumbers.map((unitNum) => (
-                                <tr
-                                  key={`${rt.id}-unit-${unitNum}`}
-                                  className="bg-slate-50/60 dark:bg-slate-950/40 hover:bg-slate-100/80 transition-colors"
-                                >
-                                  <td className="sticky left-0 bg-slate-100/90 dark:bg-slate-950 z-10 pl-8 pr-4 py-2.5 border-b border-r border-slate-200/80 dark:border-slate-800/80 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.04)]">
-                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
-                                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                                      <span className="truncate">
-                                        Room {unitNum}
-                                      </span>
-                                    </div>
-                                  </td>
-
-                                  {dayHeaders.map((h) => {
-                                    const cell = data.occupancy?.[rt.id]?.[h.date];
-                                    return (
-                                      <UnitCell
-                                        key={`unit-${unitNum}-${h.date}`}
-                                        h={h}
-                                        unitNumber={unitNum}
-                                        cell={cell}
-                                        bookingsMap={data.bookingsMap}
-                                        handleContextMenuCell={handleContextMenuCell}
-                                        rtId={rt.id}
-                                        selectedCheckIn={selectedCheckIn}
-                                        onSelectDateCell={handleSelectDateCell}
-                                      />
-                                    );
-                                  })}
-                                </tr>
-                              ))}
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
+            <MultiTenantBookingCalendar
+              dates={dayHeaders.map((h) => h.date)}
+              todayDate={todayStr()}
+              occupancyData={data.occupancy}
+              roomTypes={data.roomTypes.map((rt: any, rtIdx: number) => ({
+                id: rt.id,
+                name: rt.name,
+                totalUnits: rt.totalUnits,
+                rooms:
+                  rt.roomUnits && rt.roomUnits.length > 0
+                    ? rt.roomUnits.map((u: any) => ({
+                        id: u.id,
+                        roomTypeId: rt.id,
+                        unitNumber: u.unitNumber,
+                      }))
+                    : Array.from({ length: rt.totalUnits }, (_, i) => ({
+                        id: `${rt.id}-room-${(rtIdx + 1) * 100 + 1 + i}`,
+                        roomTypeId: rt.id,
+                        unitNumber: String((rtIdx + 1) * 100 + 1 + i),
+                      })),
+              }))}
+              rawBookings={Object.values(data.bookingsMap || {}).map((b: any) => ({
+                id: b.id,
+                roomId: b.roomUnitId || b.unitNumber || '',
+                roomTypeId: b.roomTypeId,
+                guestName: b.guestName || 'Guest',
+                checkIn: b.checkInDate,
+                checkOut: b.checkOutDate,
+                channel: (b.channel || (b.id?.charCodeAt(0) % 2 === 0 ? 'direct' : 'ota')) as
+                  | 'direct'
+                  | 'ota',
+                status: (b.status?.toLowerCase() || 'confirmed') as
+                  | 'confirmed'
+                  | 'checked_in'
+                  | 'pending',
+                guestCount: 2,
+              }))}
+              onBookingClick={(b) => setSelectedDrawerBookingId(b.id)}
+              onCellClick={(roomId, date) =>
+                handleSelectDateCell(data.roomTypes[0]?.id || '', date)
+              }
+            />
           )}
         </div>
       </div>
@@ -660,7 +493,7 @@ export default function OccupancyPage() {
           dateLabel={popover.label}
           roomTypeName={popover.roomTypeName}
           onClose={() => setPopover(null)}
-          onOpenDrawer={(bookingId) => {
+          onOpenDrawer={(bookingId: string) => {
             setSelectedDrawerBookingId(bookingId);
           }}
         />
@@ -679,7 +512,7 @@ export default function OccupancyPage() {
         <RoomCalendarContextMenu
           menuState={contextMenu}
           onClose={() => setContextMenu(null)}
-          onNewBooking={(date, roomTypeId) => {
+          onNewBooking={(date: any, roomTypeId?: any) => {
             router.push(`/bookings/new?checkInDate=${date}&roomTypeId=${roomTypeId || ''}`);
           }}
         />

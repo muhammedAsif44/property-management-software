@@ -16,7 +16,7 @@ export function useNotificationsQuery() {
   return useQuery({
     queryKey: [NOTIFICATIONS_QUERY_KEY],
     queryFn: async () => {
-      const res = await api.get<Notification[]>(`/v1/notifications`);
+      const res = await api.get<Notification[]>(`/notifications`);
       return res;
     },
     // Poll every 30 seconds for new notifications
@@ -29,7 +29,7 @@ export function useMarkNotificationRead() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      await api.post(`/v1/notifications/${id}/read`);
+      await api.post(`/notifications/${id}/read`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_QUERY_KEY] });
@@ -48,7 +48,7 @@ export function useCreateNotification() {
       targetRole?: string;
       targetPropertyId?: string;
     }) => {
-      await api.post('/v1/admin/notifications', data);
+      await api.post('/admin/notifications', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_QUERY_KEY] });

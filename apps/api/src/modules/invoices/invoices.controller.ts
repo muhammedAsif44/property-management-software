@@ -63,6 +63,19 @@ export class InvoicesController {
   }
 
   /**
+   * GET /api/v1/invoices/:id/status
+   * Query PDF generation job status & progress (10%-100%)
+   */
+  @Get('invoices/:id/status')
+  @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.RECEPTION_STAFF, UserRole.SUPER_ADMIN)
+  async getInvoiceStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.invoicesService.getInvoiceStatus(user.id, id);
+  }
+
+  /**
    * GET /api/v1/invoices/:id/download
    * Stream compiled PDF file securely with proper headers
    */

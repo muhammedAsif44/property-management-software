@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { validateEnv } from './common/config/env.validation';
 import { PrismaModule } from './database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -18,6 +19,8 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
 import { GuestsModule } from './modules/guests/guests.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
+import { AuditModule } from './modules/audit/audit.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -26,6 +29,7 @@ import { AppService } from './app.service';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate: validateEnv,
     }),
 
     // Global rate limiting: 500 requests per 60 seconds per IP
@@ -36,6 +40,8 @@ import { AppService } from './app.service';
     }]),
 
     PrismaModule,
+    RealtimeModule,
+    AuditModule,
     StorageModule,
     AuthModule,
     AdminModule,
@@ -63,4 +69,3 @@ import { AppService } from './app.service';
   ],
 })
 export class AppModule {}
-

@@ -28,9 +28,15 @@ export class BookingOccupancyService {
     const from = new Date(`${fromStr}T00:00:00.000Z`);
     const to = new Date(`${toStr}T00:00:00.000Z`);
 
-    // Get all active room types for property
+    // Get all active room types for property with physical units
     const roomTypes = await this.prisma.roomType.findMany({
       where: { propertyId: resolvedPropertyId, isActive: true },
+      include: {
+        roomUnits: {
+          select: { id: true, unitNumber: true, cleanlinessStatus: true },
+          orderBy: { unitNumber: 'asc' },
+        },
+      },
       orderBy: { sortOrder: 'asc' },
     });
 
@@ -46,6 +52,8 @@ export class BookingOccupancyService {
       select: {
         id: true,
         roomTypeId: true,
+        roomUnitId: true,
+        roomUnit: { select: { id: true, unitNumber: true } },
         checkInDate: true,
         checkOutDate: true,
         status: true,
@@ -94,6 +102,8 @@ export class BookingOccupancyService {
         guestName: b.guest.fullName,
         guestPhone: b.guest.phone || null,
         status: b.status,
+        roomUnitId: b.roomUnitId || null,
+        unitNumber: b.roomUnit?.unitNumber || null,
         checkInDate: inStr,
         checkOutDate: outStr,
         checkInTs: new Date(`${inStr}T00:00:00.000Z`).getTime(),
@@ -121,23 +131,26 @@ export class BookingOccupancyService {
         };
       }
 
-      // Iterate over room bookings and increment the pre-existing date buckets (O(B) * stay duration instead of O(B) * D)
+      // Iterate over room bookings using strict UTC night boundaries (check-out day is NOT counted as an occupied night)
       for (const b of roomBookings) {
-        const booking = bookingsMap[b.id];
-        let currentTs = booking.checkInTs;
-        
-        while (currentTs < booking.checkOutTs) {
-          const d = new Date(currentTs);
-          const dateStr = d.toISOString().split('T')[0];
-          const cell = occupancy[rt.id][dateStr];
+        const inDate = new Date(b.checkInDate);
+        const outDate = new Date(b.checkOutDate);
+
+        const inUtc = Date.UTC(inDate.getUTCFullYear(), inDate.getUTCMonth(), inDate.getUTCDate());
+        const outUtc = Date.UTC(outDate.getUTCFullYear(), outDate.getUTCMonth(), outDate.getUTCDate());
+
+        let currentTs = inUtc;
+        while (currentTs < outUtc) {
+          const dateStr = new Date(currentTs).toISOString().split('T')[0];
+          const cell = occupancy[rt.id]?.[dateStr];
           
           if (cell) {
             cell.booked++;
             cell.available = Math.max(0, cell.total - cell.booked - cell.outOfOrder);
             cell.hasConflict = cell.booked > cell.total;
-            cell.bookingIds.push(booking.id);
+            cell.bookingIds.push(b.id);
           }
-          currentTs += 86400000; // +1 Day in ms
+          currentTs += 86400000; // +1 UTC Day
         }
       }
     }

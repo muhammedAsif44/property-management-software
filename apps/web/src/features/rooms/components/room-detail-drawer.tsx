@@ -16,7 +16,7 @@ interface RoomDetailDrawerProps {
   isManagerOrOwner: boolean;
 }
 
-export const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({
+export function RoomDetailDrawer({
   unit,
   onClose,
   onMarkClean,
@@ -25,7 +25,7 @@ export const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({
   onReportIssue,
   onDeleteRoom,
   isManagerOrOwner,
-}) => {
+}: RoomDetailDrawerProps) {
   const { t } = useTranslation();
 
   useEffect(() => {

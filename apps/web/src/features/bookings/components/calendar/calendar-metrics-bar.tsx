@@ -16,6 +16,7 @@ interface CalendarMetricsBarProps {
   searchTerm: string;
   setSearchTerm: (v: string) => void;
   searchInputRef: React.RefObject<HTMLInputElement | null>;
+  onFilterConflicts?: () => void;
 }
 
 export function CalendarMetricsBar({
@@ -23,16 +24,17 @@ export function CalendarMetricsBar({
   searchTerm,
   setSearchTerm,
   searchInputRef,
+  onFilterConflicts,
 }: CalendarMetricsBarProps) {
   const { t } = useTranslation();
 
   if (!summaryStats) return null;
 
   return (
-    <div className="px-4 sm:px-6 py-2 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4 flex-wrap z-10">
+    <div className="px-4 sm:px-6 py-2.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4 flex-wrap z-10">
       <div className="flex items-center gap-2.5 flex-wrap">
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 shadow-2xs">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs font-black tabular-data text-emerald-900 dark:text-emerald-200">
             {summaryStats.availableToday}
           </span>
@@ -41,7 +43,7 @@ export function CalendarMetricsBar({
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-800 shadow-2xs">
           <div className="w-2 h-2 rounded-full bg-rose-600" />
           <span className="text-xs font-black tabular-data text-rose-900 dark:text-rose-200">
             {summaryStats.bookedToday}
@@ -51,7 +53,7 @@ export function CalendarMetricsBar({
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
           <span className="text-xs font-black tabular-data text-slate-900 dark:text-white">
             {summaryStats.occupancyPct}%
           </span>
@@ -61,12 +63,16 @@ export function CalendarMetricsBar({
         </div>
 
         {summaryStats.conflicts > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 animate-pulse">
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-            <span className="text-xs font-black text-rose-700 dark:text-rose-300">
+          <button
+            onClick={onFilterConflicts}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200 transition-all cursor-pointer hover:bg-rose-200 dark:hover:bg-rose-900 shadow-2xs group"
+            title="Click to view overbooked room categories"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-black">
               {summaryStats.conflicts} {t('conflictDetected')}
             </span>
-          </div>
+          </button>
         )}
       </div>
 

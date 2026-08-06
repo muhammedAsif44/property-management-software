@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { Prisma, NotificationType, UserRole, DevicePlatform } from '@prisma/client';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsGateway: EventsGateway,
+  ) {}
 
   async createNotification(data: {
     organizationId: string;
@@ -16,7 +20,7 @@ export class NotificationsService {
     expiresAt?: Date;
     createdByUserId?: string;
   }) {
-    return this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         organizationId: data.organizationId,
         title: data.title,
@@ -28,11 +32,29 @@ export class NotificationsService {
         createdByUserId: data.createdByUserId,
       },
     });
+
+    // Emit WebSocket live notification event to connected clients
+    if (data.targetPropertyId) {
+      this.eventsGateway.emitToProperty(data.targetPropertyId, 'notification_created', {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+      });
+    } else {
+      this.eventsGateway.server?.emit('notification_created', {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+      });
+    }
+
+    return notification;
   }
 
   async getUserNotifications(userId: string, organizationId: string, options: { page?: number; limit?: number } = {}) {
     const { page = 1, limit = 20 } = options;
-    const skip = (page - 1) * limit;
 
     // Determine the user's role and associated properties
     const user = await this.prisma.user.findUnique({
@@ -78,12 +100,16 @@ export class NotificationsService {
       ]
     };
 
+    const pageNum = Math.max(1, Number(page) || 1);
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
     const [notifications, total] = await Promise.all([
       this.prisma.notification.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
-        take: Number(limit),
+        take: limitNum,
         include: {
           reads: {
             where: { userId }

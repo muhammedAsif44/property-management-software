@@ -12,6 +12,26 @@ import { UserRole } from '@prisma/client';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Get('dashboard')
+  async getPlatformDashboard() {
+    return this.adminService.getPlatformDashboard();
+  }
+
+  @Get('tenants')
+  async getAllTenants() {
+    return this.adminService.getAllTenants();
+  }
+
+  @Get('tenants/:id')
+  async getTenantDeepDive(@Param('id') id: string) {
+    return this.adminService.getTenantDeepDive(id);
+  }
+
+  @Get('backups')
+  async getBackupLogs() {
+    return this.adminService.getBackupLogs();
+  }
+
   @Get('pending-owners')
   async getPendingOwners(@Query('status') status?: string) {
     return this.adminService.getPendingOwners(status);
@@ -34,6 +54,6 @@ export class AdminController {
 
   @Get('organizations')
   async getAllOrganizations() {
-    return this.adminService.getAllOrganizations();
+    return this.adminService.getAllTenants();
   }
 }

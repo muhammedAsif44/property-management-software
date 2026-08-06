@@ -18,11 +18,12 @@ function invalidateBookingRelatedQueries(queryClient: any) {
   queryClient.invalidateQueries({ queryKey: ['analytics'] });
 }
 
-export function useBookingsQuery(filters: BookingFilters) {
+export function useBookingsQuery(filters: BookingFilters, refetchInterval?: number | false) {
   return useQuery({
     queryKey: bookingKeys.list(filters),
     queryFn: () => bookingService.getBookings(filters),
     staleTime: 10000,
+    refetchInterval,
   });
 }
 

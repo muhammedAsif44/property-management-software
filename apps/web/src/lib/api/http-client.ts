@@ -88,6 +88,47 @@ class HttpClient {
   public delete<T>(endpoint: string, options?: RequestOptions): Promise<T> {
     return this.request<T>(endpoint, { ...options, method: 'DELETE' });
   }
+
+  public async downloadFile(endpoint: string, filename: string): Promise<void> {
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const cacheBustedEndpoint = `${endpoint}${separator}_t=${Date.now()}`;
+    const url = `${this.baseUrl}${cacheBustedEndpoint.startsWith('/') ? cacheBustedEndpoint : `/${cacheBustedEndpoint}`}`;
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new ApiError(`Download failed with status ${response.status}`, response.status);
+      }
+
+      const rawBlob = await response.blob();
+      if (rawBlob.size === 0) {
+        throw new ApiError('Received empty PDF response from server. Retrying...', 500);
+      }
+
+      const pdfBlob = new Blob([rawBlob], { type: 'application/pdf' });
+      const blobUrl = window.URL.createObjectURL(pdfBlob);
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+      link.target = '_self';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 10000);
+    } catch (err: any) {
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Failed to download file.', 500);
+    }
+  }
 }
 
 export const httpClient = new HttpClient(API_BASE_URL);

@@ -104,6 +104,73 @@ export class ReportsService {
     const validBookingsCount = totalBookingsCount - cancelledBookingsCount;
     const adr = validBookingsCount > 0 ? baseRevenue.div(validBookingsCount) : new Prisma.Decimal(0);
 
+    // Fetch Room Type Performance Breakdown
+    const roomTypes = await this.prisma.roomType.findMany({
+      where: { propertyId },
+      select: { id: true, name: true, totalUnits: true },
+    });
+
+    const roomTypeBreakdown = await Promise.all(
+      roomTypes.map(async (rt) => {
+        const agg = await this.prisma.booking.aggregate({
+          where: {
+            propertyId,
+            roomTypeId: rt.id,
+            checkInDate: { gte: startDate, lte: endDate },
+            deletedAt: null,
+            status: { not: 'CANCELLED' },
+          },
+          _sum: { totalAmount: true, baseAmount: true },
+          _count: { id: true },
+        });
+
+        const count = agg._count.id || 0;
+        const total = (agg._sum.totalAmount || new Prisma.Decimal(0)).toNumber();
+        const base = (agg._sum.baseAmount || new Prisma.Decimal(0)).toNumber();
+        const categoryAdr = count > 0 ? Math.round(base / count) : 0;
+
+        return {
+          roomTypeId: rt.id,
+          name: rt.name,
+          totalUnits: rt.totalUnits,
+          bookingsCount: count,
+          revenue: total,
+          baseRevenue: base,
+          adr: categoryAdr,
+        };
+      })
+    );
+
+    // Channel Breakdown: Direct vs OTA
+    const directAgg = await this.prisma.booking.aggregate({
+      where: {
+        propertyId,
+        checkInDate: { gte: startDate, lte: endDate },
+        deletedAt: null,
+        status: { not: 'CANCELLED' },
+        agencyId: null,
+      },
+      _sum: { totalAmount: true },
+      _count: { id: true },
+    });
+
+    const otaAgg = await this.prisma.booking.aggregate({
+      where: {
+        propertyId,
+        checkInDate: { gte: startDate, lte: endDate },
+        deletedAt: null,
+        status: { not: 'CANCELLED' },
+        agencyId: { not: null },
+      },
+      _sum: { totalAmount: true },
+      _count: { id: true },
+    });
+
+    const directRev = (directAgg._sum.totalAmount || new Prisma.Decimal(0)).toNumber();
+    const otaRev = (otaAgg._sum.totalAmount || new Prisma.Decimal(0)).toNumber();
+    const directCount = directAgg._count.id || 0;
+    const otaCount = otaAgg._count.id || 0;
+
     return {
       period,
       dateRange: {
@@ -122,9 +189,14 @@ export class ReportsService {
           totalBookings: totalBookingsCount,
           validBookings: validBookingsCount,
           cancelledBookings: cancelledBookingsCount,
-          cancellationRate: totalBookingsCount > 0 ? (cancelledBookingsCount / totalBookingsCount) * 100 : 0
-        }
-      }
+          cancellationRate: totalBookingsCount > 0 ? (cancelledBookingsCount / totalBookingsCount) * 100 : 0,
+        },
+      },
+      roomTypeBreakdown,
+      channelBreakdown: {
+        direct: { count: directCount, revenue: directRev },
+        ota: { count: otaCount, revenue: otaRev },
+      },
     };
   }
 }

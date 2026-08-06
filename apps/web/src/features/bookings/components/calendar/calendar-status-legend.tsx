@@ -52,7 +52,7 @@ export function CalendarStatusLegend({
           <span>{t('vacantAvailable')}</span>
         </button>
 
-        {/* Booked = SOLID ROSE RED */}
+        {/* Booked = ENTERPRISE ROSE RED */}
         <button
           onClick={() =>
             setActiveStatusFilter(activeStatusFilter === 'FULL' ? 'ALL' : 'FULL')
@@ -64,21 +64,7 @@ export function CalendarStatusLegend({
           }`}
         >
           <span className="w-2.5 h-2.5 rounded-full bg-rose-600" />
-          <span>{t('occupiedBooked')} (100%)</span>
-        </button>
-
-        <button
-          onClick={() =>
-            setActiveStatusFilter(activeStatusFilter === 'PARTIAL' ? 'ALL' : 'PARTIAL')
-          }
-          className={`px-3 py-1 rounded-full text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 border ${
-            activeStatusFilter === 'PARTIAL'
-              ? 'bg-amber-500 text-white border-amber-600 shadow-2xs ring-2 ring-amber-500/20'
-              : 'bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-750 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-          }`}
-        >
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-          <span>{t('partiallyBooked')} (&lt;50%)</span>
+          <span>{t('occupiedBooked')}</span>
         </button>
 
         <button

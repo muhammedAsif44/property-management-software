@@ -14,13 +14,13 @@ interface QuickDrawerProps {
   isSwitching: boolean;
 }
 
-export const QuickDrawer: React.FC<QuickDrawerProps> = ({
+export function QuickDrawer({
   property,
   isActive,
   onClose,
   onSwitch,
   isSwitching,
-}) => {
+}: QuickDrawerProps) {
   const { t } = useTranslation();
 
   // Handle ESC key listener

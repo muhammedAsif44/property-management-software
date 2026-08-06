@@ -114,6 +114,7 @@ export class BookingsService {
           guest: true,
           roomType: true,
           agency: true,
+          invoices: { orderBy: { createdAt: 'desc' } },
           createdByUser: { select: { id: true, email: true, role: true } },
         },
       }),
@@ -141,6 +142,7 @@ export class BookingsService {
         agency: true,
         bookingFacilities: { include: { amenity: true } },
         createdByUser: { select: { id: true, email: true, role: true } },
+        invoices: { orderBy: { createdAt: 'desc' } },
         payments: true,
         deletionRequests: {
           include: {

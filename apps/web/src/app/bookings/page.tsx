@@ -248,7 +248,7 @@ export default function BookingsPage() {
 
   const handleCheckInWithUndo = (id: string) => {
     const b = bookings.find((item: Booking) => item.id === id);
-    const hasUnit = b && (b.unitNumber || (b as any).roomNumber || (b as any).unitId || (b as any).roomUnitId || (b as any).assignedUnit);
+    const hasUnit = b && ((b as any).unitNumber || (b as any).roomNumber || (b as any).unitId || (b as any).roomUnitId || (b as any).assignedUnit);
 
     if (b && !hasUnit) {
       setShowAssignModal(b);
@@ -637,7 +637,7 @@ export default function BookingsPage() {
                             <div className="inline-flex items-center justify-end gap-1.5 shrink-0">
                               {/* Check-In / Assign Room / Check-Out Contextual Action Button */}
                               {(() => {
-                                const hasUnit = b.unitNumber || (b as any).roomNumber || (b as any).unitId || (b as any).roomUnitId || (b as any).assignedUnit;
+                                const hasUnit = (b as any).unitNumber || (b as any).roomNumber || (b as any).unitId || (b as any).roomUnitId || (b as any).assignedUnit;
 
                                 if (b.status === 'CONFIRMED') {
                                   if (!hasUnit) {

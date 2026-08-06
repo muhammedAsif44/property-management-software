@@ -10,8 +10,18 @@ export function NotificationInbox() {
   const { data, isLoading } = useNotificationsQuery();
   const { mutate: markRead } = useMarkNotificationRead();
 
-  const notifications = Array.isArray(data) ? data : data?.data || [];
-  const unreadCount = notifications.filter((n: Notification) => !n.isRead).length;
+  const rawList = Array.isArray(data)
+    ? data
+    : Array.isArray((data as any)?.notifications)
+      ? (data as any).notifications
+      : Array.isArray((data as any)?.data)
+        ? (data as any).data
+        : Array.isArray((data as any)?.items)
+          ? (data as any).items
+          : [];
+
+  const notifications: Notification[] = Array.isArray(rawList) ? rawList : [];
+  const unreadCount = notifications.filter((n: Notification) => n && !n.isRead).length;
 
   const getIcon = (type: string) => {
     switch (type) {

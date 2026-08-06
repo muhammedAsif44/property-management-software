@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
 
-@Controller('v1/guests')
+@Controller({ path: 'guests', version: '1' })
 @UseGuards(JwtAuthGuard)
 export class GuestsController {
   constructor(private readonly guestsService: GuestsService) {}

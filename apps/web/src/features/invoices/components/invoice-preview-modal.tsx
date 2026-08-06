@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, X, Loader2, Send, CheckCircle2, Building2 } from 'lucide-react';
+import { FileText, Download, X, Loader2, Send, CheckCircle2, Building2, Share2, Printer, ExternalLink } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import { useToast } from '@/components/ui/toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { invoiceService } from '../services/invoice.service';
 import { useIssueInvoiceMutation } from '../api/use-invoices';
 import { calculateTac } from '@/lib/utils/financial-math';
@@ -21,11 +23,92 @@ export function InvoicePreviewModal({
   bookingData,
 }: InvoicePreviewModalProps) {
   const { t } = useTranslation();
+  const toast = useToast();
+  const queryClient = useQueryClient();
   const [isAgency, setIsAgency] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const issueMutation = useIssueInvoiceMutation(bookingId);
+  const existingInvoice = bookingData?.invoices?.[0];
+
+  const handlePrintPdf = () => {
+    if (!previewHtml) {
+      toast.error('Invoice content is loading, please try again in a moment.', 'Not Ready');
+      return;
+    }
+
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow?.document;
+    if (frameDoc) {
+      frameDoc.open();
+      frameDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${existingInvoice?.invoiceNumber || 'INV-FINAL'}</title>
+            <style>
+              @media print {
+                @page { size: A4; margin: 10mm; }
+                body { font-family: system-ui, -apple-system, sans-serif; -webkit-print-color-adjust: exact; margin: 0; padding: 0; }
+              }
+            </style>
+          </head>
+          <body>
+            ${previewHtml}
+            <script>
+              window.onload = function() {
+                window.focus();
+                window.print();
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      frameDoc.close();
+
+      setTimeout(() => {
+        try {
+          if (printFrame.parentNode) {
+            printFrame.parentNode.removeChild(printFrame);
+          }
+        } catch {}
+      }, 5000);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!existingInvoice) return;
+    try {
+      setIsDownloading(true);
+      toast.info('Fetching your PDF document...', 'Downloading');
+      await invoiceService.downloadInvoice(existingInvoice.id, existingInvoice.invoiceNumber || 'INV-FINAL');
+      toast.success('Invoice PDF generated successfully!', 'Downloaded');
+    } catch (err: any) {
+      toast.error('Failed to download invoice PDF.', 'Error');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  // Auto-poll bookings query every 2.5s while invoice PDF is GENERATING in background
+  useEffect(() => {
+    if (isOpen && existingInvoice?.status === 'GENERATING') {
+      const timer = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      }, 2500);
+      return () => clearInterval(timer);
+    }
+  }, [isOpen, existingInvoice?.status, queryClient]);
 
   useEffect(() => {
     if (isOpen && bookingId) {
@@ -429,26 +512,76 @@ export function InvoicePreviewModal({
             >
               {t('close')}
             </button>
-            <button
-              onClick={() => {
-                issueMutation.mutate(undefined, {
-                  onSuccess: () => onClose(),
-                });
-              }}
-              disabled={issueMutation.isPending}
-              className={`px-6 py-2.5 rounded-full text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50 ${
-                isAgency
-                  ? 'bg-blue-700 hover:bg-blue-800 shadow-blue-900/20'
-                  : 'bg-emerald-800 hover:bg-emerald-900 shadow-emerald-900/20'
-              }`}
-            >
-              {issueMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-              <span>{isAgency ? 'Issue Agency Invoice' : t('issueInvoice')}</span>
-            </button>
+
+            {(() => {
+              const existingInvoice = bookingData?.invoices?.[0];
+              const hasInvoice = !!existingInvoice;
+
+              if (hasInvoice) {
+                return (
+                  <div className="flex items-center gap-2">
+                    {existingInvoice.pdfUrl && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(existingInvoice.pdfUrl);
+                          toast.success('Invoice CDN link copied to clipboard!', 'Link Copied');
+                        }}
+                        className="px-4 py-2.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                        title="Copy CDN Link"
+                      >
+                        <Share2 className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                        <span>Share Link</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={handlePrintPdf}
+                      className="px-4 py-2.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                      title="Print or Save as PDF"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                      <span>Print / Save PDF</span>
+                    </button>
+
+                    <button
+                      onClick={handleDownload}
+                      disabled={isDownloading}
+                      className="px-6 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
+                    >
+                      {isDownloading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      <span>{isDownloading ? 'Downloading...' : 'Download PDF'}</span>
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  onClick={() => {
+                    issueMutation.mutate(undefined, {
+                      onSuccess: () => onClose(),
+                    });
+                  }}
+                  disabled={issueMutation.isPending}
+                  className={`px-6 py-2.5 rounded-full text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50 ${
+                    isAgency
+                      ? 'bg-blue-700 hover:bg-blue-800 shadow-blue-900/20'
+                      : 'bg-emerald-800 hover:bg-emerald-900 shadow-emerald-900/20'
+                  }`}
+                >
+                  {issueMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  <span>{isAgency ? 'Issue Agency Invoice' : t('issueInvoice')}</span>
+                </button>
+              );
+            })()}
           </div>
         </div>
       </div>

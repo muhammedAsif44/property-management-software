@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+import { formatDisplayName } from '@/lib/utils';
 
 export default function GuestsPage() {
   const { t } = useTranslation();
@@ -22,6 +23,18 @@ export default function GuestsPage() {
   const [page, setPage] = useState(1);
   
   const { data, isLoading } = useGuestsQuery(activeProperty?.id || null, { search, page, limit: 15 });
+
+  const guestsList: any[] = React.useMemo(() => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray((data as any)?.data?.data)) return (data as any).data.data;
+    if (Array.isArray((data as any)?.data)) return (data as any).data;
+    if (Array.isArray((data as any)?.items)) return (data as any).items;
+    if (Array.isArray((data as any)?.guests)) return (data as any).guests;
+    if (Array.isArray((data as any)?.data?.items)) return (data as any).data.items;
+    if (Array.isArray((data as any)?.data?.guests)) return (data as any).data.guests;
+    return [];
+  }, [data]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +63,7 @@ export default function GuestsPage() {
           </div>
         </AppHeader>
 
-        <div className="p-6 max-w-[1400px] w-full mx-auto flex-1">
+        <main className="p-4 sm:p-6 space-y-6 w-full flex-1">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
             <div className="pb-4 border-b border-slate-100 dark:border-slate-800 mb-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -95,14 +108,14 @@ export default function GuestsPage() {
                       <tr>
                         <td colSpan={6} className="text-center py-8 text-slate-500">{t('loading') || 'Loading guests...'}</td>
                       </tr>
-                    ) : !data?.data || data?.data?.length === 0 ? (
+                    ) : guestsList.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="text-center py-8 text-slate-500">
                           {t('noGuestsFound') || 'No guests found.'}
                         </td>
                       </tr>
                     ) : (
-                      data?.data.map((guest: any) => (
+                      guestsList.map((guest: any) => (
                         <tr key={guest.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                           <td className="p-3.5 pl-4 font-semibold text-slate-900 dark:text-white">
                             <div className="flex items-center gap-3">
@@ -110,7 +123,7 @@ export default function GuestsPage() {
                                 <User className="h-4 w-4" />
                               </div>
                               <div>
-                                <div>{guest.fullName}</div>
+                                <div>{formatDisplayName(guest.fullName)}</div>
                                 {guest.nationality && (
                                   <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 font-normal">
                                     <MapPin className="h-3 w-3" /> {guest.nationality}
@@ -171,7 +184,7 @@ export default function GuestsPage() {
               )}
             </div>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

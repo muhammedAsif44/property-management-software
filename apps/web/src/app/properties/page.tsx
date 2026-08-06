@@ -43,7 +43,7 @@ import { Sparkline } from '@/components/ui/sparkline';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
 import dynamic from 'next/dynamic';
 
-const QuickDrawer = dynamic(() => import('@/components/ui/quick-drawer').then(m => m.QuickDrawer), { ssr: false });
+const QuickDrawer = (dynamic as any)(() => import('@/components/ui/quick-drawer').then(m => m.QuickDrawer), { ssr: false });
 
 export default function PropertiesPage() {
   const router = useRouter();

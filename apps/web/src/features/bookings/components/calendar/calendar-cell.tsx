@@ -20,9 +20,9 @@ export function getCellStatusType(cell: OccupancyCell | undefined, total: number
 export function getCellStyle(cell: OccupancyCell | undefined, total: number) {
   if (!cell || cell.booked === 0) {
     return {
-      bg: 'bg-emerald-50/60 hover:bg-emerald-100/80 dark:bg-emerald-950/20 dark:hover:bg-emerald-900/30',
-      text: 'text-emerald-800 dark:text-emerald-300',
-      border: 'border-emerald-200/80 dark:border-emerald-800/60',
+      bg: 'bg-emerald-50/70 hover:bg-emerald-100/90 dark:bg-emerald-950/30 dark:hover:bg-emerald-900/50 border-dashed',
+      text: 'text-emerald-800 dark:text-emerald-300 font-bold',
+      border: 'border-emerald-200/90 dark:border-emerald-800/70',
       barBg: 'bg-transparent',
       barWidth: 0,
       isAvailable: true,
@@ -34,39 +34,18 @@ export function getCellStyle(cell: OccupancyCell | undefined, total: number) {
 
   if (cell.hasConflict) {
     return {
-      bg: 'bg-red-700 text-white font-black shadow-md shadow-red-700/40 animate-pulse',
+      bg: 'bg-gradient-to-r from-red-700 via-rose-800 to-red-900 text-white font-black shadow-md shadow-red-900/30 animate-pulse',
       text: 'text-white',
-      border: 'border-red-800',
-      barBg: 'bg-red-900',
+      border: 'border-red-900',
+      barBg: 'bg-red-950',
       barWidth: 100,
       isAvailable: false,
     };
   }
 
-  if (booked >= total) {
-    return {
-      bg: 'bg-rose-600 dark:bg-rose-600 text-white font-extrabold shadow-2xs hover:bg-rose-700',
-      text: 'text-white',
-      border: 'border-rose-700',
-      barBg: 'bg-rose-800',
-      barWidth: 100,
-      isAvailable: false,
-    };
-  }
-
-  if (pct >= 50) {
-    return {
-      bg: 'bg-amber-500 text-white font-extrabold shadow-2xs hover:bg-amber-600',
-      text: 'text-white',
-      border: 'border-amber-600',
-      barBg: 'bg-amber-700',
-      barWidth: pct,
-      isAvailable: false,
-    };
-  }
-
+  // All booked guest stays are uniform Rose-Red!
   return {
-    bg: 'bg-rose-600 text-white font-extrabold shadow-2xs hover:bg-rose-700',
+    bg: 'bg-gradient-to-r from-rose-600 via-rose-600 to-rose-700 text-white font-black shadow-2xs hover:shadow-md hover:scale-[1.01] transition-all',
     text: 'text-white',
     border: 'border-rose-700',
     barBg: 'bg-rose-800',
@@ -249,34 +228,29 @@ export const CalendarCell = React.memo(
                 </span>
               </div>
             ) : booked > 0 ? (
-              <div className="flex flex-col items-center justify-center leading-none min-w-0 px-0.5">
-                <span className={`${isMonthView ? 'text-[9px] leading-tight font-black' : 'text-xs font-black'} tracking-tight truncate max-w-full`}>
-                  {isMonthView ? (firstGuestInitials || booked) : (firstGuestName || `${booked}/${total}`)}
+              <div className="flex flex-col items-center justify-center leading-tight min-w-0 w-full px-1 py-0.5">
+                <span className={`${isMonthView ? 'text-[9px] font-black' : 'text-xs font-black'} tracking-tight truncate max-w-full text-white drop-shadow-2xs`}>
+                  {isMonthView
+                    ? (firstGuestInitials || `${booked}`)
+                    : (booked >= total ? `${booked}/${total} ${t('kpiSold')}` : `${booked}/${total} ${t('occupiedBooked')}`)}
                 </span>
                 {!isMonthView && (
-                  <span className="text-[9px] font-extrabold uppercase opacity-95 tracking-wider mt-0.5">
-                    {t('occupiedBooked')}
+                  <span className="text-[9px] font-extrabold text-white/90 tracking-wide truncate max-w-full mt-0.5">
+                    {cellBookings.length > 1
+                      ? `(${cellBookings.length} Guests)`
+                      : (firstGuestName || `${booked}/${total} ${t('units')}`)}
                   </span>
                 )}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
-                <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300">
+              <div className="flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity min-w-0 px-1">
+                <span className="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300 truncate">
                   {t('vacantAvailable')}
                 </span>
-                <PlusCircle className="w-3 h-3 text-emerald-700 dark:text-emerald-400 mt-0.5 group-hover:scale-125 transition-transform" />
+                <PlusCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
               </div>
             )}
           </div>
-
-          {booked > 0 && !isSelectedCheckIn && !isInRangePreview && (
-            <div className="w-full h-1 bg-black/20 rounded-full overflow-hidden shrink-0 mt-0.5">
-              <div
-                className={`h-full ${style.barBg} transition-all duration-300`}
-                style={{ width: `${style.barWidth}%` }}
-              />
-            </div>
-          )}
         </button>
       </td>
     );

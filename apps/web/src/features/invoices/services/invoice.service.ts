@@ -32,4 +32,8 @@ export const invoiceService = {
     const raw = await httpClient.post<any>(`/invoice-templates/${templateId}/publish`);
     return raw?.data || raw;
   },
+
+  async downloadInvoice(invoiceId: string, invoiceNumber: string) {
+    return httpClient.downloadFile(`/invoices/${invoiceId}/download`, `${invoiceNumber}.pdf`);
+  },
 };

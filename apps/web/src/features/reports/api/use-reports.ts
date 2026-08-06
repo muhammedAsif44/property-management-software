@@ -24,6 +24,19 @@ export interface ReportData {
       cancellationRate: number;
     };
   };
+  roomTypeBreakdown?: {
+    roomTypeId: string;
+    name: string;
+    totalUnits: number;
+    bookingsCount: number;
+    revenue: number;
+    baseRevenue: number;
+    adr: number;
+  }[];
+  channelBreakdown?: {
+    direct: { count: number; revenue: number };
+    ota: { count: number; revenue: number };
+  };
 }
 
 export function useReportsQuery(
@@ -38,7 +51,7 @@ export function useReportsQuery(
       if (options.from) params.append('from', options.from);
       if (options.to) params.append('to', options.to);
 
-      const res = await api.get<ReportData>(`/v1/properties/${propertyId}/reports?${params.toString()}`);
+      const res = await api.get<ReportData>(`/properties/${propertyId}/reports?${params.toString()}`);
       return res;
     },
     enabled: !!propertyId && (options.period !== 'custom' || (!!options.from && !!options.to)),

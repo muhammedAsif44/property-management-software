@@ -81,6 +81,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ children, actions }) => {
       <div className="flex items-center gap-2 shrink-0">
         {actions}
 
+        {/* Live Socket Realtime Pulse Badge */}
+        <div
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-400"
+          title="Multi-device live real-time synchronization active"
+        >
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>{t('realtimeSyncActive')}</span>
+        </div>
+
         {/* Language Switcher */}
         <LanguageSwitcher />
 
@@ -89,23 +98,16 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ children, actions }) => {
 
         <div className="w-px h-5 bg-divider mx-1" aria-hidden="true" />
 
-        {/* User Profile Chip → Settings */}
+        {/* User Avatar → Settings */}
         <Link
           href="/settings"
-          className="interactive flex items-center gap-2 h-9 pl-1 pr-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-divider cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+          className="interactive flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-800 text-white hover:bg-emerald-900 border border-emerald-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 shadow-xs"
           title={`${t('settings')} — ${getDisplayName()}`}
+          aria-label={`${t('settings')} — ${getDisplayName()}`}
         >
-          <div className="w-7 h-7 rounded-md bg-gradient-to-br from-emerald-600 to-emerald-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+          <span className="font-extrabold text-xs">
             {getInitial()}
-          </div>
-          <div className="hidden sm:flex flex-col items-start min-w-0">
-            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight truncate max-w-[120px] capitalize">
-              {getDisplayName()}
-            </span>
-            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 leading-tight truncate">
-              {getRoleLabel()}
-            </span>
-          </div>
+          </span>
         </Link>
       </div>
     </header>

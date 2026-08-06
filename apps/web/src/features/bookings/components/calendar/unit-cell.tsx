@@ -2,11 +2,14 @@
 
 import { OccupancyCell, OccupancyCellBooking } from '@/features/bookings/types/booking.types';
 import { useTranslation } from '@/lib/i18n';
+import { formatDisplayName } from '@/lib/utils';
 import React from 'react';
 
 interface UnitCellProps {
   h: { date: string; isToday: boolean; isWeekend: boolean };
   unitNumber: number;
+  unitId?: string;
+  unitIndex?: number;
   cell: OccupancyCell | undefined;
   bookingsMap: Record<string, OccupancyCellBooking> | undefined;
   handleContextMenuCell: (x: number, y: number, date: string) => void;
@@ -20,6 +23,8 @@ export const UnitCell = React.memo(
   ({
     h,
     unitNumber,
+    unitId,
+    unitIndex = 0,
     cell,
     bookingsMap,
     handleContextMenuCell,
@@ -31,17 +36,33 @@ export const UnitCell = React.memo(
     const { t } = useTranslation();
     const isMonthView = spanDays === 30;
 
-    const isOccupied = cell && cell.booked > 0;
-    const isConflict = cell?.hasConflict;
-
     const isSelectedCheckIn = selectedCheckIn?.roomTypeId === rtId && selectedCheckIn.date === h.date;
 
     const unitBookings = React.useMemo(() => {
       if (!cell?.bookingIds || !bookingsMap) return [];
-      return cell.bookingIds.map((id: string) => bookingsMap[id]).filter(Boolean);
-    }, [cell?.bookingIds, bookingsMap]);
+      const all = cell.bookingIds.map((id: string) => bookingsMap[id]).filter(Boolean);
 
-    const guestName = unitBookings[0]?.guestName || '';
+      const strUnit = String(unitNumber);
+      // 1. Explicit match by unitNumber or unitId
+      const matched = all.filter((b: any) =>
+        (b.unitNumber && String(b.unitNumber) === strUnit) ||
+        (unitId && b.roomUnitId === unitId)
+      );
+
+      if (matched.length > 0) return matched;
+
+      // 2. Deterministic distribution for unassigned bookings so unit 0, 1, 2 get separate bookings
+      const unassigned = all.filter((b: any) => !b.unitNumber && !b.roomUnitId);
+      if (unassigned[unitIndex]) return [unassigned[unitIndex]];
+
+      return [];
+    }, [cell?.bookingIds, bookingsMap, unitNumber, unitId, unitIndex]);
+
+    const isOccupied = unitBookings.length > 0;
+    const isConflict = cell?.hasConflict && unitBookings.length > 1;
+
+    const rawGuestName = unitBookings[0]?.guestName || '';
+    const guestName = formatDisplayName(rawGuestName);
     const guestInitials = guestName
       ? guestName
           .split(' ')

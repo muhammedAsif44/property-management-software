@@ -41,11 +41,11 @@ import {
 } from '@/features/rooms/components';
 
 // Dynamic lazy loading for heavy modals and slide-over drawers (reduces JS bundle size & improves FCP/TTI)
-const RoomDetailDrawer = dynamic(() => import('@/features/rooms/components/room-detail-drawer').then((mod) => mod.RoomDetailDrawer), { ssr: false });
-const AddRoomModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.AddRoomModal), { ssr: false });
-const EditRoomModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.EditRoomModal), { ssr: false });
-const DeleteRoomModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.DeleteRoomModal), { ssr: false });
-const MaintenanceModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.MaintenanceModal), { ssr: false });
+const RoomDetailDrawer = dynamic(() => import('@/features/rooms/components/room-detail-drawer').then((mod) => mod.RoomDetailDrawer), { ssr: false }) as any;
+const AddRoomModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.AddRoomModal), { ssr: false }) as any;
+const EditRoomModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.EditRoomModal), { ssr: false }) as any;
+const DeleteRoomModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.DeleteRoomModal), { ssr: false }) as any;
+const MaintenanceModal = dynamic(() => import('@/features/rooms/components/rooms-modals').then((mod) => mod.MaintenanceModal), { ssr: false }) as any;
 
 export default function RoomsPage() {
   const { t } = useTranslation();
@@ -621,18 +621,18 @@ export default function RoomsPage() {
           onClose={() => setDrawerUnit(null)}
           onMarkClean={handleMarkCleanWithUndo}
           onMarkDirty={handleMarkDirtyWithUndo}
-          onEditRoom={(u) => {
+          onEditRoom={(u: any) => {
             setDrawerUnit(null);
             setEditingUnit(u);
             setEditRoomName(u.unitNumber);
             setEditRoomTypeId(u.roomTypeId);
             setEditRoomFloor(u.floor || '');
           }}
-          onReportIssue={(u) => {
+          onReportIssue={(u: any) => {
             setDrawerUnit(null);
             setIssueUnit(u);
           }}
-          onDeleteRoom={(u) => {
+          onDeleteRoom={(u: any) => {
             setDrawerUnit(null);
             setDeletingUnit(u);
           }}

@@ -29,7 +29,7 @@ interface AddRoomModalProps {
   isPending: boolean;
 }
 
-export const AddRoomModal: React.FC<AddRoomModalProps> = ({
+export function AddRoomModal({
   isOpen,
   onClose,
   roomTypes,
@@ -41,7 +41,7 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
   setNewRoomFloor,
   onSubmit,
   isPending,
-}) => {
+}: AddRoomModalProps) {
   return (
     <ModalOverlay isOpen={isOpen} onClose={onClose}>
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4 font-sans text-slate-900">
@@ -64,23 +64,24 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
               type="text"
               value={newRoomName}
               onChange={(e) => setNewRoomName(e.target.value)}
-              placeholder="Enter room name (e.g. Lotus, Lilly, 101)..."
+              placeholder="e.g. Room 101"
               className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Select Room Category *
+              Room Category *
             </label>
             <select
               value={newRoomTypeId}
               onChange={(e) => setNewRoomTypeId(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600"
             >
+              <option value="">Select Category...</option>
               {roomTypes.map((rt: any) => (
                 <option key={rt.id} value={rt.id}>
-                  {rt.name} (₹{Number(rt.basePrice || 0).toLocaleString('en-IN')}/night)
+                  {rt.name}
                 </option>
               ))}
             </select>
@@ -94,7 +95,7 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
               type="text"
               value={newRoomFloor}
               onChange={(e) => setNewRoomFloor(e.target.value)}
-              placeholder="e.g. Floor 1, Garden Side"
+              placeholder="e.g. Floor 1, Main Block"
               className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-600"
             />
           </div>
@@ -119,7 +120,7 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
       </div>
     </ModalOverlay>
   );
-};
+}
 
 /* ═══ Edit Room Modal ═══ */
 interface EditRoomModalProps {
@@ -136,7 +137,7 @@ interface EditRoomModalProps {
   isPending: boolean;
 }
 
-export const EditRoomModal: React.FC<EditRoomModalProps> = ({
+export function EditRoomModal({
   editingUnit,
   onClose,
   roomTypes,
@@ -148,7 +149,7 @@ export const EditRoomModal: React.FC<EditRoomModalProps> = ({
   setEditRoomFloor,
   onSubmit,
   isPending,
-}) => {
+}: EditRoomModalProps) {
   return (
     <ModalOverlay isOpen={!!editingUnit} onClose={onClose}>
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4 font-sans text-slate-900">
@@ -226,7 +227,7 @@ export const EditRoomModal: React.FC<EditRoomModalProps> = ({
       </div>
     </ModalOverlay>
   );
-};
+}
 
 /* ═══ Delete Room Modal ═══ */
 interface DeleteRoomModalProps {
@@ -236,12 +237,12 @@ interface DeleteRoomModalProps {
   isPending: boolean;
 }
 
-export const DeleteRoomModal: React.FC<DeleteRoomModalProps> = ({
+export function DeleteRoomModal({
   deletingUnit,
   onClose,
   onSubmit,
   isPending,
-}) => {
+}: DeleteRoomModalProps) {
   return (
     <ModalOverlay isOpen={!!deletingUnit} onClose={onClose}>
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4 font-sans text-slate-900">
@@ -278,7 +279,7 @@ export const DeleteRoomModal: React.FC<DeleteRoomModalProps> = ({
       </div>
     </ModalOverlay>
   );
-};
+}
 
 /* ═══ Maintenance / Out of Order Modal ═══ */
 interface MaintenanceModalProps {
@@ -290,14 +291,14 @@ interface MaintenanceModalProps {
   isPending: boolean;
 }
 
-export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({
+export function MaintenanceModal({
   issueUnit,
   onClose,
   issueNotes,
   setIssueNotes,
   onSubmit,
   isPending,
-}) => {
+}: MaintenanceModalProps) {
   return (
     <ModalOverlay isOpen={!!issueUnit} onClose={onClose}>
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4 font-sans text-slate-900">
@@ -343,4 +344,4 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({
       </div>
     </ModalOverlay>
   );
-};
+}

@@ -397,7 +397,7 @@ export function BookingDetailsDrawer({ bookingId, onClose }: BookingDetailsDrawe
       <AssignRoomUnitModal
         isOpen={showAssignModal}
         onClose={() => setShowAssignModal(false)}
-        booking={(booking as Booking) || null}
+        booking={(booking as any) || null}
       />
     </div>
   );

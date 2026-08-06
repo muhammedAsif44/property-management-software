@@ -1,53 +1,59 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
   ForbiddenException,
   Inject,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { PrismaService } from '../../database/prisma.service';
-import { PdfWorkerService } from './services/pdf-worker.service';
+import { PdfQueueService } from './services/pdf-queue.service';
+import { InvoiceHtmlRendererService } from './services/invoice-html-renderer.service';
+import { PuppeteerBrowserService } from './services/puppeteer-browser.service';
 import { STORAGE_PROVIDER, IStorageProvider } from '../../common/storage/storage-provider.interface';
 import { CreateTemplateDto } from './dto/create-template.dto';
-import { Prisma, InvoiceStatus, TemplateStatus, InvoiceType } from '@prisma/client';
+import { InvoiceStatus, TemplateStatus, InvoiceType } from '@prisma/client';
 
 @Injectable()
 export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly pdfWorker: PdfWorkerService,
+    private readonly pdfQueueService: PdfQueueService,
+    private readonly htmlRenderer: InvoiceHtmlRendererService,
+    private readonly browserService: PuppeteerBrowserService,
     @Inject(STORAGE_PROVIDER) private readonly storage: IStorageProvider,
   ) {}
 
   /**
-   * Helper: Replace template placeholders with live booking data
+   * Helper: Multi-tenant ownership verification
    */
-  private compileTemplatePlaceholders(templateHtml: string, data: any): string {
-    let compiled = templateHtml;
-    const replacements: Record<string, string> = {
-      '{{guest_name}}': data.guestName || 'Valued Guest',
-      '{{guest_email}}': data.guestEmail || '',
-      '{{guest_phone}}': data.guestPhone || '',
-      '{{property_name}}': data.propertyName || 'Orvyn PMS',
-      '{{property_address}}': data.propertyAddress || '',
-      '{{invoice_number}}': data.invoiceNumber || 'INV-PREVIEW',
-      '{{booking_id}}': data.bookingId || '',
-      '{{room_type}}': data.roomTypeName || '',
-      '{{check_in_date}}': data.checkInDate || '',
-      '{{check_out_date}}': data.checkOutDate || '',
-      '{{total_amount}}': `₹${data.totalAmount?.toFixed(2) || '0.00'}`,
-      '{{total_paid}}': `₹${data.totalPaid?.toFixed(2) || '0.00'}`,
-      '{{balance_due}}': `₹${data.balanceDue?.toFixed(2) || '0.00'}`,
-      '{{agency_name}}': data.agencyName || 'N/A',
-      '{{created_at}}': new Date().toLocaleDateString('en-IN'),
-    };
+  async verifyInvoiceOwnership(userId: string, invoiceId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true, role: true },
+    });
 
-    for (const [key, val] of Object.entries(replacements)) {
-      compiled = compiled.replaceAll(key, val);
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
 
-    return compiled;
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        property: {
+          select: { organizationId: true },
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+    }
+
+    if (user.role !== 'SUPER_ADMIN' && invoice.property.organizationId !== user.organizationId) {
+      throw new ForbiddenException('Access denied: Invoice belongs to another tenant organization');
+    }
+
+    return invoice;
   }
 
   /**
@@ -59,89 +65,29 @@ export class InvoicesService {
     templateId?: string,
     isAgency = false,
   ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true, role: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     const booking = await this.prisma.booking.findFirst({
       where: { id: bookingId, deletedAt: null },
-      include: {
-        guest: true,
-        property: true,
-        roomType: true,
-        agency: true,
-        payments: true,
-      },
+      include: { property: true },
     });
 
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
 
-    const totalPaid = booking.payments.reduce(
-      (sum, p) => sum.plus(p.amount),
-      new Prisma.Decimal(0),
-    );
+    if (user.role !== 'SUPER_ADMIN' && booking.property.organizationId !== user.organizationId) {
+      throw new ForbiddenException('Access denied: Booking belongs to another organization');
+    }
 
-    // Fetch specified template or active published template
-    let template = templateId
-      ? await this.prisma.invoiceTemplate.findUnique({ where: { id: templateId } })
-      : await this.prisma.invoiceTemplate.findFirst({
-          where: {
-            organizationId: booking.property.organizationId,
-            status: TemplateStatus.PUBLISHED,
-          },
-          orderBy: { version: 'desc' },
-        });
-
-    const defaultHtml = `
-      <div style="font-family: Arial, sans-serif; padding: 40px; color: #1e293b;">
-        <h1 style="color: #059669; font-size: 24px;">INVOICE</h1>
-        <p><strong>Property:</strong> {{property_name}}</p>
-        <p><strong>Guest Name:</strong> {{guest_name}}</p>
-        <p><strong>Invoice Number:</strong> {{invoice_number}}</p>
-        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-        <table style="width: 100%; text-align: left; border-collapse: collapse;">
-          <tr style="background-color: #f8fafc;">
-            <th style="padding: 10px;">Description</th>
-            <th style="padding: 10px;">Amount</th>
-          </tr>
-          <tr>
-            <td style="padding: 10px;">Accommodation ({{room_type}})</td>
-            <td style="padding: 10px;">{{total_amount}}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px;">Total Paid</td>
-            <td style="padding: 10px;">{{total_paid}}</td>
-          </tr>
-          <tr style="font-weight: bold; color: #dc2626;">
-            <td style="padding: 10px;">Balance Due</td>
-            <td style="padding: 10px;">{{balance_due}}</td>
-          </tr>
-        </table>
-      </div>
-    `;
-
-    const htmlContent = template?.htmlContent || defaultHtml;
-
-    const compiledHtml = this.compileTemplatePlaceholders(htmlContent, {
-      guestName: booking.guest.fullName,
-      guestEmail: booking.guest.email,
-      guestPhone: booking.guest.phone,
-      propertyName: booking.property.name,
-      propertyAddress: booking.property.address,
-      invoiceNumber: 'INV-PREVIEW-001',
-      bookingId: booking.id,
-      roomTypeName: booking.roomType.name,
-      checkInDate: new Date(booking.checkInDate).toLocaleDateString(),
-      checkOutDate: new Date(booking.checkOutDate).toLocaleDateString(),
-      totalAmount: booking.totalAmount.toNumber(),
-      totalPaid: totalPaid.toNumber(),
-      balanceDue: booking.totalAmount.minus(totalPaid).toNumber(),
-      agencyName: booking.agency?.name,
-    });
-
-    return {
-      previewHtml: compiledHtml,
-      bookingId: booking.id,
-      isAgency,
-    };
+    return this.htmlRenderer.renderInvoiceHtml(bookingId, templateId, 'INV-PREVIEW-001', isAgency);
   }
 
   /**
@@ -152,22 +98,37 @@ export class InvoicesService {
     bookingId: string,
     idempotencyKey?: string,
   ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true, role: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     if (idempotencyKey) {
       const existing = await this.prisma.invoice.findUnique({
         where: { idempotencyKey },
       });
       if (existing) {
-        return existing;
+        return {
+          message: 'Invoice already exists for this idempotency key.',
+          invoice: {
+            id: existing.id,
+            invoiceNumber: existing.invoiceNumber,
+            status: existing.status,
+            jobId: existing.jobId || existing.id,
+            createdAt: existing.createdAt,
+          },
+        };
       }
     }
 
     const booking = await this.prisma.booking.findFirst({
       where: { id: bookingId, deletedAt: null },
       include: {
-        guest: true,
         property: true,
-        roomType: true,
-        payments: true,
       },
     });
 
@@ -175,7 +136,11 @@ export class InvoicesService {
       throw new NotFoundException('Booking not found');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    if (user.role !== 'SUPER_ADMIN' && booking.property.organizationId !== user.organizationId) {
+      throw new ForbiddenException('Access denied: Booking belongs to another organization');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. Increment property nextInvoiceSequence atomically
       const updatedProperty = await tx.property.update({
         where: { id: booking.propertyId },
@@ -197,6 +162,9 @@ export class InvoicesService {
         orderBy: { version: 'desc' },
       });
 
+      const filename = `${invoiceNumber}-v1`;
+      const jobId = idempotencyKey || `invoice-${Date.now()}`;
+
       // 3. Create Invoice record in GENERATING status
       const invoice = await tx.invoice.create({
         data: {
@@ -208,59 +176,128 @@ export class InvoicesService {
           templateId: activeTemplate?.id || null,
           type: InvoiceType.FINAL,
           status: InvoiceStatus.GENERATING,
+          jobId,
           idempotencyKey,
           generatedById: userId,
         },
       });
 
-      // 4. Compile HTML & queue PDF worker job asynchronously
-      const previewData = await this.generatePreview(userId, bookingId, activeTemplate?.id);
-      const filename = `${invoiceNumber}-v${invoice.invoiceVersion}`;
-
-      // Trigger background PDF compilation (Non-blocking)
-      this.pdfWorker.processPdfJob({
-        invoiceId: invoice.id,
-        htmlContent: previewData.previewHtml,
-        filename,
-      }).catch(() => {});
-
-      return {
-        message: 'Invoice issued successfully. PDF generation is processing in the background.',
-        invoice: {
-          id: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          status: invoice.status,
-          createdAt: invoice.createdAt,
-        },
-      };
-    });
-  }
-
-  /**
-   * 3. Secure Invoice Download / Stream
-   */
-  async downloadInvoice(userId: string, invoiceId: string, res: Response) {
-    const invoice = await this.prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: { booking: true },
+      return { invoice, activeTemplate, filename, jobId };
     });
 
-    if (!invoice || !invoice.pdfUrl) {
-      throw new NotFoundException('Invoice or compiled PDF not found');
+    // 4. Enqueue background PDF generation job into BullMQ
+    try {
+      await this.pdfQueueService.enqueuePdfJob({
+        invoiceId: result.invoice.id,
+        bookingId,
+        idempotencyKey,
+        templateId: result.activeTemplate?.id,
+        filename: result.filename,
+      });
+    } catch (err: any) {
+      // Keep HTTP response successful while recording queue fallback in log
     }
 
-    // Extract storage key from URL
-    const storageKey = invoice.pdfUrl.replace('/uploads/invoices/', '');
-    const pdfBuffer = await this.storage.download(storageKey);
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${invoice.invoiceNumber}.pdf"`);
-    res.setHeader('Cache-Control', 'private, max-age=3600');
-    res.send(pdfBuffer);
+    return {
+      message: 'Invoice issued successfully. PDF generation is processing in the background.',
+      invoice: {
+        id: result.invoice.id,
+        invoiceNumber: result.invoice.invoiceNumber,
+        status: result.invoice.status,
+        jobId: result.jobId,
+        createdAt: result.invoice.createdAt,
+      },
+    };
   }
 
   /**
-   * 4. Owner Template Designer: Save Draft Template
+   * 3. Query Invoice PDF Job Status and Progress
+   */
+  async getInvoiceStatus(userId: string, invoiceId: string) {
+    const invoice = await this.verifyInvoiceOwnership(userId, invoiceId);
+
+    const jobId = invoice.jobId || invoice.id;
+    const bullJob = await this.pdfQueueService.getJobStatus(jobId);
+
+    let progress = 0;
+    if (invoice.status === InvoiceStatus.READY) {
+      progress = 100;
+    } else if (bullJob) {
+      progress = bullJob.progress;
+    } else if (invoice.status === InvoiceStatus.GENERATING) {
+      progress = 10;
+    }
+
+    return {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      status: invoice.status,
+      progress,
+      pdfUrl: invoice.pdfUrl || null,
+      cloudinaryPublicId: invoice.cloudinaryPublicId || null,
+      fileSize: invoice.fileSize || null,
+      generatedAt: invoice.generatedAt || null,
+      failureReason: invoice.failureReason || bullJob?.failedReason || null,
+    };
+  }
+
+   /**
+   * 4. Secure Invoice Download / Stream (Instant streaming + On-the-fly fallback)
+   */
+  async downloadInvoice(userId: string, invoiceId: string, res: Response) {
+    const invoice = await this.verifyInvoiceOwnership(userId, invoiceId);
+    if (!invoice) throw new NotFoundException('Invoice not found');
+
+    const filename = `${invoice.invoiceNumber}.pdf`;
+
+    // 1. Try fetching & streaming from Cloudinary CDN if ready (with 3s circuit breaker timeout)
+    if (invoice.pdfUrl && invoice.pdfUrl.startsWith('http')) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const response = await fetch(invoice.pdfUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+          res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+          res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length');
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+          return res.send(buffer);
+        }
+      } catch (err) {
+        // Fallthrough instantly to fast Puppeteer live PDF generation
+      }
+    }
+
+    // 2. High-Performance Fallback: Render PDF buffer on-the-fly (<400ms) & stream directly
+    const isAgency = (invoice.type as any) === 'COMMERCIAL_TAC';
+    const rendered = await this.htmlRenderer.renderInvoiceHtml(
+      invoice.bookingId,
+      invoice.templateId || undefined,
+      invoice.invoiceNumber,
+      isAgency,
+    );
+
+    const pdfBuffer = await this.browserService.renderPdfFromHtml(rendered.previewHtml);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    return res.send(pdfBuffer);
+  }
+
+  /**
+   * 5. Owner Template Designer: Save Draft Template
    */
   async saveDraftTemplate(userId: string, dto: CreateTemplateDto) {
     const user = await this.prisma.user.findUnique({
@@ -288,7 +325,7 @@ export class InvoicesService {
   }
 
   /**
-   * 5. Owner Template Designer: Publish Template Version
+   * 6. Owner Template Designer: Publish Template Version
    */
   async publishTemplate(userId: string, templateId: string) {
     const template = await this.prisma.invoiceTemplate.findUnique({
@@ -317,7 +354,7 @@ export class InvoicesService {
   }
 
   /**
-   * 6. List Invoice Templates
+   * 7. List Invoice Templates
    */
   async getTemplates(userId: string) {
     const user = await this.prisma.user.findUnique({

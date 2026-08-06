@@ -3,7 +3,7 @@ import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
-@Controller('v1/properties/:id/reports')
+@Controller({ path: 'properties/:id/reports', version: '1' })
 @UseGuards(JwtAuthGuard)
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}

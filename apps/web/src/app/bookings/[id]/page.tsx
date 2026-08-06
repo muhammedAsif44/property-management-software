@@ -213,7 +213,7 @@ export default function BookingDetailPage() {
 
               {/* Primary Check-In / Assign Room / Check-Out */}
               {(() => {
-                const hasUnit = booking.unitNumber || (booking as any).roomNumber || (booking as any).unitId || (booking as any).roomUnitId || (booking as any).assignedUnit;
+                const hasUnit = (booking as any).unitNumber || (booking as any).roomNumber || (booking as any).unitId || (booking as any).roomUnitId || (booking as any).assignedUnit;
 
                 if (booking.status === 'CONFIRMED') {
                   if (!hasUnit) {

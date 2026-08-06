@@ -17,11 +17,11 @@ export interface QuickHelpDrawerProps {
   steps?: HelpStep[];
 }
 
-export const QuickHelpDrawer: React.FC<QuickHelpDrawerProps> = ({
+export function QuickHelpDrawer({
   title,
   subtitle,
   steps
-}) => {
+}: QuickHelpDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { t } = useTranslation();

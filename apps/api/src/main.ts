@@ -6,7 +6,6 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.filter';
-
 import { CustomLogger } from './common/logger/custom-logger.service';
 
 async function bootstrap() {
@@ -14,12 +13,17 @@ async function bootstrap() {
     logger: new CustomLogger(),
   });
 
-  // 0. Helmet: HTTP security headers (XSS, clickjacking, MIME sniffing protection)
-  app.use(helmet());
-  const cookieSecret = process.env.COOKIE_SECRET;
-  if (!cookieSecret) {
-    throw new Error('FATAL ERROR: COOKIE_SECRET environment variable is not set.');
-  }
+  // Enable NestJS shutdown hooks for graceful termination (SIGTERM / SIGINT)
+  app.enableShutdownHooks();
+
+  // 0. Helmet: HTTP security headers (Allowing cross-origin file downloads & streams)
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      xDownloadOptions: false,
+    }),
+  );
+  const cookieSecret = process.env.COOKIE_SECRET || 'orvyn-pms-cookie-secret-dev';
   app.use(cookieParser(cookieSecret));
 
   // 1. Enable Global API Prefix & URI Versioning (/api/v1/...)
@@ -42,6 +46,7 @@ async function bootstrap() {
     origin: origins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    exposedHeaders: ['Content-Disposition', 'Content-Length'],
   });
 
   // 3. Global Pipe for Validation & DTO Transformation

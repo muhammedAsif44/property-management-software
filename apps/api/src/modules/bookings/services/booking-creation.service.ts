@@ -7,6 +7,8 @@ import {
 import { PrismaService } from '../../../database/prisma.service';
 import { GuestService } from './guest.service';
 import { BookingHelperService } from './booking-helper.service';
+import { EventsGateway } from '../../realtime/events.gateway';
+import { AuditLogService } from '../../audit/audit-log.service';
 import { CreateBookingDto } from '../dto/create-booking.dto';
 import { BookingStatus, TacStatus, CleanlinessStatus, Prisma } from '@prisma/client';
 
@@ -16,6 +18,8 @@ export class BookingCreationService {
     private readonly prisma: PrismaService,
     private readonly guestService: GuestService,
     private readonly helper: BookingHelperService,
+    private readonly eventsGateway: EventsGateway,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /**
@@ -88,7 +92,7 @@ export class BookingCreationService {
     });
 
     // Run inside SERIALIZABLE transaction for conflict detection to prevent Phantom Reads
-    return this.prisma.$transaction(async (tx) => {
+    const resultBooking = await this.prisma.$transaction(async (tx) => {
       // Count overlapping bookings for same room type (excluding cancelled/deleted)
       const overlappingCount = await tx.booking.count({
         where: {
@@ -244,5 +248,38 @@ export class BookingCreationService {
 
       return booking;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    // Emit live real-time event to connected property staff
+    if (resultBooking?.propertyId) {
+      this.eventsGateway.emitToProperty(resultBooking.propertyId, 'booking_created', {
+        bookingId: resultBooking.id,
+        guestName: resultBooking.guest?.fullName,
+        checkInDate: resultBooking.checkInDate,
+        totalAmount: resultBooking.totalAmount,
+      });
+
+      // Append-only audit log
+      const property = await this.prisma.property.findUnique({
+        where: { id: resultBooking.propertyId },
+        select: { organizationId: true },
+      });
+
+      if (property?.organizationId) {
+        await this.auditLogService.log({
+          organizationId: property.organizationId,
+          actorUserId: userId,
+          entityType: 'BOOKING',
+          entityId: resultBooking.id,
+          action: 'BOOKING_CREATED',
+          afterState: {
+            guestId: resultBooking.guestId,
+            totalAmount: Number(resultBooking.totalAmount),
+            status: resultBooking.status,
+          },
+        });
+      }
+    }
+
+    return resultBooking;
   }
 }

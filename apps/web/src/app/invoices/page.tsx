@@ -8,6 +8,7 @@ import {
   Plus,
   Check,
   Eye,
+  Download,
   Loader2,
   Sparkles,
   CheckCircle2,
@@ -35,6 +36,7 @@ import {
   useSaveDraftTemplateMutation,
   usePublishTemplateMutation,
 } from '@/features/invoices/api/use-invoices';
+import { invoiceService } from '@/features/invoices/services/invoice.service';
 import { useBookingsQuery } from '@/features/bookings/api/use-bookings';
 import { usePropertyStore } from '@/features/properties';
 import { Booking } from '@/features/bookings/types/booking.types';
@@ -68,9 +70,12 @@ const PRESET_TEMPLATES = {
   },
 };
 
+import { useToast } from '@/components/ui/toast';
+
 export default function InvoicesPage() {
   const { t } = useTranslation();
   const activeProperty = usePropertyStore((s) => s.activeProperty);
+  const toast = useToast();
   
   const [activeTab, setActiveTab] = useState<'invoices' | 'payments' | 'templates'>('invoices');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PAID' | 'DUE' | 'AGENCY'>('ALL');
@@ -79,12 +84,47 @@ export default function InvoicesPage() {
   // Selected modals
   const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<Booking | null>(null);
   const [selectedPaymentBooking, setSelectedPaymentBooking] = useState<Booking | null>(null);
+  const [openingPdfId, setOpeningPdfId] = useState<string | null>(null);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
+
+  const handleRowOpenPdf = async (invoiceId: string) => {
+    try {
+      setOpeningPdfId(invoiceId);
+      toast.info('Opening PDF viewer...', 'PDF Viewer');
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/invoices/${invoiceId}/download?_t=${Date.now()}`;
+      const response = await fetch(url, { credentials: 'include', cache: 'no-store' });
+      if (!response.ok) throw new Error('Failed to fetch PDF');
+      const rawBlob = await response.blob();
+      const pdfBlob = new Blob([rawBlob], { type: 'application/pdf' });
+      const blobUrl = window.URL.createObjectURL(pdfBlob);
+      const printWin = window.open(blobUrl, '_blank');
+      if (!printWin) {
+        toast.error('Pop-up blocked by browser. Please allow pop-ups.', 'Pop-up Blocked');
+      }
+    } catch (err: any) {
+      toast.error('Failed to open PDF viewer.', 'Error');
+    } finally {
+      setOpeningPdfId(null);
+    }
+  };
+
+  const handleRowDownload = async (invoiceId: string, invoiceNumber: string) => {
+    try {
+      setDownloadingInvoiceId(invoiceId);
+      toast.info('Downloading PDF invoice...', 'Downloading');
+      await invoiceService.downloadInvoice(invoiceId, invoiceNumber);
+    } catch (err: any) {
+      toast.error('Failed to download invoice PDF.', 'Error');
+    } finally {
+      setTimeout(() => setDownloadingInvoiceId(null), 1000);
+    }
+  };
 
   // Fetch Bookings for financial ledger
-  const { data: bookingsData, isLoading: isBookingsLoading } = useBookingsQuery({
-    propertyId: activeProperty?.id,
-    limit: 100,
-  });
+  const { data: bookingsData, isLoading: isBookingsLoading } = useBookingsQuery(
+    { propertyId: activeProperty?.id, limit: 100 },
+    2500, // Poll every 2.5s so GENERATING invoices automatically turn READY on the table
+  );
 
   const resData: any = bookingsData;
   const bookings: Booking[] = Array.isArray(resData)
@@ -497,9 +537,10 @@ export default function InvoicesPage() {
                     ) : (
                       filteredBookings.map((b) => {
                         const isAgency = b.channel === 'AGENCY' || !!b.agencyId;
-                        const invNumber = isAgency
+                        const realInv = b.invoices?.[0];
+                        const invNumber = realInv?.invoiceNumber || (isAgency
                           ? `AGY-${b.id.slice(0, 8).toUpperCase()}`
-                          : `INV-${b.id.slice(0, 8).toUpperCase()}`;
+                          : `INV-${b.id.slice(0, 8).toUpperCase()}`);
 
                         const billedTo = isAgency
                           ? b.agency?.name || 'Travel Agency Partner'
@@ -529,9 +570,23 @@ export default function InvoicesPage() {
                                   {isAgency ? <Building2 className="w-4 h-4" /> : <Receipt className="w-4 h-4" />}
                                 </div>
                                 <div>
-                                  <span className="font-black text-slate-900 dark:text-white font-mono text-xs block">
-                                    {invNumber}
-                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-black text-slate-900 dark:text-white font-mono text-xs block">
+                                      {invNumber}
+                                    </span>
+                                    {realInv?.status === 'READY' && (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                        READY
+                                      </span>
+                                    )}
+                                    {realInv?.status === 'GENERATING' && (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                        GENERATING
+                                      </span>
+                                    )}
+                                  </div>
                                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
                                     {b.channel}
                                   </span>
@@ -588,14 +643,48 @@ export default function InvoicesPage() {
                             {/* Actions */}
                             <td className="p-4 pr-6 text-right">
                               <div className="inline-flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => setSelectedInvoiceBooking(b)}
-                                  className="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 cursor-pointer"
-                                  title="Preview & Issue Invoice"
-                                >
-                                  <Eye className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                                  <span>Preview</span>
-                                </button>
+                                {(() => {
+                                  const issuedInvoice = b.invoices?.[0];
+
+                                  return (
+                                    <>
+                                      {issuedInvoice && (
+                                        <>
+                                          <button
+                                            onClick={() => setSelectedInvoiceBooking(b)}
+                                            className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                                            title="View & Print PDF"
+                                          >
+                                            <FileText className="w-3.5 h-3.5" />
+                                            <span>View PDF</span>
+                                          </button>
+
+                                          <button
+                                            onClick={() => handleRowDownload(issuedInvoice.id, issuedInvoice.invoiceNumber || 'INV-FINAL')}
+                                            disabled={downloadingInvoiceId === issuedInvoice.id}
+                                            className="h-8 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                            title="Download PDF"
+                                          >
+                                            {downloadingInvoiceId === issuedInvoice.id ? (
+                                              <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600 dark:text-slate-300" />
+                                            ) : (
+                                              <Download className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                                            )}
+                                          </button>
+                                        </>
+                                      )}
+
+                                      <button
+                                        onClick={() => setSelectedInvoiceBooking(b)}
+                                        className="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 cursor-pointer"
+                                        title="Preview Invoice"
+                                      >
+                                        <Eye className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                                        <span>Preview</span>
+                                      </button>
+                                    </>
+                                  );
+                                })()}
 
                                 {!isFullyPaid && (
                                   <button

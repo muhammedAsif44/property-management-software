@@ -76,6 +76,7 @@ export interface Booking {
   agency?: BookingAgency;
   bookingFacilities?: BookingFacility[];
   createdByUser: BookingUser;
+  invoices?: any[];
   payments?: any[];
   deletionRequests?: DeletionRequest[];
 }

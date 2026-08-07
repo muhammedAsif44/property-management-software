@@ -26,9 +26,9 @@ export class HousekeepingService {
   async getUnits(userId: string, propertyId?: string, roomTypeId?: string, status?: CleanlinessStatus) {
     const resolvedPropertyId = await this.helper.resolvePropertyId(userId, propertyId);
 
-    // 1. Auto-initialize room units for any active RoomType that has 0 units generated
+    // 1. Auto-initialize room units for any RoomType that has 0 units generated
     const roomTypes = await this.prisma.roomType.findMany({
-      where: { propertyId: resolvedPropertyId, isActive: true },
+      where: { propertyId: resolvedPropertyId },
     });
 
     for (let rtIndex = 0; rtIndex < roomTypes.length; rtIndex++) {

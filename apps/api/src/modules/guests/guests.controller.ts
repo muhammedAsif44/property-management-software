@@ -17,7 +17,7 @@ export class GuestsController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.guestsService.findAll(propertyId, { search, page, limit });
+    return this.guestsService.findAll(user.id, propertyId, { search, page, limit });
   }
 
   @Get(':id')
@@ -26,6 +26,6 @@ export class GuestsController {
     @Param('id') id: string,
     @Query('propertyId') propertyId: string,
   ) {
-    return this.guestsService.findOne(propertyId, id);
+    return this.guestsService.findOne(user.id, propertyId, id);
   }
 }

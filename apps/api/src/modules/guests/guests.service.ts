@@ -1,12 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { BookingHelperService } from '../bookings/services/booking-helper.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class GuestsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly helper: BookingHelperService,
+  ) {}
 
-  async findAll(propertyId: string, query: { search?: string; page?: number; limit?: number }) {
+  async findAll(userId: string, propertyId?: string, query: { search?: string; page?: number; limit?: number } = {}) {
+    const resolvedPropertyId = await this.helper.resolvePropertyId(userId, propertyId);
     const { search, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
@@ -20,13 +25,12 @@ export class GuestsService {
       }),
     };
 
-    // Try property-specific filter first
-    let where: Prisma.GuestWhereInput = {
+    const where: Prisma.GuestWhereInput = {
       ...baseWhere,
-      ...(propertyId ? { propertyId } : {}),
+      propertyId: resolvedPropertyId,
     };
 
-    let [data, total] = await Promise.all([
+    const [data, total] = await Promise.all([
       this.prisma.guest.findMany({
         where,
         skip,
@@ -35,20 +39,6 @@ export class GuestsService {
       }),
       this.prisma.guest.count({ where }),
     ]);
-
-    // If 0 guests match specific propertyId, fallback to query all property guests
-    if (total === 0 && propertyId) {
-      where = baseWhere;
-      [data, total] = await Promise.all([
-        this.prisma.guest.findMany({
-          where,
-          skip,
-          take: Number(limit),
-          orderBy: { createdAt: 'desc' },
-        }),
-        this.prisma.guest.count({ where }),
-      ]);
-    }
 
     return {
       data,
@@ -114,9 +104,10 @@ export class GuestsService {
     }
   }
 
-  async findOne(propertyId: string, id: string) {
+  async findOne(userId: string, propertyId: string, id: string) {
+    const resolvedPropertyId = await this.helper.resolvePropertyId(userId, propertyId);
     const guest = await this.prisma.guest.findFirst({
-      where: { id, propertyId },
+      where: { id, propertyId: resolvedPropertyId },
       include: {
         bookings: {
           orderBy: { checkInDate: 'desc' },

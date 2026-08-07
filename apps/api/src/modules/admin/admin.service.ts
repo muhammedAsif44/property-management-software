@@ -354,4 +354,157 @@ export class AdminService {
   async getAllOrganizations() {
     return this.getAllTenants();
   }
+
+  // 10. Toggle User Block Status (IsActive)
+  async toggleUserBlockStatus(userId: string, isActive: boolean) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with ID "${userId}" not found`);
+    }
+
+    if (user.role === UserRole.SUPER_ADMIN) {
+      throw new BadRequestException('Cannot block Super Admin accounts');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive },
+      select: { id: true, email: true, isActive: true, role: true },
+    });
+
+    if (!isActive) {
+      // Revoke all active refresh tokens for the blocked user
+      await this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
+
+    return {
+      message: `User ${user.email} is now ${isActive ? 'active' : 'blocked'}.`,
+      user: updatedUser,
+    };
+  }
+
+  // 11. Toggle Tenant Organization Subscription Status (Suspend/Activate)
+  async toggleOrganizationStatus(orgId: string, status: any) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      include: { users: { select: { id: true } } },
+    });
+
+    if (!org) {
+      throw new NotFoundException(`Organization with ID "${orgId}" not found`);
+    }
+
+    const updatedOrg = await this.prisma.organization.update({
+      where: { id: orgId },
+      data: { subscriptionStatus: status },
+    });
+
+    if (status === 'CANCELLED' || status === 'PAST_DUE') {
+      const userIds = org.users.map((u) => u.id);
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: { in: userIds }, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
+
+    return {
+      message: `Organization "${org.name}" status updated to ${status}.`,
+      organization: updatedOrg,
+    };
+  }
+
+  // 12. Invoice Templates Management
+  async getInvoiceTemplates() {
+    return this.prisma.invoiceTemplate.findMany({
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+      include: {
+        organization: { select: { id: true, name: true } },
+      },
+    });
+  }
+
+  async createInvoiceTemplate(dto: {
+    name: string;
+    htmlContent: string;
+    isDefault?: boolean;
+    organizationId?: string;
+  }) {
+    // If no org ID specified, fallback to system org or default org
+    let targetOrgId = dto.organizationId;
+    if (!targetOrgId) {
+      const systemOrg = await this.prisma.organization.findFirst({
+        where: { slug: 'orvyn-system-admin' },
+      });
+      targetOrgId = systemOrg?.id || (await this.prisma.organization.findFirst())?.id;
+    }
+
+    if (!targetOrgId) {
+      throw new BadRequestException('No organization found to attach template');
+    }
+
+    if (dto.isDefault) {
+      await this.prisma.invoiceTemplate.updateMany({
+        where: { organizationId: targetOrgId },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.invoiceTemplate.create({
+      data: {
+        organizationId: targetOrgId,
+        name: dto.name,
+        htmlContent: dto.htmlContent,
+        isDefault: dto.isDefault || false,
+        status: 'PUBLISHED',
+      },
+    });
+  }
+
+  async updateInvoiceTemplate(
+    id: string,
+    dto: { name?: string; htmlContent?: string; isDefault?: boolean },
+  ) {
+    const template = await this.prisma.invoiceTemplate.findUnique({ where: { id } });
+    if (!template) {
+      throw new NotFoundException(`Invoice template with ID "${id}" not found`);
+    }
+
+    if (dto.isDefault) {
+      await this.prisma.invoiceTemplate.updateMany({
+        where: { organizationId: template.organizationId },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.invoiceTemplate.update({
+      where: { id },
+      data: {
+        name: dto.name ?? template.name,
+        htmlContent: dto.htmlContent ?? template.htmlContent,
+        isDefault: dto.isDefault ?? template.isDefault,
+        version: template.version + 1,
+      },
+    });
+  }
+
+  async setDefaultInvoiceTemplate(id: string) {
+    const template = await this.prisma.invoiceTemplate.findUnique({ where: { id } });
+    if (!template) {
+      throw new NotFoundException(`Invoice template with ID "${id}" not found`);
+    }
+
+    await this.prisma.invoiceTemplate.updateMany({
+      where: { organizationId: template.organizationId },
+      data: { isDefault: false },
+    });
+
+    return this.prisma.invoiceTemplate.update({
+      where: { id },
+      data: { isDefault: true },
+    });
+  }
 }
+

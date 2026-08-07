@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '../store/use-auth-store';
+import { usePropertyStore } from '@/features/properties/store/use-property-store';
 import {
   LoginPayload,
   LoginResponse,
@@ -24,24 +25,39 @@ export function useAuthProfileQuery() {
       }
       return data;
     },
-    staleTime: 1000 * 60 * 30, // 30 mins stale caching
-    gcTime: 1000 * 60 * 60, // 1 hour garbage collection
-    refetchOnWindowFocus: false,
+    staleTime: 5000, // 5 seconds fresh stale time for immediate auth updates
+    gcTime: 60000,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
 }
 
 export function useAuth() {
+  const queryClient = useQueryClient();
+  const setUser = useAuthStore((state) => state.setUser);
+  const setActiveProperty = usePropertyStore((state) => state.setActiveProperty);
+  const setProperties = usePropertyStore((state) => state.setProperties);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const clearError = () => setError(null);
 
+  const clearUserSession = () => {
+    queryClient.clear();
+    setUser(null);
+    setActiveProperty(null);
+    setProperties([]);
+  };
+
   const login = async (payload: LoginPayload): Promise<LoginResponse> => {
     setLoading(true);
     setError(null);
     try {
-      return await authService.login(payload);
+      clearUserSession();
+      const res = await authService.login(payload);
+      await queryClient.invalidateQueries();
+      return res;
     } catch (err: any) {
       setError(err.message || 'Login failed.');
       throw err;
@@ -54,6 +70,7 @@ export function useAuth() {
     setLoading(true);
     setError(null);
     try {
+      clearUserSession();
       return await authService.ownerSignup(payload);
     } catch (err: any) {
       setError(err.message || 'Registration failed.');
@@ -67,6 +84,7 @@ export function useAuth() {
     setLoading(true);
     setError(null);
     try {
+      clearUserSession();
       return await authService.staffSignup(payload);
     } catch (err: any) {
       setError(err.message || 'Staff registration failed.');
@@ -81,6 +99,7 @@ export function useAuth() {
     setError(null);
     try {
       await authService.logout();
+      clearUserSession();
     } catch (err: any) {
       setError(err.message || 'Logout failed.');
       throw err;

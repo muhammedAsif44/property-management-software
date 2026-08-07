@@ -102,6 +102,7 @@ export class BookingOccupancyService {
         guestName: b.guest.fullName,
         guestPhone: b.guest.phone || null,
         status: b.status,
+        roomTypeId: b.roomTypeId,
         roomUnitId: b.roomUnitId || null,
         unitNumber: b.roomUnit?.unitNumber || null,
         checkInDate: inStr,

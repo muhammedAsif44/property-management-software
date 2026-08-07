@@ -840,6 +840,11 @@ enum OtaChannel {
   MAKEMYTRIP
   AGODA
   EXPEDIA
+  EASEMYTRIP
+  YATRA
+  AIRBNB
+  CHANNEX
+  AIOSELL
 }
 
 enum OtaSyncStatus {
@@ -978,4 +983,21 @@ enum TaskStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 30. AI-Ready Document Store (Future-Facing)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model AiDocument {
+  id         String   @id @default(uuid())
+  propertyId String?  @map("property_id")
+  title      String
+  content    String   @db.Text
+  metadata   Json?
+  embedding  String?  @db.Text // Reserved for pgvector embeddings
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("ai_documents")
 }

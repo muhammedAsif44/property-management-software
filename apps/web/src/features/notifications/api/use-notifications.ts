@@ -55,3 +55,22 @@ export function useCreateNotification() {
     },
   });
 }
+
+export function useBroadcastAnnouncement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      title: string;
+      message: string;
+      type?: string;
+      targetRole?: string;
+      organizationId?: string;
+    }) => {
+      await api.post('/admin/notifications/broadcast', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_QUERY_KEY] });
+    },
+  });
+}

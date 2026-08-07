@@ -14,6 +14,7 @@ import { useTheme, Theme } from '@/lib/theme';
 import {
   propertyService,
   usePropertyOnboarding,
+  usePropertyStore,
   Step1Identity,
   Step2TimesTerms,
   Step3Rooms,
@@ -21,6 +22,7 @@ import {
   Step5InvoiceTheme,
   Step6BankDetails,
 } from '@/features/properties';
+import { ChannelManagerDashboard } from '@/features/channels/components/channel-manager-dashboard';
 import { AdminNotificationComposer } from '@/features/notifications/components/admin-notification-composer';
 import {
   Lock,
@@ -76,6 +78,7 @@ type SettingsSection =
   | 'roles'
   | 'account'
   | 'notifications'
+  | 'channels'
   | 'billing'
   | 'developer'
   | 'api'
@@ -122,6 +125,7 @@ const SETTINGS_GROUPS: SettingsNavGroup[] = [
   {
     title: 'Platform & Billing',
     items: [
+      { key: 'channels', labelKey: 'channelManager', icon: Globe },
       { key: 'billing', labelKey: 'settingsBilling', icon: CreditCard },
       { key: 'developer', labelKey: 'settingsDeveloper', icon: Code2 },
       { key: 'api', labelKey: 'settingsApi', icon: Key },
@@ -146,6 +150,7 @@ function Settings3ColumnContent() {
   const toast = useToast();
   const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
+  const activeProperty = usePropertyStore((s) => s.activeProperty);
 
   // Active section state with 0ms instant transition (zero flickering)
   const sectionParam = (searchParams.get('section') as SettingsSection) || 'general';
@@ -873,6 +878,19 @@ function Settings3ColumnContent() {
                       >
                         <SettingsComingSoonBadge />
                       </SettingsCard>
+                    </div>
+                  )}
+
+                  {/* ═══ 10.5. OTA CHANNEL MANAGER ═══ */}
+                  {activeSection === 'channels' && (
+                    <div className="space-y-6">
+                      {activeProperty ? (
+                        <ChannelManagerDashboard propertyId={activeProperty.id} />
+                      ) : (
+                        <div className="p-6 text-center text-slate-500">
+                          {t('selectPropertyToManage')}
+                        </div>
+                      )}
                     </div>
                   )}
 

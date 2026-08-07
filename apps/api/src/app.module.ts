@@ -19,6 +19,7 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
 import { GuestsModule } from './modules/guests/guests.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { OtaChannelModule } from './modules/ota/ota-channel.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AppController } from './app.controller';
@@ -57,6 +58,7 @@ import { AppService } from './app.service';
     GuestsModule,
     ReportsModule,
     NotificationsModule,
+    OtaChannelModule,
   ],
   controllers: [AppController],
   providers: [

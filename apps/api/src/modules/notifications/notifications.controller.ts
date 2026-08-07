@@ -51,6 +51,27 @@ export class NotificationsController {
     return { success: true };
   }
 
+  @Post('admin/notifications/broadcast')
+  async broadcastAnnouncement(
+    @CurrentUser() user: any,
+    @Body() dto: {
+      title: string;
+      message: string;
+      type?: NotificationType;
+      targetRole?: UserRole | 'ALL';
+      organizationId?: string;
+    },
+  ) {
+    return this.notificationsService.broadcastAnnouncement({
+      title: dto.title,
+      message: dto.message,
+      type: dto.type,
+      targetRole: dto.targetRole,
+      organizationId: dto.organizationId,
+      createdByUserId: user.id,
+    });
+  }
+
   @Post('notifications/device-tokens')
   async registerDeviceToken(
     @CurrentUser() user: any,
@@ -60,3 +81,4 @@ export class NotificationsController {
     return { success: true };
   }
 }
+

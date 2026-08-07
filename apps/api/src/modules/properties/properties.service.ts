@@ -41,6 +41,7 @@ export class PropertiesService {
       select: {
         id: true,
         email: true,
+        role: true,
         organizationId: true,
         owner: { select: { id: true, defaultPropertyId: true } },
         staffMemberships: {
@@ -54,17 +55,20 @@ export class PropertiesService {
     }
 
     const staffPropertyIds = user.staffMemberships.map((s) => s.propertyId);
+    const isSuperAdmin = user.role === 'SUPER_ADMIN';
 
     const properties = await this.prisma.property.findMany({
-      where: {
-        OR: [
-          { owner: { userId } },
-          { id: { in: staffPropertyIds } },
-          { staffMembers: { some: { OR: [{ userId: user.id }, { user: { email: user.email } }] } } },
-          ...(user.organizationId ? [{ organizationId: user.organizationId }] : []),
-        ],
-        deletedAt: null,
-      },
+      where: isSuperAdmin
+        ? { deletedAt: null }
+        : {
+            OR: [
+              { owner: { userId } },
+              { id: { in: staffPropertyIds } },
+              { staffMembers: { some: { OR: [{ userId: user.id }, { user: { email: user.email } }] } } },
+              ...(user.organizationId ? [{ organizationId: user.organizationId }] : []),
+            ],
+            deletedAt: null,
+          },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -179,6 +183,7 @@ export class PropertiesService {
       where: { id: userId },
       select: {
         id: true,
+        role: true,
         organizationId: true,
         owner: { select: { id: true } },
       },
@@ -188,16 +193,20 @@ export class PropertiesService {
       throw new NotFoundException('User profile not found');
     }
 
+    const isSuperAdmin = user.role === 'SUPER_ADMIN';
+
     const property = await this.prisma.property.findFirst({
-      where: {
-        id: propertyId,
-        OR: [
-          { owner: { userId } },
-          { staffMembers: { some: { userId } } },
-          { organizationId: user.organizationId },
-        ],
-        deletedAt: null,
-      },
+      where: isSuperAdmin
+        ? { id: propertyId, deletedAt: null }
+        : {
+            id: propertyId,
+            OR: [
+              { owner: { userId } },
+              { staffMembers: { some: { userId } } },
+              { organizationId: user.organizationId },
+            ],
+            deletedAt: null,
+          },
     });
 
     if (!property) {
@@ -226,6 +235,7 @@ export class PropertiesService {
       select: {
         id: true,
         email: true,
+        role: true,
         organizationId: true,
         owner: { select: { id: true, defaultPropertyId: true } },
         staffMemberships: {
@@ -239,6 +249,7 @@ export class PropertiesService {
       return { activeProperty: null };
     }
 
+    const isSuperAdmin = user.role === 'SUPER_ADMIN';
     let targetPropertyId: string | null = user.owner?.defaultPropertyId || null;
 
     if (targetPropertyId) {
@@ -257,14 +268,16 @@ export class PropertiesService {
 
     if (!targetPropertyId) {
       const firstProperty = await this.prisma.property.findFirst({
-        where: {
-          OR: [
-            { owner: { userId } },
-            { staffMembers: { some: { OR: [{ userId: user.id }, { user: { email: user.email } }] } } },
-            ...(user.organizationId ? [{ organizationId: user.organizationId }] : []),
-          ],
-          deletedAt: null,
-        },
+        where: isSuperAdmin
+          ? { deletedAt: null }
+          : {
+              OR: [
+                { owner: { userId } },
+                { staffMembers: { some: { OR: [{ userId: user.id }, { user: { email: user.email } }] } } },
+                ...(user.organizationId ? [{ organizationId: user.organizationId }] : []),
+              ],
+              deletedAt: null,
+            },
       });
 
       if (!firstProperty) {

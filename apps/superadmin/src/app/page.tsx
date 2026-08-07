@@ -77,14 +77,24 @@ export default function AdminDashboardPage() {
   const [loginError, setLoginError] = useState('');
   const [loadingLogin, setLoadingLogin] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'tenants' | 'backups' | 'approvals' | 'announcements'>('overview');
-  
+  const [activeTab, setActiveTab] = useState<'overview' | 'tenants' | 'backups' | 'approvals' | 'announcements' | 'templates'>('overview');
+
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementMessage, setAnnouncementMessage] = useState('');
   const [announcementType, setAnnouncementType] = useState('SYSTEM');
   const [announcementTargetRole, setAnnouncementTargetRole] = useState('ALL');
   const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
-  
+
+  // Invoice Template Workspace State
+  const [invoiceTemplates, setInvoiceTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templateName, setTemplateName] = useState('Custom Modern Template');
+  const [templateHtml, setTemplateHtml] = useState(
+    `<div style="font-family: sans-serif; padding: 24px; border: 2px solid #0B6E4F; border-radius: 16px;">\n  <h1 style="color: #0B6E4F;">{{propertyName}}</h1>\n  <p style="color: #64748b;">{{propertyAddress}} | GSTIN: {{gstNumber}}</p>\n  <hr style="border-color: #e2e8f0; margin: 16px 0;"/>\n  <h2>Tax Invoice #{{invoiceId}}</h2>\n  <p>Guest: <strong>{{guestName}}</strong> | Check-in: {{checkInDate}} | Check-out: {{checkOutDate}}</p>\n  <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">\n    <tr style="background: #f1f5f9;"><th style="padding: 8px; text-align: left;">Item</th><th style="padding: 8px; text-align: right;">Amount</th></tr>\n    <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">{{roomCategory}} ({{nights}} Nights)</td><td style="padding: 8px; text-align: right; border-bottom: 1px solid #e2e8f0;">{{totalAmount}}</td></tr>\n  </table>\n  <div style="margin-top: 24px; background: #ecfdf5; padding: 12px; border-radius: 8px; color: #065f46;">\n    Payment Info: UPI: {{upiId}} | Bank: {{bankName}} ({{accountNumber}})\n  </div>\n</div>`
+  );
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
   const [pendingOwners, setPendingOwners] = useState<PendingOwner[]>([]);
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [platformStats, setPlatformStats] = useState<any>(null);
@@ -94,6 +104,11 @@ export default function AdminDashboardPage() {
   const [loadingOrganizations, setLoadingOrganizations] = useState(false);
   const [loadingStats, setLoadingStats] = useState(false);
   const [loadingBackups, setLoadingBackups] = useState(false);
+
+  // Pagination states
+  const [tenantPage, setTenantPage] = useState(1);
+  const [ownerPage, setOwnerPage] = useState(1);
+  const pageSize = 15;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [approvalStatusFilter, setApprovalStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED'>('ALL');
@@ -109,6 +124,7 @@ export default function AdminDashboardPage() {
   const [rejectingUser, setRejectingUser] = useState<PendingOwner | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -256,6 +272,91 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Fetch Invoice Templates
+  const fetchInvoiceTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const res = await authenticatedFetch(`${API_BASE}/admin/invoice-templates`);
+      if (res.ok) {
+        const raw = await res.json();
+        const templates = raw.data || raw;
+        setInvoiceTemplates(templates);
+        if (templates.length > 0 && !editingTemplateId) {
+          setEditingTemplateId(templates[0].id);
+          setTemplateName(templates[0].name);
+          setTemplateHtml(templates[0].htmlContent);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch invoice templates:', err);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  // Save / Update Invoice Template
+  const handleSaveTemplate = async () => {
+    setSavingTemplate(true);
+    try {
+      const url = editingTemplateId
+        ? `${API_BASE}/admin/invoice-templates/${editingTemplateId}`
+        : `${API_BASE}/admin/invoice-templates`;
+      const method = editingTemplateId ? 'PATCH' : 'POST';
+
+      const res = await authenticatedFetch(url, {
+        method,
+        body: JSON.stringify({
+          name: templateName,
+          htmlContent: templateHtml,
+        }),
+      });
+
+      if (res.ok) {
+        showToast('Invoice template saved successfully!');
+        fetchInvoiceTemplates();
+      } else {
+        showToast('Failed to save template', 'error');
+      }
+    } catch (err) {
+      showToast('Error saving template', 'error');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  // Set Default Template
+  const handleSetDefaultTemplate = async (templateId: string) => {
+    try {
+      const res = await authenticatedFetch(`${API_BASE}/admin/invoice-templates/${templateId}/set-default`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        showToast('Default invoice template updated!');
+        fetchInvoiceTemplates();
+      }
+    } catch (err) {
+      showToast('Failed to set default template', 'error');
+    }
+  };
+
+  // Toggle Organization Active/Suspended Status
+  const handleToggleOrgStatus = async (orgId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'ACTIVE' ? 'CANCELLED' : 'ACTIVE';
+    try {
+      const res = await authenticatedFetch(`${API_BASE}/admin/tenants/${orgId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        showToast(`Tenant status set to ${newStatus}`);
+        fetchOrganizations();
+        if (selectedTenantId === orgId) fetchTenantDeepDive(orgId);
+      }
+    } catch (err) {
+      showToast('Failed to update tenant status', 'error');
+    }
+  };
+
   // Fetch Tenant Deep Dive
   const fetchTenantDeepDive = async (tenantId: string) => {
     setSelectedTenantId(tenantId);
@@ -274,6 +375,7 @@ export default function AdminDashboardPage() {
       setLoadingDeepDive(false);
     }
   };
+
 
   // Session Persistence
   useEffect(() => {
@@ -557,7 +659,20 @@ export default function AdminDashboardPage() {
                   <Bell className="w-4 h-4" />
                   <span>Announcements</span>
                 </button>
+
+                <button
+                  onClick={() => setActiveTab('templates')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-xs transition-all ${
+                    activeTab === 'templates'
+                      ? 'bg-[#360CAF] text-white shadow-lg shadow-[#360CAF]/25'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <FileCheck2 className="w-4 h-4" />
+                  <span>Invoice Templates</span>
+                </button>
               </nav>
+
             </div>
 
             <div className="pt-6 border-t border-slate-100 space-y-3">
@@ -739,13 +854,15 @@ export default function AdminDashboardPage() {
                           <th className="px-6 py-4">Organization</th>
                           <th className="px-6 py-4">Owner Info</th>
                           <th className="px-6 py-4">Properties</th>
+                          <th className="px-6 py-4">Status</th>
                           <th className="px-6 py-4">Registered Date</th>
-                          <th className="px-6 py-4 text-right">Deep-Dive</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-medium">
                         {organizations.map((org) => {
                           const ownerUser = org.users?.[0];
+                          const isOrgActive = org.subscriptionStatus === 'ACTIVE';
                           return (
                             <tr key={org.id} className="hover:bg-slate-50">
                               <td className="px-6 py-4">
@@ -761,15 +878,36 @@ export default function AdminDashboardPage() {
                                   🏢 {org._count?.properties || 0} Properties
                                 </span>
                               </td>
+                              <td className="px-6 py-4">
+                                <span
+                                  className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                                    isOrgActive
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-rose-100 text-rose-800'
+                                  }`}
+                                >
+                                  {org.subscriptionStatus || 'ACTIVE'}
+                                </span>
+                              </td>
                               <td className="px-6 py-4 text-slate-500">
                                 {new Date(org.createdAt).toLocaleDateString('en-US')}
                               </td>
-                              <td className="px-6 py-4 text-right">
+                              <td className="px-6 py-4 text-right space-x-2">
+                                <button
+                                  onClick={() => handleToggleOrgStatus(org.id, org.subscriptionStatus || 'ACTIVE')}
+                                  className={`px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer transition-all ${
+                                    isOrgActive
+                                      ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                                  }`}
+                                >
+                                  {isOrgActive ? 'Suspend Tenant' : 'Activate Tenant'}
+                                </button>
                                 <button
                                   onClick={() => fetchTenantDeepDive(org.id)}
-                                  className="px-4 py-2 rounded-xl bg-[#360CAF] text-white font-bold text-xs hover:bg-[#2b0991] transition-all cursor-pointer"
+                                  className="px-4 py-1.5 rounded-xl bg-[#360CAF] text-white font-bold text-xs hover:bg-[#2b0991] transition-all cursor-pointer"
                                 >
-                                  Deep Dive View
+                                  Deep Dive
                                 </button>
                               </td>
                             </tr>
@@ -778,6 +916,7 @@ export default function AdminDashboardPage() {
                       </tbody>
                     </table>
                   </div>
+
                 </div>
               )}
 
@@ -915,24 +1054,36 @@ export default function AdminDashboardPage() {
               {/* ANNOUNCEMENTS TAB */}
               {activeTab === 'announcements' && (
                 <div className="bg-white rounded-3xl border border-slate-200/90 p-8 shadow-sm space-y-6">
-                  <h3 className="text-lg font-bold text-slate-900">Broadcast Announcement</h3>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <Bell className="w-5 h-5 text-[#360CAF]" />
+                      Broadcast Platform Announcement
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Send a broadcast announcement across all tenant organizations. Notifications will instantly pop up in the owner & staff Notification Bell inbox at http://localhost:3000.
+                    </p>
+                  </div>
+
                   <form
                     onSubmit={async (e) => {
                       e.preventDefault();
                       setSendingAnnouncement(true);
                       try {
-                        const res = await authenticatedFetch(`${API_BASE}/admin/notifications`, {
+                        const res = await authenticatedFetch(`${API_BASE}/admin/notifications/broadcast`, {
                           method: 'POST',
                           body: JSON.stringify({
                             title: announcementTitle,
                             message: announcementMessage,
                             type: announcementType,
+                            targetRole: announcementTargetRole,
                           }),
                         });
                         if (res.ok) {
-                          showToast('Broadcasted successfully!');
+                          showToast('Broadcasted announcement to all accounts!');
                           setAnnouncementTitle('');
                           setAnnouncementMessage('');
+                        } else {
+                          showToast('Failed to broadcast announcement', 'error');
                         }
                       } catch (err: any) {
                         showToast('Failed to broadcast', 'error');
@@ -940,38 +1091,238 @@ export default function AdminDashboardPage() {
                         setSendingAnnouncement(false);
                       }
                     }}
-                    className="space-y-4 max-w-xl text-xs"
+                    className="space-y-4 max-w-xl text-xs font-medium"
                   >
                     <div>
-                      <label className="block font-bold mb-1">Title</label>
+                      <label className="block font-bold text-slate-700 mb-1">Target Audience</label>
+                      <select
+                        value={announcementTargetRole}
+                        onChange={(e) => setAnnouncementTargetRole(e.target.value)}
+                        className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-800 focus:outline-none focus:border-[#360CAF]"
+                      >
+                        <option value="ALL">All Roles (Owners, Managers, Receptionists & Housekeeping)</option>
+                        <option value="OWNER">Property Owners Only</option>
+                        <option value="MANAGER">Operations Managers Only</option>
+                        <option value="RECEPTION_STAFF">Reception Staff Only</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Notification Category / Type</label>
+                      <select
+                        value={announcementType}
+                        onChange={(e) => setAnnouncementType(e.target.value)}
+                        className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-800 focus:outline-none focus:border-[#360CAF]"
+                      >
+                        <option value="SYSTEM">System Announcement</option>
+                        <option value="ALERT">Critical Alert</option>
+                        <option value="BOOKING">Booking Update</option>
+                        <option value="PAYMENT">Billing Notice</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Announcement Title</label>
                       <input
                         type="text"
+                        required
                         value={announcementTitle}
                         onChange={(e) => setAnnouncementTitle(e.target.value)}
-                        placeholder="Announcement Title"
-                        className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200"
+                        placeholder="e.g. Scheduled System Maintenance / Platform Upgrade"
+                        className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-900 focus:outline-none focus:border-[#360CAF]"
                       />
                     </div>
+
                     <div>
-                      <label className="block font-bold mb-1">Message</label>
+                      <label className="block font-bold text-slate-700 mb-1">Message Content</label>
                       <textarea
+                        required
                         value={announcementMessage}
                         onChange={(e) => setAnnouncementMessage(e.target.value)}
                         rows={4}
-                        placeholder="Message content..."
-                        className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200"
+                        placeholder="Type announcement message to broadcast to owner accounts..."
+                        className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-900 focus:outline-none focus:border-[#360CAF]"
                       />
                     </div>
+
                     <button
                       type="submit"
                       disabled={sendingAnnouncement}
-                      className="px-6 py-3 rounded-xl bg-[#360CAF] text-white font-bold cursor-pointer"
+                      className="px-6 py-3 rounded-xl bg-[#360CAF] hover:bg-[#2b0991] text-white font-bold cursor-pointer shadow-md transition-all flex items-center gap-2"
                     >
-                      Broadcast Now
+                      {sendingAnnouncement ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                      Broadcast Now to Owner Accounts
                     </button>
                   </form>
                 </div>
               )}
+
+
+              {/* INVOICE TEMPLATE WORKSPACE TAB */}
+              {activeTab === 'templates' && (
+                <div className="bg-white rounded-3xl border border-slate-200/90 p-8 shadow-sm space-y-6">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                    <div>
+                      <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                        <FileCheck2 className="w-5 h-5 text-[#360CAF]" />
+                        Invoice Template Workspace
+                      </h2>
+                      <p className="text-slate-500 text-xs mt-1">
+                        Design and customize guest tax invoice templates with live HTML/CSS editing & variable tokens.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          setEditingTemplateId(null);
+                          setTemplateName('New Invoice Template');
+                          setTemplateHtml(
+                            `<div style="font-family: sans-serif; padding: 24px;"><h1>{{propertyName}}</h1><p>Invoice #{{invoiceId}}</p></div>`
+                          );
+                        }}
+                        className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer"
+                      >
+                        + Create New Template
+                      </button>
+                      <button
+                        onClick={handleSaveTemplate}
+                        disabled={savingTemplate}
+                        className="px-5 py-2 rounded-xl bg-[#360CAF] hover:bg-[#2b0991] text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+                      >
+                        {savingTemplate ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                        Save & Publish Template
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Saved Templates List Bar */}
+                  {invoiceTemplates.length > 0 && (
+                    <div className="flex items-center gap-3 overflow-x-auto pb-2 border-b border-slate-100">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0">Saved Templates:</span>
+                      {invoiceTemplates.map((tpl) => (
+                        <div
+                          key={tpl.id}
+                          className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
+                            editingTemplateId === tpl.id
+                              ? 'bg-[#360CAF]/10 border-[#360CAF] text-[#360CAF]'
+                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          }`}
+                          onClick={() => {
+                            setEditingTemplateId(tpl.id);
+                            setTemplateName(tpl.name);
+                            setTemplateHtml(tpl.htmlContent);
+                          }}
+                        >
+                          <span>{tpl.name}</span>
+                          {tpl.isDefault ? (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[9px] font-extrabold uppercase">
+                              Default
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSetDefaultTemplate(tpl.id);
+                              }}
+                              className="text-[10px] text-slate-400 hover:text-emerald-600 underline cursor-pointer"
+                            >
+                              Make Default
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Variable Tokens Palette */}
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                    <span className="text-xs font-bold text-slate-700 block">Insertable Variable Tokens:</span>
+                    <div className="flex flex-wrap gap-2 text-[11px] font-mono">
+                      {[
+                        '{{propertyName}}',
+                        '{{propertyAddress}}',
+                        '{{gstNumber}}',
+                        '{{invoiceId}}',
+                        '{{guestName}}',
+                        '{{checkInDate}}',
+                        '{{checkOutDate}}',
+                        '{{roomCategory}}',
+                        '{{nights}}',
+                        '{{totalAmount}}',
+                        '{{upiId}}',
+                        '{{bankName}}',
+                        '{{accountNumber}}',
+                      ].map((token) => (
+                        <button
+                          key={token}
+                          onClick={() => setTemplateHtml((prev) => prev + ` ${token} `)}
+                          className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-800 hover:bg-[#360CAF] hover:text-white transition-colors cursor-pointer"
+                        >
+                          {token}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Grid Layout: Code Editor + Live Rendered Preview */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">Template Name</label>
+                        <input
+                          type="text"
+                          value={templateName}
+                          onChange={(e) => setTemplateName(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#360CAF]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">HTML / CSS Code Editor</label>
+                        <textarea
+                          value={templateHtml}
+                          onChange={(e) => setTemplateHtml(e.target.value)}
+                          rows={16}
+                          className="w-full p-4 rounded-xl bg-slate-900 text-slate-100 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[#360CAF] leading-relaxed"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Live Preview Pane */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="block text-xs font-bold text-slate-600">Live Render Preview</label>
+                        <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Sample Data Substituted
+                        </span>
+                      </div>
+
+                      <div className="min-h-[420px] p-6 bg-white border border-slate-300 rounded-2xl shadow-inner overflow-y-auto max-h-[500px]">
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: templateHtml
+                              .replace(/\{\{propertyName\}\}/g, 'Grand Resort & Spa')
+                              .replace(/\{\{propertyAddress\}\}/g, 'Beach Road, Calangute, Goa')
+                              .replace(/\{\{gstNumber\}\}/g, '30AAACG1234F1Z5')
+                              .replace(/\{\{invoiceId\}\}/g, 'INV-2026-0891')
+                              .replace(/\{\{guestName\}\}/g, 'Rahul Sharma')
+                              .replace(/\{\{checkInDate\}\}/g, '07 Aug 2026')
+                              .replace(/\{\{checkOutDate\}\}/g, '10 Aug 2026')
+                              .replace(/\{\{roomCategory\}\}/g, 'Deluxe Ocean Suite')
+                              .replace(/\{\{nights\}\}/g, '3')
+                              .replace(/\{\{totalAmount\}\}/g, '₹14,500.00')
+                              .replace(/\{\{upiId\}\}/g, 'grandresort@okicici')
+                              .replace(/\{\{bankName\}\}/g, 'HDFC Bank')
+                              .replace(/\{\{accountNumber\}\}/g, '50100234918234'),
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
 
             </main>
           </div>

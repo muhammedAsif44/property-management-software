@@ -14,6 +14,7 @@ export function useHousekeepingUnitsQuery(propertyId?: string, roomTypeId?: stri
   return useQuery({
     queryKey: housekeepingKeys.units(propertyId, roomTypeId, status),
     queryFn: () => housekeepingService.getUnits(propertyId, roomTypeId, status),
+    enabled: !!propertyId,
     staleTime: 10000,
   });
 }

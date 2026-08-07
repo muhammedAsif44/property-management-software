@@ -26,6 +26,7 @@ import {
   X,
   Droplets,
   BarChart3,
+  Globe,
   ShieldAlert,
 } from 'lucide-react';
 
@@ -55,41 +56,28 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
   const userName = userObj?.owner?.fullName || userObj?.fullName || userObj?.email || '';
 
   const userRole = profileData?.user?.role || profileData?.data?.user?.role || userObj?.role || 'OWNER';
-  const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN';
+  const isSuperAdmin = userRole === 'SUPER_ADMIN';
+  const isOwner = userRole === 'OWNER';
   const isManager = userRole === 'MANAGER';
-  const isManagerOrOwner = isOwner || isManager;
+  const isManagerOrOwner = isOwner || isManager || isSuperAdmin;
   const isHousekeeping = userRole === 'HOUSEKEEPING';
-  const isReceptionist = userRole === 'RECEPTIONIST';
+  const isReceptionist = userRole === 'RECEPTIONIST' || userRole === 'RECEPTION_STAFF';
   const isViewer = userRole === 'VIEWER';
 
-  const rawNavigationItems = [
+  const rawNavigationItems: Array<{
+    name: string;
+    href: string;
+    icon: any;
+    active: boolean;
+    visible: boolean;
+    badge?: string;
+  }> = [
     {
       name: t('dashboard'),
       href: '/dashboard',
       icon: LayoutDashboard,
       active: pathname === '/dashboard',
       visible: !isHousekeeping,
-    },
-    {
-      name: t('housekeeping') || 'Housekeeping',
-      href: '/housekeeping',
-      icon: Droplets,
-      active: pathname.startsWith('/housekeeping'),
-      visible: true,
-    },
-    {
-      name: t('properties'),
-      href: '/properties',
-      icon: Building2,
-      active: pathname.startsWith('/properties'),
-      visible: isOwner && !isHousekeeping,
-    },
-    {
-      name: t('staffDirectory'),
-      href: '/settings/staff',
-      icon: Users,
-      active: pathname.startsWith('/settings/staff'),
-      visible: isManagerOrOwner && !isHousekeeping,
     },
     {
       name: t('bookings'),
@@ -110,7 +98,6 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       href: '/rooms',
       icon: BedDouble,
       active: pathname.startsWith('/rooms'),
-      badge: t('comingSoon'),
       visible: true,
     },
     {
@@ -121,11 +108,11 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       visible: !isHousekeeping,
     },
     {
-      name: t('invoicesAndBilling'),
-      href: '/invoices',
-      icon: Receipt,
-      active: pathname.startsWith('/invoices'),
-      visible: !isHousekeeping,
+      name: t('channelManager'),
+      href: '/settings/channels',
+      icon: Globe,
+      active: pathname.startsWith('/settings/channels'),
+      visible: isManagerOrOwner && !isHousekeeping,
     },
     {
       name: t('agenciesAndTac'),
@@ -135,11 +122,39 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       visible: isManagerOrOwner && !isHousekeeping,
     },
     {
+      name: t('invoicesAndBilling'),
+      href: '/invoices',
+      icon: Receipt,
+      active: pathname.startsWith('/invoices'),
+      visible: !isHousekeeping,
+    },
+    {
+      name: t('housekeeping') || 'Housekeeping',
+      href: '/housekeeping',
+      icon: Droplets,
+      active: pathname.startsWith('/housekeeping'),
+      visible: true,
+    },
+    {
       name: t('reportsAndAnalytics') || 'Reports & Analytics',
       href: '/reports',
       icon: BarChart3,
       active: pathname.startsWith('/reports'),
       visible: isManagerOrOwner,
+    },
+    {
+      name: t('properties'),
+      href: '/properties',
+      icon: Building2,
+      active: pathname.startsWith('/properties'),
+      visible: isOwner && !isHousekeeping,
+    },
+    {
+      name: t('staffDirectory'),
+      href: '/settings/staff',
+      icon: Users,
+      active: pathname.startsWith('/settings/staff'),
+      visible: isManagerOrOwner && !isHousekeeping,
     },
     {
       name: t('settings'),
@@ -375,15 +390,17 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
               </div>
               <div className="overflow-hidden text-left min-w-0 flex-1">
                 <p className="text-[11px] font-extrabold truncate text-emerald-950 dark:text-slate-100 capitalize">
-                  {userName || (isOwner ? t('ownerPortal') : userRole)}
+                  {userName || (isSuperAdmin ? 'Super Admin Portal' : isOwner ? t('ownerPortal') : userRole)}
                 </p>
                 <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1 truncate">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   <span className="truncate">
+                    {isSuperAdmin && 'Super Admin Portal'}
                     {isOwner && t('ownerPortal')}
-                    {userRole === 'MANAGER' && t('managerPortal')}
-                    {userRole === 'RECEPTION_STAFF' && t('receptionPortal')}
-                    {userRole === 'VIEWER' && t('viewerPortal')}
+                    {isManager && t('managerPortal')}
+                    {isReceptionist && t('receptionPortal')}
+                    {isHousekeeping && 'Housekeeping Portal'}
+                    {isViewer && t('viewerPortal')}
                   </span>
                 </p>
               </div>

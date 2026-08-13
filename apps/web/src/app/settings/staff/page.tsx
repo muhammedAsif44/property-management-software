@@ -7,8 +7,8 @@ import { useQuery } from '@tanstack/react-query';
 import { authService } from '@/features/auth';
 import { useToast } from '@/components/ui/toast';
 import { usePropertyStore, useActivePropertyQuery } from '@/features/properties';
-import { DashboardSidebar } from '@/components/dashboard-sidebar';
-import { AppHeader } from '@/components/app-header';
+import { AppShell } from '@/components/app-shell';
+import { Settings } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   useStaffDirectoryQuery,
@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   ShieldCheck,
   Building2,
+  Sliders,
 } from 'lucide-react';
 
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
@@ -138,46 +139,25 @@ export default function StaffDirectoryPage() {
   };
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
-      {/* Left Navigation Sidebar */}
-      <DashboardSidebar />
-
-      {/* Main Content Area */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        {/* Top Header Bar */}
-        <AppHeader
-          actions={
-            <button
-              onClick={() => setIsInviteModalOpen(true)}
-              className="h-9 px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>{t('inviteStaff')}</span>
-            </button>
-          }
+    <AppShell
+      sectionIcon={Settings}
+      sectionTitle={t('sectionSystemAdmin')}
+      sectionDescription={t('sectionSystemAdminDesc')}
+      sectionTabs={[
+        { label: t('tabProperties'), icon: Building2, href: '/properties' },
+        { label: t('tabStaff'), icon: Users, count: Array.isArray(staffData) ? staffData.length : undefined, href: '/settings/staff' },
+        { label: t('tabSettings'), icon: Sliders, href: '/settings' },
+      ]}
+      sectionActions={
+        <button
+          onClick={() => setIsInviteModalOpen(true)}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs shadow-md shadow-emerald-900/20 active:scale-95 transition-all cursor-pointer shrink-0"
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <Link
-              href="/dashboard"
-              className="p-1.5 rounded-lg bg-slate-100 dark:bg-[#16241e] hover:bg-slate-200 text-slate-600 dark:text-slate-400 transition-colors"
-              title="Back to Dashboard"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate flex items-center gap-2">
-                <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                Team & Staff Management
-              </h1>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
-                {activeProperty ? activeProperty.name : 'Property Workspace'}
-              </p>
-            </div>
-          </div>
-        </AppHeader>
-
-        {/* Directory Workspace */}
-        <main className="p-4 lg:p-6 space-y-6 w-full flex-1 overflow-y-auto">
+          <UserPlus className="w-4 h-4" />
+          <span>{t('inviteStaff')}</span>
+        </button>
+      }
+    >
           
           {/* Error Banner with Retry (Suppressed for 401 & 403) */}
           {staffError && !is401Error && !is403Error && (
@@ -231,8 +211,6 @@ export default function StaffDirectoryPage() {
             initialEmail={resendEmail}
           />
 
-        </main>
-      </div>
-    </div>
+    </AppShell>
   );
 }

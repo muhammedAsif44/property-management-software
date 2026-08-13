@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardSidebar } from '@/components/dashboard-sidebar';
+import { AppShell } from '@/components/app-shell';
 import { usePropertyStore, useActivePropertyQuery } from '@/features/properties';
 import { useCreateBookingMutation } from '@/features/bookings/api/use-bookings';
 import { useTranslation } from '@/lib/i18n';
@@ -16,16 +16,18 @@ import {
   CheckCircle2,
   Loader2,
   ArrowRight,
-  ChevronLeft,
   User,
   BedDouble,
   Calendar,
   CreditCard,
   Building2,
   ShieldCheck,
-  Sparkles,
+  RotateCcw,
+  Tag,
+  Send,
+  CalendarDays,
+  FileText,
 } from 'lucide-react';
-import { AppHeader } from '@/components/app-header';
 import {
   BookingStepperHeader,
   StepGuestDetails,
@@ -49,6 +51,8 @@ function NewBookingContent() {
   const paramCheckIn = searchParams.get('checkInDate') || searchParams.get('checkIn') || searchParams.get('date');
   const paramCheckOut = searchParams.get('checkOutDate') || searchParams.get('checkOut');
   const paramRoomTypeId = searchParams.get('roomTypeId');
+  const paramRoomUnitId = searchParams.get('roomUnitId') || searchParams.get('unitId');
+  const paramUnitNumber = searchParams.get('unitNumber');
 
   const [step, setStep] = useState(1);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -58,10 +62,13 @@ function NewBookingContent() {
     channel: 'WALK_IN',
     advancePaid: 0,
     facilityIds: [],
-    nationality: 'IN',
+    nationality: 'US',
+    guestNationality: 'US',
     ...(paramCheckIn && { checkInDate: paramCheckIn }),
     ...(paramCheckOut && { checkOutDate: paramCheckOut }),
     ...(paramRoomTypeId && { roomTypeId: paramRoomTypeId }),
+    ...(paramRoomUnitId && { allocatedRoomUnitId: paramRoomUnitId, roomUnitId: paramRoomUnitId }),
+    ...(paramUnitNumber && { unitNumber: paramUnitNumber }),
   });
 
   const { data: propertyData } = useQuery({
@@ -121,7 +128,7 @@ function NewBookingContent() {
     }
   }, [roomTypes, paramRoomTypeId]);
 
-  // Live synchronization of form.baseAmount whenever roomTypeId, checkInDate, checkOutDate or roomTypes change
+  // Live synchronization of form.baseAmount whenever roomTypeId, checkInDate, checkOutDate change
   useEffect(() => {
     if (!form.roomTypeId || !roomTypes.length) return;
     const selected = roomTypes.find((r) => r.id === form.roomTypeId);
@@ -154,6 +161,33 @@ function NewBookingContent() {
         : [...current, facilityId];
       return { ...prev, facilityIds: updated };
     });
+  };
+
+  const handleClear = () => {
+    if (step === 1) {
+      setForm((prev: any) => ({
+        ...prev,
+        guestName: '',
+        guestPhone: '',
+        guestEmail: '',
+        idType: '',
+        idNumber: '',
+        address: '',
+        notes: '',
+      }));
+      toast.info('Guest details cleared', 'Reset');
+    } else {
+      setForm((prev: any) => ({
+        adults: 1,
+        children: 0,
+        channel: 'WALK_IN',
+        advancePaid: 0,
+        facilityIds: [],
+        nationality: 'US',
+        guestNationality: 'US',
+      }));
+      setStep(1);
+    }
   };
 
   const handleNext = () => {
@@ -230,7 +264,7 @@ function NewBookingContent() {
       const checkOut = new Date(form.checkOutDate);
       const nights = Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (86400 * 1000)));
 
-      const totalAmount = (baseAmount * nights) + facilityTotal;
+      const totalAmount = baseAmount * nights + facilityTotal;
 
       const payload: CreateBookingPayload = {
         propertyId: activeProperty.id,
@@ -246,7 +280,7 @@ function NewBookingContent() {
         channel: form.channel || 'WALK_IN',
         advancePaid: Number(form.advancePaid) || 0,
         notes: form.notes || undefined,
-        guestNationality: form.nationality || 'IN',
+        guestNationality: form.guestNationality || form.nationality || 'US',
         agencyId: form.channel === 'AGENCY' ? form.agencyId : undefined,
         baseAmount,
         facilityIds: form.facilityIds || [],
@@ -259,7 +293,7 @@ function NewBookingContent() {
     }
   };
 
-  const formatMoney = (val: any) => (Number(val) || 0).toFixed(2);
+  const formatMoney = (val: any) => `₹${(Number(val) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const selectedRoomType = roomTypes.find((r) => r.id === form.roomTypeId);
   const checkIn = form.checkInDate ? new Date(form.checkInDate) : null;
@@ -284,9 +318,12 @@ function NewBookingContent() {
 
   if (showSuccess) {
     return (
-      <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex bg-slate-50/70 dark:bg-slate-950">
-        <DashboardSidebar />
-        <div className="flex-1 flex flex-col items-center justify-center p-6">
+      <AppShell
+        sectionIcon={Calendar}
+        sectionTitle={t('sectionBookingManagement')}
+        sectionDescription={t('sectionBookingManagementDesc')}
+      >
+        <div className="flex flex-col items-center justify-center p-6 min-h-[60vh]">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full text-center space-y-4 shadow-xl">
             <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-8 h-8" />
@@ -298,10 +335,10 @@ function NewBookingContent() {
             </p>
             <div className="pt-4 flex gap-3">
               <button
-                onClick={() => router.push('/bookings/room-calendar')}
-                className="flex-1 py-3 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs transition-all cursor-pointer shadow-md"
+                onClick={() => router.push('/bookings')}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs transition-all cursor-pointer shadow-md"
               >
-                Go to Room Calendar
+                Go to Bookings
               </button>
               <button
                 onClick={() => {
@@ -313,190 +350,254 @@ function NewBookingContent() {
                     channel: 'WALK_IN',
                     advancePaid: 0,
                     facilityIds: [],
-                    nationality: 'IN',
+                    nationality: 'US',
+                    guestNationality: 'US',
                   });
                 }}
-                className="px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 transition-all cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 transition-all cursor-pointer"
               >
                 New Booking
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative overflow-hidden bg-slate-50/70 dark:bg-slate-950">
-      <DashboardSidebar />
+    <AppShell
+      sectionIcon={Calendar}
+      sectionTitle="New Booking"
+      sectionDescription="Create a new reservation for your guest"
+      sectionActions={
+        <button
+          onClick={() => router.push('/bookings')}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer shadow-2xs"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Bookings</span>
+        </button>
+      }
+      layout="full"
+    >
+      <div className="space-y-6 w-full">
+        {/* ══════════════════════════════════════════════════════════════════
+           1. STEPPER HEADER (Exact Match with Reference)
+           ══════════════════════════════════════════════════════════════════ */}
+        <BookingStepperHeader step={step} setStep={(s: number) => setStep(s)} />
 
-      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen overflow-y-auto">
-        <AppHeader>
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => router.push('/bookings/room-calendar')}
-              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer shrink-0"
-              title={t('backToBookings')}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
+        {/* ══════════════════════════════════════════════════════════════════
+           2. MAIN WORKSPACE GRID: Form (8 cols) + Sticky Summary (4 cols)
+           ══════════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Main Form Container (Left) */}
+          <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs">
+            {step === 1 && <StepGuestDetails form={form} onChange={handleChange} />}
+            {step === 2 && <StepRoomDates form={form} roomTypes={roomTypes} agencies={agencies} onChange={handleChange} />}
+            {step === 3 && (
+              <StepPricingFacilities
+                form={form}
+                amenities={amenities}
+                agencies={agencies}
+                onChange={handleChange}
+                toggleFacility={toggleFacility}
+              />
+            )}
+            {step === 4 && (
+              <StepReviewConfirm
+                form={form}
+                selectedRoom={selectedRoomType}
+                agencies={agencies}
+                baseAmount={baseAmount}
+                facilityTotal={facilityTotal}
+                advancePaid={advancePaid}
+                totalEstimate={totalEstimate}
+                balanceDue={balanceDue}
+                onEditStep={(s: number) => setStep(s)}
+              />
+            )}
 
-            <div className="flex items-center gap-3 bg-slate-50/90 dark:bg-slate-850 px-4 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-2xs min-w-0">
-              <div className="w-8 h-8 rounded-full bg-slate-900 text-emerald-400 flex items-center justify-center shrink-0">
-                <Building2 className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <h1 className="text-xs font-black text-slate-900 dark:text-white leading-tight truncate">
-                  {activeProperty?.name || 'Azura Resorts & Spa'}
-                </h1>
-                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 leading-tight truncate">
-                  Create Reservation
-                </span>
-              </div>
-            </div>
-          </div>
-        </AppHeader>
-
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full space-y-6 pb-20">
-          <BookingStepperHeader step={step} setStep={(s: number) => setStep(s)} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs">
-              {step === 1 && <StepGuestDetails form={form} onChange={handleChange} />}
-              {step === 2 && <StepRoomDates form={form} roomTypes={roomTypes} agencies={agencies} onChange={handleChange} />}
-              {step === 3 && <StepPricingFacilities form={form} amenities={amenities} agencies={agencies} onChange={handleChange} toggleFacility={toggleFacility} />}
-              {step === 4 && (
-                <StepReviewConfirm
-                  form={form}
-                  selectedRoom={selectedRoomType}
-                  agencies={agencies}
-                  baseAmount={baseAmount}
-                  facilityTotal={facilityTotal}
-                  advancePaid={advancePaid}
-                  totalEstimate={totalEstimate}
-                  balanceDue={balanceDue}
-                  onEditStep={(s: number) => setStep(s)}
-                />
+            {/* Bottom Actions inside Card */}
+            <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+              {step === 1 ? (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-all cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Clear</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-all cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back</span>
+                </button>
               )}
 
-              {/* Sticky Bottom Actions Bar */}
-              <div className="sticky bottom-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pt-4 pb-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4 mt-6">
-                {step > 1 ? (
-                  <button
-                    onClick={handleBack}
-                    className="px-5 py-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-extrabold text-xs hover:bg-slate-200 transition-all cursor-pointer shadow-2xs"
-                  >
-                    Back
-                  </button>
-                ) : <div />}
-
-                {step < 4 ? (
-                  <button
-                    onClick={handleNext}
-                    className="px-6 py-2.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs transition-all cursor-pointer shadow-md shadow-emerald-900/20 flex items-center gap-2"
-                  >
-                    Continue <ArrowRight className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSubmit}
-                    disabled={createMutation.isPending}
-                    className="px-6 py-2.5 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs transition-all cursor-pointer shadow-md shadow-emerald-900/20 flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    Confirm Booking
-                  </button>
-                )}
-              </div>
+              {step < 4 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="px-6 py-2 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-white font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-98"
+                >
+                  <span>Continue</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={createMutation.isPending}
+                  className="px-6 py-2 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-white font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50 active:scale-98"
+                >
+                  {createMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                  <span>Confirm Reservation</span>
+                </button>
+              )}
             </div>
+          </div>
 
-            {/* Right Summary Sidebar */}
-            <div className="lg:col-span-4 sticky top-20 space-y-4">
-              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Reservation Summary</h3>
+          {/* Right Sticky Reservation Summary */}
+          <div className="lg:col-span-4 sticky top-6 space-y-4">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs space-y-4">
+              {/* Summary Header */}
+              <div className="flex items-center gap-2 text-slate-900 dark:text-white">
+                <FileText className="w-4 h-4 text-emerald-700" />
+                <h3 className="text-sm font-bold">Reservation Summary</h3>
+              </div>
 
-                <div className="space-y-3 text-xs">
-                  <div className="flex justify-between text-slate-600 dark:text-slate-400 font-medium">
-                    <span>Guest</span>
-                    <span className="font-bold text-slate-900 dark:text-white">{form.guestName || 'Not entered'}</span>
-                  </div>
-
-                  <div className="flex justify-between text-slate-600 dark:text-slate-400 font-medium">
-                    <span>Dates</span>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {form.checkInDate ? `${form.checkInDate} (${nights}n)` : 'Dates pending'}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between text-slate-600 dark:text-slate-400 font-medium">
-                    <span>Category</span>
-                    <span className="font-bold text-slate-900 dark:text-white">{selectedRoomType?.name || 'Pending selection'}</span>
-                  </div>
-
-                  <div className="border-t border-slate-100 dark:border-slate-800 pt-3 flex justify-between text-slate-600 dark:text-slate-400 font-medium">
-                    <span>Room Rate ({nights}n)</span>
-                    <span className="font-bold text-slate-900 dark:text-white">₹{formatMoney(baseAmount)}</span>
-                  </div>
-
-                  {facilityTotal > 0 && (
-                    <div className="flex justify-between text-slate-500 dark:text-slate-400 font-medium">
-                      <span>Add-on Facilities</span>
-                      <span className="font-bold text-slate-900 dark:text-white">₹{formatMoney(facilityTotal)}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between font-bold text-slate-900 dark:text-white pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <span>Total Estimate</span>
-                    <span>₹{formatMoney(totalEstimate)}</span>
-                  </div>
-
-                  {form.channel === 'AGENCY' && form.agencyId && (() => {
-                    const agency = agencies.find((a) => a.id === form.agencyId);
-                    const rate = Number(agency?.defaultTacRate || 10);
-                    const { tacAmount, propertyAmount } = calculateTac(totalEstimate, rate);
-
-                    return (
-                      <div className="p-2.5 bg-blue-50/90 dark:bg-blue-950/50 rounded-xl border border-blue-200 dark:border-blue-800/80 space-y-1">
-                        <div className="flex justify-between font-extrabold text-blue-900 dark:text-blue-300 text-[11px]">
-                          <span>TAC Partner ({rate}%)</span>
-                          <span className="truncate max-w-[100px] text-right">{agency?.name || 'Agency'}</span>
-                        </div>
-                        <div className="flex justify-between font-semibold text-blue-800 dark:text-blue-400 text-[11px]">
-                          <span>Commission</span>
-                          <span>- ₹{formatMoney(tacAmount)}</span>
-                        </div>
-                        <div className="flex justify-between font-black text-blue-950 dark:text-blue-200 text-[11px] border-t border-blue-200 dark:border-blue-800 pt-1 mt-1">
-                          <span>Net Property</span>
-                          <span>₹{formatMoney(propertyAmount)}</span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold mt-2">
-                    <span>Advance Payment</span>
-                    <span>₹{formatMoney(advancePaid)}</span>
-                  </div>
-
-                  <div className="flex justify-between text-amber-600 dark:text-amber-400 font-extrabold text-sm pt-2 border-t border-dashed border-slate-200 dark:border-slate-700">
-                    <span>Balance Due</span>
-                    <span>₹{formatMoney(balanceDue)}</span>
-                  </div>
+              {/* Key Values */}
+              <div className="space-y-2.5 text-xs">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Guest</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {form.guestName?.trim() ? form.guestName : 'Not entered'}
+                  </span>
                 </div>
 
-                <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-start gap-2">
-                  <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
-                  <p className="leading-relaxed">
-                    Advance payments are logged atomically into the property's append-only ledger upon confirmation.
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Dates</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {form.checkInDate && form.checkOutDate
+                      ? `${form.checkInDate} → ${form.checkOutDate}`
+                      : 'Dates pending'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Category</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {selectedRoomType?.name || 'Not selected'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Room</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {form.unitNumber ? `Room ${form.unitNumber}` : 'Not selected'}
+                  </span>
+                </div>
+
+                <div className="border-t border-slate-100 dark:border-slate-800 pt-2.5 flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Room Rate (1 Night)</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{formatMoney(nightlyPrice)}</span>
+                </div>
+
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Total Estimate</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{formatMoney(totalEstimate)}</span>
+                </div>
+
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">Advance Payment</span>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">{formatMoney(advancePaid)}</span>
+                </div>
+
+                <div className="flex justify-between text-amber-700 dark:text-amber-400 font-bold pt-1">
+                  <span>Balance Due</span>
+                  <span className="font-black">{formatMoney(balanceDue)}</span>
+                </div>
+              </div>
+
+              {/* Payment Note Box */}
+              <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 text-[11px] text-emerald-900 dark:text-emerald-300 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px] text-emerald-800 dark:text-emerald-400">
+                  <span>PAYMENT NOTE</span>
+                </div>
+                <div className="flex items-start gap-2 pt-0.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed text-[11px]">
+                    Advance payments are logged automatically into the property&apos;s append-only ledger upon confirmation.
                   </p>
                 </div>
               </div>
             </div>
           </div>
-        </main>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════════
+           3. WHAT'S NEXT? GUIDANCE BAR (Matching Reference)
+           ══════════════════════════════════════════════════════════════════ */}
+        <div className="space-y-3 pt-2">
+          <div>
+            <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-400">What&apos;s Next?</h4>
+            <p className="text-[11px] text-slate-400 font-medium">After adding guest details, you can:</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Card 1 */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 flex items-start gap-3 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h5 className="text-xs font-bold text-slate-900 dark:text-white">Select Room & Dates</h5>
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">Choose room, check-in & check-out dates</p>
+              </div>
+            </div>
+
+            {/* Card 2 */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 flex items-start gap-3 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                <Tag className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h5 className="text-xs font-bold text-slate-900 dark:text-white">Set Pricing & Add-ons</h5>
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">Review rates, taxes and additional services</p>
+              </div>
+            </div>
+
+            {/* Card 3 */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 flex items-start gap-3 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h5 className="text-xs font-bold text-slate-900 dark:text-white">Confirm Reservation</h5>
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">Review all details before confirming the booking</p>
+              </div>
+            </div>
+
+            {/* Card 4 */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 flex items-start gap-3 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                <Send className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h5 className="text-xs font-bold text-slate-900 dark:text-white">Send Confirmation</h5>
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">Confirmation will be sent to the guest</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </AppShell>
   );
 }
 

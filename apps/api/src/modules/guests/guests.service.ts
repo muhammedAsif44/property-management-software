@@ -30,7 +30,7 @@ export class GuestsService {
       propertyId: resolvedPropertyId,
     };
 
-    const [data, total] = await Promise.all([
+    let [data, total] = await Promise.all([
       this.prisma.guest.findMany({
         where,
         skip,
@@ -39,6 +39,19 @@ export class GuestsService {
       }),
       this.prisma.guest.count({ where }),
     ]);
+
+    if (total === 0 && !search) {
+      await this.syncGuestsFromBookings(resolvedPropertyId);
+      [data, total] = await Promise.all([
+        this.prisma.guest.findMany({
+          where,
+          skip,
+          take: Number(limit),
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.guest.count({ where }),
+      ]);
+    }
 
     return {
       data,

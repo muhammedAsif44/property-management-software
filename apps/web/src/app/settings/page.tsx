@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
-import { DashboardSidebar } from '@/components/dashboard-sidebar';
-import { AppHeader } from '@/components/app-header';
+import { AppShell } from '@/components/app-shell';
 import { authService } from '@/features/auth';
 import { useTheme, Theme } from '@/lib/theme';
 import {
@@ -290,33 +289,20 @@ function Settings3ColumnContent() {
   };
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
-      {/* ─── COLUMN 1: Persistent Main Application Left Sidebar ─── */}
-      <DashboardSidebar />
-
-      {/* Main Workspace Frame */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        {/* Persistent Top Header with Screenshot-Matching Header Pill */}
-        <AppHeader>
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center gap-3 bg-slate-50/90 dark:bg-slate-850 px-4 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-2xs min-w-0">
-              <div className="w-8 h-8 rounded-full bg-slate-900 text-emerald-400 flex items-center justify-center shrink-0">
-                <Settings className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <h1 className="text-xs font-black text-slate-900 dark:text-white leading-tight truncate">
-                  {t('settingsTitle')}
-                </h1>
-                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 leading-tight truncate">
-                  Workspace & App Preferences
-                </span>
-              </div>
-            </div>
-          </div>
-        </AppHeader>
-
-        {/* ─── 2-COLUMN INNER SETTINGS WORKSPACE ─── */}
-        <div className="flex flex-1 overflow-hidden">
+    <AppShell
+      sectionIcon={Settings}
+      sectionTitle={t('sectionSystemAdmin')}
+      sectionDescription={t('sectionSystemAdminDesc')}
+      sectionTabs={[
+        { label: t('tabProperties'), icon: Building2, href: '/properties' },
+        { label: t('tabStaff'), icon: Users, href: '/settings/staff' },
+        { label: t('tabSettings'), icon: Sliders, href: '/settings' },
+      ]}
+      layout="wide"
+      containerClassName="p-0"
+    >
+      {/* ─── 2-COLUMN INNER SETTINGS WORKSPACE ─── */}
+      <div className="flex flex-1 min-h-[calc(100vh-140px)] overflow-hidden">
           
           {/* ─── COLUMN 2: Fixed Settings Navigation Column ─── */}
           <aside
@@ -992,10 +978,8 @@ function Settings3ColumnContent() {
 
             </div>
           </main>
-
         </div>
-      </div>
-    </div>
+    </AppShell>
   );
 }
 
@@ -1042,21 +1026,7 @@ function SettingsComingSoonBadge() {
 export default function Settings3ColumnPage() {
   return (
     <Suspense
-      fallback={
-        /* Localized shell fallback preserving main navigation */
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
-          <DashboardSidebar />
-          <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-            <AppHeader />
-            <main className="flex-1 p-6">
-              <div className="max-w-4xl mx-auto space-y-6">
-                <Skeleton className="h-6 w-48" />
-                <Skeleton className="h-40 w-full" />
-              </div>
-            </main>
-          </div>
-        </div>
-      }
+      fallback={<div className="p-8 text-center text-xs text-slate-400">Loading settings...</div>}
     >
       <Settings3ColumnContent />
     </Suspense>

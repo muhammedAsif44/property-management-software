@@ -262,3 +262,24 @@ body {
   }
 }
 
+/* ═══════════════════════════════════════════════════
+   STRICT SIDEBAR INTERACTIVE RESETS (ZERO BLACK OUTLINES)
+   ═══════════════════════════════════════════════════ */
+aside button,
+aside a,
+aside input {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+aside button:focus,
+aside a:focus,
+aside button:focus-visible,
+aside a:focus-visible,
+aside button:active,
+aside a:active {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+

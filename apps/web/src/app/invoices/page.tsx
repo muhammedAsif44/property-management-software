@@ -27,9 +27,9 @@ import {
   Calendar,
   Layers,
   CheckCheck,
+  BarChart3,
 } from 'lucide-react';
-import { AppHeader } from '@/components/app-header';
-import { DashboardSidebar } from '@/components/dashboard-sidebar';
+import { AppShell } from '@/components/app-shell';
 import { useTranslation } from '@/lib/i18n';
 import {
   useTemplatesQuery,
@@ -99,10 +99,10 @@ export default function InvoicesPage() {
       const blobUrl = window.URL.createObjectURL(pdfBlob);
       const printWin = window.open(blobUrl, '_blank');
       if (!printWin) {
-        toast.error('Pop-up blocked by browser. Please allow pop-ups.', 'Pop-up Blocked');
+        toast.warning('Popup was blocked by your browser. Please allow popups to view PDF.', 'Popup Blocked');
       }
     } catch (err: any) {
-      toast.error('Failed to open PDF viewer.', 'Error');
+      toast.error(err.message || 'Failed to open PDF viewer', 'PDF Error');
     } finally {
       setOpeningPdfId(null);
     }
@@ -111,27 +111,205 @@ export default function InvoicesPage() {
   const handleRowDownload = async (invoiceId: string, invoiceNumber: string) => {
     try {
       setDownloadingInvoiceId(invoiceId);
-      toast.info('Downloading PDF invoice...', 'Downloading');
+      toast.info('Starting PDF download...', 'Invoice PDF');
       await invoiceService.downloadInvoice(invoiceId, invoiceNumber);
+      toast.success('Invoice PDF downloaded successfully', 'Downloaded');
     } catch (err: any) {
-      toast.error('Failed to download invoice PDF.', 'Error');
+      toast.error(err.message || 'Failed to download PDF', 'Download Error');
     } finally {
-      setTimeout(() => setDownloadingInvoiceId(null), 1000);
+      setDownloadingInvoiceId(null);
     }
   };
 
-  // Fetch Bookings for financial ledger
-  const { data: bookingsData, isLoading: isBookingsLoading } = useBookingsQuery(
-    { propertyId: activeProperty?.id, limit: 100 },
-    2500, // Poll every 2.5s so GENERATING invoices automatically turn READY on the table
-  );
+  // Queries
+  const { data: bookingsData, isLoading: isBookingsLoading } = useBookingsQuery({ propertyId: activeProperty?.id });
+  const bookings: Booking[] = useMemo(() => {
+    if (!bookingsData) return [];
+    if (Array.isArray(bookingsData)) return bookingsData;
+    if (Array.isArray((bookingsData as any).bookings)) return (bookingsData as any).bookings;
+    if (Array.isArray((bookingsData as any).data)) return (bookingsData as any).data;
+    return [];
+  }, [bookingsData]);
 
-  const resData: any = bookingsData;
-  const bookings: Booking[] = Array.isArray(resData)
-    ? resData
-    : (resData?.bookings || resData?.data?.bookings || (Array.isArray(resData?.data) ? resData.data : []));
+  const { data: templates = [], isLoading: isTemplatesLoading } = useTemplatesQuery();
+  const saveDraftMutation = useSaveDraftTemplateMutation();
+  const publishMutation = usePublishTemplateMutation();
 
-  // Calculated Financial Metrics
+  // Template editor state
+  const [editorMode, setEditorMode] = useState<'visual' | 'code'>('visual');
+  const [templateName, setTemplateName] = useState('Default Hotel Invoice');
+  const [accentColor, setAccentColor] = useState('#0B6E4F');
+  const [footerNote, setFooterNote] = useState('Thank you for staying with us! We hope to see you again soon.');
+  const [showBankDetails, setShowBankDetails] = useState(true);
+  const [htmlContent, setHtmlContent] = useState('');
+  const [isSaved, setIsSaved] = useState(true);
+
+  // Generate initial HTML template when activeProperty or params change
+  const buildInitialHtml = (color: string, note: string, bank: boolean) => `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; margin: 0; padding: 32px; background: #fff; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid ${color}; padding-bottom: 20px; }
+    .hotel-name { font-size: 24px; font-weight: 800; color: ${color}; }
+    .invoice-title { font-size: 22px; font-weight: 700; text-align: right; color: #0f172a; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #ecfdf5; color: #059669; font-size: 11px; font-weight: 700; margin-top: 4px; }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0; font-size: 12px; line-height: 1.6; }
+    .meta-box { background: #f8fafc; border-radius: 8px; padding: 14px; }
+    .meta-box h4 { margin: 0 0 6px 0; color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+    table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 12px; }
+    th { background: #f1f5f9; color: #334155; font-weight: 700; text-align: left; padding: 10px 12px; border-bottom: 1px solid #cbd5e1; font-size: 11px; text-transform: uppercase; }
+    td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+    .total-box { margin-left: auto; width: 260px; font-size: 12px; }
+    .total-row { display: flex; justify-content: space-between; padding: 6px 0; }
+    .grand-total { border-top: 2px solid ${color}; font-weight: 800; font-size: 15px; color: ${color}; padding-top: 8px; margin-top: 4px; }
+    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="hotel-name">{{propertyName}}</div>
+      <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{{propertyAddress}} &bull; GSTIN: {{propertyGst}}</div>
+    </div>
+    <div style="text-align: right;">
+      <div class="invoice-title">TAX INVOICE</div>
+      <div style="font-size: 12px; color: #64748b;">#{{invoiceNumber}}</div>
+      <div class="badge">ORIGINAL FOR RECIPIENT</div>
+    </div>
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-box">
+      <h4>Billed To (Guest)</h4>
+      <div style="font-weight: 700; font-size: 13px; color: #0f172a;">{{guestName}}</div>
+      <div>{{guestPhone}} &bull; {{guestEmail}}</div>
+      <div>GSTIN: {{guestGst}}</div>
+    </div>
+    <div class="meta-box">
+      <h4>Stay & Reservation Details</h4>
+      <div><strong>Check-In:</strong> {{checkInDate}}</div>
+      <div><strong>Check-Out:</strong> {{checkOutDate}}</div>
+      <div><strong>Room:</strong> {{roomNumber}} ({{roomType}})</div>
+      <div><strong>Channel:</strong> {{bookingChannel}}</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Description / Service Item</th>
+        <th style="text-align: center;">SAC Code</th>
+        <th style="text-align: center;">Nights / Qty</th>
+        <th style="text-align: right;">Rate (₹)</th>
+        <th style="text-align: right;">Amount (₹)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Room Accommodation Charges ({{roomType}})</td>
+        <td style="text-align: center;">996311</td>
+        <td style="text-align: center;">{{nightsCount}}</td>
+        <td style="text-align: right;">{{nightlyRate}}</td>
+        <td style="text-align: right;">{{roomSubtotal}}</td>
+      </tr>
+      <tr>
+        <td>CGST @ 6.0%</td>
+        <td style="text-align: center;">—</td>
+        <td style="text-align: center;">1</td>
+        <td style="text-align: right;">—</td>
+        <td style="text-align: right;">{{cgstAmount}}</td>
+      </tr>
+      <tr>
+        <td>SGST @ 6.0%</td>
+        <td style="text-align: center;">—</td>
+        <td style="text-align: center;">1</td>
+        <td style="text-align: right;">—</td>
+        <td style="text-align: right;">{{sgstAmount}}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="total-box">
+    <div class="total-row"><span>Subtotal:</span><span>₹{{subtotalAmount}}</span></div>
+    <div class="total-row"><span>Total Tax (GST 12%):</span><span>₹{{totalTaxAmount}}</span></div>
+    <div class="total-row"><span>Advance Paid:</span><span style="color: #059669;">- ₹{{advancePaid}}</span></div>
+    <div class="total-row grand-total"><span>Balance Due:</span><span>₹{{balanceDue}}</span></div>
+  </div>
+
+  ${bank ? `<div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px; margin-top: 24px; font-size: 11px; color: #475569;">
+    <strong>Bank Settlement Details:</strong> Bank: HDFC Bank &bull; A/C: 50200012345678 &bull; IFSC: HDFC0001234 &bull; UPI: azura@upi
+  </div>` : ''}
+
+  <div class="footer">
+    ${note}
+  </div>
+</body>
+</html>`;
+
+  // Initialize htmlContent once
+  React.useEffect(() => {
+    if (!htmlContent) {
+      setHtmlContent(buildInitialHtml(accentColor, footerNote, showBankDetails));
+    }
+  }, [accentColor, footerNote, showBankDetails, htmlContent]);
+
+  // Load existing template if available
+  React.useEffect(() => {
+    if (templates.length > 0) {
+      const active = (templates as any[]).find((t: any) => t.isPublished) || templates[0];
+      if (active) {
+        setTemplateName(active.name);
+        setHtmlContent(active.htmlContent);
+      }
+    }
+  }, [templates]);
+
+  // Visual mode change handlers
+  const handleVisualParamChange = (color: string, note: string, bank: boolean) => {
+    setAccentColor(color);
+    setFooterNote(note);
+    setShowBankDetails(bank);
+    setHtmlContent(buildInitialHtml(color, note, bank));
+    setIsSaved(false);
+  };
+
+  const handleApplyPreset = (preset: typeof PRESET_TEMPLATES.STANDARD) => {
+    setTemplateName(preset.name);
+    setAccentColor(preset.accentColor);
+    setFooterNote(preset.footerNote);
+    setHtmlContent(buildInitialHtml(preset.accentColor, preset.footerNote, showBankDetails));
+    setIsSaved(false);
+  };
+
+  const handleCodeChange = (val: string) => {
+    setHtmlContent(val);
+    setIsSaved(false);
+  };
+
+  const handleSave = async () => {
+    if (!activeProperty) return;
+    try {
+      await saveDraftMutation.mutateAsync({
+        name: templateName,
+        htmlContent,
+      });
+      setIsSaved(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handlePublish = async (id: string) => {
+    try {
+      await publishMutation.mutateAsync(id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Financial KPIs
   const summaryMetrics = useMemo(() => {
     let totalInvoiced = 0;
     let collectedRevenue = 0;
@@ -139,17 +317,17 @@ export default function InvoicesPage() {
     let totalTacCommission = 0;
 
     bookings.forEach((b) => {
-      const gross = Number(b.totalAmount || 0);
+      const total = Number(b.totalAmount || 0);
       const paid = Number(b.advancePaid || 0);
       const due = Number(b.balanceDue || 0);
-      totalInvoiced += gross;
+
+      totalInvoiced += total;
       collectedRevenue += paid;
       pendingBalance += due;
 
       if (b.channel === 'AGENCY' || b.agencyId) {
-        const rate = Number(b.tacRateAtBooking || b.agency?.defaultTacRate || 10);
-        const { tacAmount } = calculateTac(gross, rate);
-        totalTacCommission += tacAmount;
+        const tacRes = calculateTac(total, (b.agency as any)?.tacPercentage || 10);
+        totalTacCommission += (tacRes.tacAmount || 0);
       }
     });
 
@@ -161,152 +339,35 @@ export default function InvoicesPage() {
     };
   }, [bookings]);
 
-  // Filtered Bookings for Invoice Ledger
+  // Filtered Bookings
   const filteredBookings = useMemo(() => {
     return bookings.filter((b) => {
-      // Status filter
-      if (statusFilter === 'PAID' && (b.balanceDue || 0) > 0) return false;
-      if (statusFilter === 'DUE' && (b.balanceDue || 0) <= 0) return false;
-      if (statusFilter === 'AGENCY' && b.channel !== 'AGENCY' && !b.agencyId) return false;
+      // Search
+      const q = searchQuery.toLowerCase();
+      const guestName = b.guest?.fullName?.toLowerCase() || '';
+      const agencyName = b.agency?.name?.toLowerCase() || '';
+      const bId = b.id.toLowerCase();
+      const invNum = b.invoices?.[0]?.invoiceNumber?.toLowerCase() || '';
 
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const guestName = b.guest?.fullName?.toLowerCase() || '';
-        const guestPhone = b.guest?.phone?.toLowerCase() || '';
-        const agencyName = b.agency?.name?.toLowerCase() || '';
-        const invNum = `inv-${b.id.slice(0, 8)}`.toLowerCase();
-        const agyNum = `agy-${b.id.slice(0, 8)}`.toLowerCase();
+      const matchesSearch = !q || guestName.includes(q) || agencyName.includes(q) || bId.includes(q) || invNum.includes(q);
 
-        return (
-          guestName.includes(q) ||
-          guestPhone.includes(q) ||
-          agencyName.includes(q) ||
-          invNum.includes(q) ||
-          agyNum.includes(q)
-        );
-      }
+      // Status
+      if (!matchesSearch) return false;
 
+      const isPaid = (b.balanceDue || 0) <= 0;
+      const isDue = (b.balanceDue || 0) > 0;
+      const isAgency = b.channel === 'AGENCY' || !!b.agencyId;
+
+      if (statusFilter === 'PAID') return isPaid;
+      if (statusFilter === 'DUE') return isDue;
+      if (statusFilter === 'AGENCY') return isAgency;
       return true;
     });
-  }, [bookings, statusFilter, searchQuery]);
+  }, [bookings, searchQuery, statusFilter]);
 
-  // Template customizer states
-  const [editorMode, setEditorMode] = useState<'visual' | 'code'>('visual');
-  const [templateName, setTemplateName] = useState('Standard Hotel Invoice');
-  const [accentColor, setAccentColor] = useState('#059669');
-  const [footerNote, setFooterNote] = useState('Thank you for staying with us! Generated by Orvyn PMS.');
-  const [showBankDetails, setShowBankDetails] = useState(false);
-  const [isSaved, setIsSaved] = useState(true);
-
-  // Helper to compile HTML dynamically for visual mode users
-  const generateVisualHtml = (color: string, footer: string, bank: boolean) => {
-    return `
-<div style="font-family: 'Inter', Arial, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; background: #ffffff;">
-  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid ${color}; padding-bottom: 20px;">
-    <div>
-      <h1 style="color: ${color}; font-size: 26px; font-weight: 800; margin: 0;">{{property_name}}</h1>
-      <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Official Guest Stay Invoice</p>
-    </div>
-    <div style="text-align: right;">
-      <span style="font-size: 16px; font-weight: 800; color: #1e40af; display: block;">{{invoice_number}}</span>
-      <span style="font-size: 12px; color: #64748b;">Date: {{check_in_date}}</span>
-    </div>
-  </div>
-
-  <div style="margin-top: 30px; display: flex; justify-content: space-between; background: #f8fafc; padding: 16px; border-radius: 12px;">
-    <div>
-      <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Billed Guest / Agency</p>
-      <p style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a;">{{guest_name}}</p>
-      <p style="margin: 2px 0 0 0; font-size: 12px; color: #475569;">{{guest_email}} | {{guest_phone}}</p>
-    </div>
-    <div style="text-align: right;">
-      <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Stay Period</p>
-      <p style="margin: 0; font-size: 13px; font-weight: 600; color: #0f172a;">{{check_in_date}} &rarr; {{check_out_date}}</p>
-    </div>
-  </div>
-
-  <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
-    <thead>
-      <tr style="background-color: #f1f5f9; border-bottom: 2px solid #e2e8f0;">
-        <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase;">Description</th>
-        <th style="padding: 12px; text-align: right; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase;">Amount</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 600;">Room Accommodations ({{room_type}})</td>
-        <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 13px; font-weight: 700;">{{total_amount}}</td>
-      </tr>
-      <tr>
-        <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 700; color: ${color};">Total Payments Received</td>
-        <td style="padding: 14px 12px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 13px; font-weight: 800; color: ${color};">{{total_paid}}</td>
-      </tr>
-      <tr style="background-color: #fef2f2;">
-        <td style="padding: 14px 12px; font-size: 14px; font-weight: 800; color: #dc2626;">Outstanding Balance Due</td>
-        <td style="padding: 14px 12px; text-align: right; font-size: 14px; font-weight: 800; color: #dc2626;">{{balance_due}}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  ${
-    bank
-      ? `
-  <div style="margin-top: 24px; padding: 16px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; font-size: 12px;">
-    <strong style="color: #166534; display: block; margin-bottom: 4px;">Bank Settlement Details:</strong>
-    <span style="color: #15803d;">Bank: HDFC Bank | A/C: 50200012345678 | IFSC: HDFC0001234 | UPI: azura@hdfcbank</span>
-  </div>`
-      : ''
-  }
-
-  <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b;">
-    ${footer}
-  </div>
-</div>`;
-  };
-
-  const [htmlContent, setHtmlContent] = useState(
-    generateVisualHtml('#059669', 'Thank you for staying with us! Generated by Orvyn PMS.', false)
-  );
-
-  const { data: templatesData, isLoading: isTemplatesLoading } = useTemplatesQuery();
-  const saveDraftMutation = useSaveDraftTemplateMutation();
-  const publishMutation = usePublishTemplateMutation();
-
-  const handleVisualParamChange = (newColor: string, newFooter: string, newBank: boolean) => {
-    setAccentColor(newColor);
-    setFooterNote(newFooter);
-    setShowBankDetails(newBank);
-    setHtmlContent(generateVisualHtml(newColor, newFooter, newBank));
-    setIsSaved(false);
-  };
-
-  const handleApplyPreset = (preset: typeof PRESET_TEMPLATES.STANDARD) => {
-    setTemplateName(preset.name);
-    handleVisualParamChange(preset.accentColor, preset.footerNote, showBankDetails);
-  };
-
-  const handleCodeChange = (newCode: string) => {
-    setHtmlContent(newCode);
-    setIsSaved(false);
-  };
-
-  const handleSave = () => {
-    saveDraftMutation.mutate(
-      {
-        name: templateName,
-        htmlContent,
-        themeConfig: { accentColor, footerNote, showBankDetails, editorMode },
-      },
-      {
-        onSuccess: () => setIsSaved(true),
-      }
-    );
-  };
-
-  const handlePublish = (templateId: string) => {
-    publishMutation.mutate(templateId);
-  };
+  const paymentsCount = useMemo(() => {
+    return bookings.filter((b) => Number(b.advancePaid || 0) > 0).length;
+  }, [bookings]);
 
   const formatDate = (d: string) => {
     if (!d) return '—';
@@ -319,640 +380,606 @@ export default function InvoicesPage() {
   const formatCurrency = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative bg-slate-50/50 dark:bg-slate-950">
-      {/* Left Navigation Sidebar */}
-      <DashboardSidebar />
+    <AppShell
+      sectionIcon={Receipt}
+      sectionTitle={t('sectionFinancials')}
+      sectionDescription={t('sectionFinancialsDesc')}
+      sectionTabs={[
+        {
+          label: t('tabInvoices'),
+          icon: Receipt,
+          count: bookings.length,
+          isActive: activeTab === 'invoices',
+          onClick: () => setActiveTab('invoices'),
+        },
+        {
+          label: t('tabPaymentLedger'),
+          icon: CreditCard,
+          count: paymentsCount,
+          isActive: activeTab === 'payments',
+          onClick: () => setActiveTab('payments'),
+        },
+        {
+          label: t('tabTemplates'),
+          icon: Palette,
+          isActive: activeTab === 'templates',
+          onClick: () => setActiveTab('templates'),
+        },
+        {
+          label: t('tabFinancialReports'),
+          icon: BarChart3,
+          href: '/reports',
+        },
+      ]}
+      layout="wide"
+    >
+      {/* ─── KPI Analytics Cards ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        {/* 1. Total Invoiced */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider">{t('totalInvoiced')}</span>
+            <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              <Receipt className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+            {formatCurrency(summaryMetrics.totalInvoiced)}
+          </p>
+          <p className="text-[10px] font-semibold text-slate-400">Across {bookings.length} reservations</p>
+        </div>
 
-      {/* Main Workspace Area */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        <AppHeader />
+        {/* 2. Collected Revenue */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider">{t('collectedRevenue')}</span>
+            <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <p className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400">
+            {formatCurrency(summaryMetrics.collectedRevenue)}
+          </p>
+          <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Advance & Payments Received</p>
+        </div>
 
-        {/* ═══ ENTERPRISE FINANCIAL KPI METRICS BAR ═══ */}
-        <div className="px-6 pt-6 pb-2">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                <Receipt className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-                {t('invoicesWorkspaceTitle')}
-              </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-0.5">
-                Manage guest tax invoices, agency commercial billing, payments ledger, and customizable templates
-              </p>
+        {/* 3. Pending Balance Due */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider">{t('pendingBalance')}</span>
+            <div className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300">
+              <AlertCircle className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <p className="text-base sm:text-lg font-black text-rose-600 dark:text-rose-400">
+            {formatCurrency(summaryMetrics.pendingBalance)}
+          </p>
+          <p className="text-[10px] font-semibold text-rose-700 dark:text-rose-400">Outstanding Balance</p>
+        </div>
+
+        {/* 4. Agency TAC Commissions */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider">{t('agencyTacCommissions')}</span>
+            <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+              <Building2 className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <p className="text-base sm:text-lg font-black text-blue-600 dark:text-blue-400">
+            {formatCurrency(summaryMetrics.totalTacCommission)}
+          </p>
+          <p className="text-[10px] font-semibold text-blue-700 dark:text-blue-400">Travel Partner Commissions</p>
+        </div>
+      </div>
+
+      {/* ═══ TAB 1: ALL INVOICES LEDGER WORKSPACE ═══ */}
+      {activeTab === 'invoices' && (
+        <div className="space-y-4">
+          {/* Filter & Search Header */}
+          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search invoice #, guest, or agency..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
+              />
             </div>
 
-            {/* Navigation Tabs */}
-            <div className="p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-1 shadow-2xs">
-              <button
-                onClick={() => setActiveTab('invoices')}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
-                  activeTab === 'invoices'
-                    ? 'bg-emerald-700 text-white shadow-md'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                <span>{t('allInvoicesTab')}</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('payments')}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
-                  activeTab === 'payments'
-                    ? 'bg-emerald-700 text-white shadow-md'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <CreditCard className="w-4 h-4" />
-                <span>{t('paymentLedgerTab')}</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('templates')}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
-                  activeTab === 'templates'
-                    ? 'bg-emerald-700 text-white shadow-md'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Palette className="w-4 h-4" />
-                <span>{t('templatesTab')}</span>
-              </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <div className="p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 flex gap-0.5 text-xs font-bold border border-slate-200 dark:border-slate-700">
+                <button
+                  onClick={() => setStatusFilter('ALL')}
+                  className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                    statusFilter === 'ALL'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  All Invoices
+                </button>
+                <button
+                  onClick={() => setStatusFilter('PAID')}
+                  className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                    statusFilter === 'PAID'
+                      ? 'bg-emerald-600 text-white font-bold shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Fully Paid
+                </button>
+                <button
+                  onClick={() => setStatusFilter('DUE')}
+                  className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                    statusFilter === 'DUE'
+                      ? 'bg-rose-600 text-white font-bold shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Balance Due
+                </button>
+                <button
+                  onClick={() => setStatusFilter('AGENCY')}
+                  className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                    statusFilter === 'AGENCY'
+                      ? 'bg-blue-600 text-white font-bold shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Agency TAC
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* KPI Analytics Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {/* 1. Total Invoiced */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
-              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                <span className="text-xs font-bold uppercase tracking-wider">{t('totalInvoiced')}</span>
-                <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                  <Receipt className="w-4 h-4" />
-                </div>
-              </div>
-              <p className="text-lg font-black text-slate-900 dark:text-white">
-                {formatCurrency(summaryMetrics.totalInvoiced)}
-              </p>
-              <p className="text-[11px] font-bold text-slate-400">Across {bookings.length} reservations</p>
+          {/* Invoices Table — Full Width Stretch Without Overflow Scrollbar */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
+              <thead>
+                <tr className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="py-3 px-3.5 pl-4 w-[20%]">Invoice # & Channel</th>
+                  <th className="py-3 px-3.5 w-[20%]">Billed Guest / Agency</th>
+                  <th className="py-3 px-3.5 w-[16%]">Stay Dates</th>
+                  <th className="py-3 px-3.5 w-[13%]">Total Amount</th>
+                  <th className="py-3 px-3.5 w-[11%]">Advance Paid</th>
+                  <th className="py-3 px-3.5 w-[11%]">Balance Due</th>
+                  <th className="py-3 px-3.5 pr-4 text-right w-[9%]">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
+                {isBookingsLoading ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-slate-500 font-bold">
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto text-emerald-600 mb-2" />
+                      <span>Loading invoice records...</span>
+                    </td>
+                  </tr>
+                ) : filteredBookings.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-slate-500 font-bold">
+                      <Receipt className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm font-bold text-slate-800 dark:text-white">No Invoices Found</p>
+                      <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search criteria</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredBookings.map((b) => {
+                    const isAgency = b.channel === 'AGENCY' || !!b.agencyId;
+                    const realInv = b.invoices?.[0];
+                    const invNumber = realInv?.invoiceNumber || (isAgency
+                      ? `AGY-${b.id.slice(0, 8).toUpperCase()}`
+                      : `INV-${b.id.slice(0, 8).toUpperCase()}`);
+
+                    const billedTo = isAgency
+                      ? b.agency?.name || 'Travel Agency Partner'
+                      : b.guest?.fullName || 'Guest';
+
+                    const subBilled = isAgency
+                      ? `Passenger: ${b.guest?.fullName || 'Guest'}`
+                      : b.guest?.phone || b.guest?.email || '—';
+
+                    const isFullyPaid = (b.balanceDue || 0) <= 0;
+
+                    return (
+                      <tr
+                        key={b.id}
+                        className="hover:bg-slate-50/80 dark:hover:bg-slate-850/50 transition-colors"
+                      >
+                        {/* Invoice # & Channel */}
+                        <td className="py-3 px-3.5 pl-4">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className={`p-1.5 rounded-lg shrink-0 ${
+                                isAgency
+                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                                  : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                              }`}
+                            >
+                              {isAgency ? <Building2 className="w-3.5 h-3.5" /> : <Receipt className="w-3.5 h-3.5" />}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1">
+                                <span className="font-bold text-slate-900 dark:text-white font-mono text-xs truncate">
+                                  {invNumber}
+                                </span>
+                                {realInv?.status === 'READY' && (
+                                  <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                    READY
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+                                {b.channel}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Billed Guest / Agency */}
+                        <td className="py-3 px-3.5">
+                          <p className="font-bold text-slate-900 dark:text-white truncate">{billedTo}</p>
+                          <p className="text-[11px] text-slate-400 font-medium truncate">
+                            {subBilled}
+                          </p>
+                        </td>
+
+                        {/* Stay Dates */}
+                        <td className="py-3 px-3.5">
+                          <span className="font-bold text-slate-800 dark:text-slate-200 block text-[11px] truncate">
+                            {formatDate(b.checkInDate)} → {formatDate(b.checkOutDate)}
+                          </span>
+                          <span className="text-[10px] font-medium text-slate-400 block truncate">
+                            {b.roomType?.name || 'Deluxe Room'}
+                          </span>
+                        </td>
+
+                        {/* Total Amount */}
+                        <td className="py-3 px-3.5">
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            {formatCurrency(b.totalAmount)}
+                          </span>
+                        </td>
+
+                        {/* Advance Paid */}
+                        <td className="py-3 px-3.5">
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            {formatCurrency(b.advancePaid)}
+                          </span>
+                        </td>
+
+                        {/* Balance Due */}
+                        <td className="py-3 px-3.5">
+                          {isFullyPaid ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                              <CheckCheck className="w-3 h-3 text-emerald-600" />
+                              PAID
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 truncate">
+                              DUE: {formatCurrency(b.balanceDue)}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Actions — Compact Icon Group */}
+                        <td className="py-3 px-3.5 pr-4 text-right">
+                          <div className="inline-flex items-center justify-end gap-1">
+                            {(() => {
+                              const issuedInvoice = b.invoices?.[0];
+
+                              return (
+                                <>
+                                  {issuedInvoice ? (
+                                    <>
+                                      <button
+                                        onClick={() => setSelectedInvoiceBooking(b)}
+                                        className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:hover:bg-emerald-900 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-all cursor-pointer"
+                                        title="View & Print PDF"
+                                      >
+                                        <FileText className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      <button
+                                        onClick={() => handleRowDownload(issuedInvoice.id, issuedInvoice.invoiceNumber || 'INV-FINAL')}
+                                        disabled={downloadingInvoiceId === issuedInvoice.id}
+                                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer disabled:opacity-50"
+                                        title="Download PDF"
+                                      >
+                                        {downloadingInvoiceId === issuedInvoice.id ? (
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
+                                        ) : (
+                                          <Download className="w-3.5 h-3.5" />
+                                        )}
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      onClick={() => setSelectedInvoiceBooking(b)}
+                                      className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
+                                      title="Preview Invoice"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
+
+                            {!isFullyPaid && (
+                              <button
+                                onClick={() => setSelectedPaymentBooking(b)}
+                                className="px-2 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                                title="Record Payment"
+                              >
+                                <CreditCard className="w-3 h-3" />
+                                <span>Pay</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ TAB 2: PAYMENT TRANSACTIONS LEDGER ═══ */}
+      {activeTab === 'payments' && (
+        <div className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                Recorded Payments & Receipts
+              </h3>
+              <span className="text-xs font-medium text-slate-400">
+                Real-time transaction history across all reservations
+              </span>
             </div>
 
-            {/* 2. Collected Revenue */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
-              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                <span className="text-xs font-bold uppercase tracking-wider">{t('collectedRevenue')}</span>
-                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                  <CheckCircle2 className="w-4 h-4" />
+            <table className="w-full text-left border-collapse table-fixed">
+              <thead>
+                <tr className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="py-3 px-3.5 pl-4 w-[20%]">Transaction Ref</th>
+                  <th className="py-3 px-3.5 w-[25%]">Guest / Booking</th>
+                  <th className="py-3 px-3.5 w-[20%]">Payment Method</th>
+                  <th className="py-3 px-3.5 w-[15%]">Amount Received</th>
+                  <th className="py-3 px-3.5 w-[10%]">Date</th>
+                  <th className="py-3 px-3.5 pr-4 text-right w-[10%]">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
+                {bookings.filter((b) => Number(b.advancePaid || 0) > 0).length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-500 font-bold">
+                      <CreditCard className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm font-bold text-slate-800 dark:text-white">No Payments Recorded</p>
+                    </td>
+                  </tr>
+                ) : (
+                  bookings.map((b) => {
+                    if (!b.advancePaid || b.advancePaid <= 0) return null;
+
+                    return (
+                      <tr key={`pay-${b.id}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-850/50 transition-colors">
+                        <td className="py-3 px-3.5 pl-4 font-mono font-bold text-slate-900 dark:text-white truncate">
+                          TXN-{b.id.slice(0, 8).toUpperCase()}
+                        </td>
+                        <td className="py-3 px-3.5 font-bold text-slate-900 dark:text-white">
+                          <span className="block truncate">{b.guest?.fullName || 'Guest'}</span>
+                          <span className="block text-[11px] font-medium text-slate-400 truncate">
+                            {b.roomType?.name || 'Deluxe Room'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            <CreditCard className="w-3 h-3 text-emerald-600" />
+                            CASH / UPI / CARD
+                          </span>
+                        </td>
+                        <td className="py-3 px-3.5 font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatCurrency(b.advancePaid)}
+                        </td>
+                        <td className="py-3 px-3.5 text-slate-400 font-medium">{formatDate(b.createdAt)}</td>
+                        <td className="py-3 px-3.5 pr-4 text-right">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            CONFIRMED
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ TAB 3: INVOICE TEMPLATE CUSTOMIZER WORKSPACE ═══ */}
+      {activeTab === 'templates' && (
+        <div className="space-y-4">
+          {/* Template Presets Bar */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-2xs">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Template Presets
+                </h3>
+                <p className="text-xs font-semibold text-slate-800 dark:text-white mt-0.5">
+                  Select a pre-designed layout or customize your property brand styling below
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleApplyPreset(PRESET_TEMPLATES.STANDARD)}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold transition-all cursor-pointer"
+                >
+                  Standard Hotel
+                </button>
+                <button
+                  onClick={() => handleApplyPreset(PRESET_TEMPLATES.CORPORATE)}
+                  className="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs font-bold transition-all cursor-pointer"
+                >
+                  Corporate Tax
+                </button>
+                <button
+                  onClick={() => handleApplyPreset(PRESET_TEMPLATES.LUXURY)}
+                  className="px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all cursor-pointer"
+                >
+                  Luxury Resort
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Template Editor Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Left Column: Visual / Code Editor Controls */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-emerald-600" />
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Invoice Brand Customizer
+                  </h3>
+                </div>
+
+                <div className="p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 flex gap-0.5 text-xs font-bold border border-slate-200 dark:border-slate-700">
+                  <button
+                    onClick={() => setEditorMode('visual')}
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                      editorMode === 'visual'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Visual Mode
+                  </button>
+                  <button
+                    onClick={() => setEditorMode('code')}
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                      editorMode === 'code'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Code Mode
+                  </button>
                 </div>
               </div>
-              <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">
-                {formatCurrency(summaryMetrics.collectedRevenue)}
-              </p>
-              <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">Advance & Payments Received</p>
+
+              {editorMode === 'visual' ? (
+                <div className="space-y-3.5 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Template Name
+                    </label>
+                    <input
+                      type="text"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      className="w-full px-3.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Brand Accent Color
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={accentColor}
+                        onChange={(e) => handleVisualParamChange(e.target.value, footerNote, showBankDetails)}
+                        className="w-8 h-8 rounded-lg cursor-pointer border-0"
+                      />
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                        {accentColor}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Footer Note
+                    </label>
+                    <input
+                      type="text"
+                      value={footerNote}
+                      onChange={(e) => handleVisualParamChange(accentColor, e.target.value, showBankDetails)}
+                      className="w-full px-3.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+
+                  <div className="pt-1">
+                    <label className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showBankDetails}
+                        onChange={(e) => handleVisualParamChange(accentColor, footerNote, e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                      />
+                      <span>Include Bank Settlement Instructions</span>
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs">
+                    HTML Source Code
+                  </label>
+                  <textarea
+                    value={htmlContent}
+                    onChange={(e) => handleCodeChange(e.target.value)}
+                    rows={12}
+                    className="w-full p-3 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none resize-none leading-relaxed"
+                  />
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-400">
+                  {isSaved ? 'Saved as draft' : 'Unsaved changes'}
+                </span>
+                <button
+                  onClick={handleSave}
+                  disabled={saveDraftMutation.isPending}
+                  className="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+                >
+                  {saveDraftMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  <span>Save Template</span>
+                </button>
+              </div>
             </div>
 
-            {/* 3. Pending Balance Due */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
-              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                <span className="text-xs font-bold uppercase tracking-wider">{t('pendingBalance')}</span>
-                <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300">
-                  <AlertCircle className="w-4 h-4" />
-                </div>
-              </div>
-              <p className="text-lg font-black text-rose-600 dark:text-rose-400">
-                {formatCurrency(summaryMetrics.pendingBalance)}
-              </p>
-              <p className="text-[11px] font-bold text-rose-700 dark:text-rose-400">Outstanding Balance</p>
-            </div>
+            {/* Right Column: Live Render Preview Panel */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-2xs space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Eye className="w-4 h-4 text-emerald-600" />
+                Live Render Preview
+              </h3>
 
-            {/* 4. Agency TAC Commissions */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1">
-              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                <span className="text-xs font-bold uppercase tracking-wider">{t('agencyTacCommissions')}</span>
-                <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
-                  <Building2 className="w-4 h-4" />
-                </div>
+              <div className="w-full h-[450px] border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white shadow-inner">
+                <iframe
+                  srcDoc={htmlContent}
+                  title="Invoice Live Preview"
+                  className="w-full h-full border-0 bg-white"
+                />
               </div>
-              <p className="text-lg font-black text-blue-600 dark:text-blue-400">
-                {formatCurrency(summaryMetrics.totalTacCommission)}
-              </p>
-              <p className="text-[11px] font-bold text-blue-700 dark:text-blue-400">Travel Partner Commissions</p>
             </div>
           </div>
         </div>
-
-        {/* ═══ TAB 1: ALL INVOICES LEDGER WORKSPACE ═══ */}
-        {activeTab === 'invoices' && (
-          <main className="px-6 pb-12 space-y-4 flex-1">
-            {/* Filter & Search Header */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="relative w-full sm:w-80">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search invoice #, guest, or agency..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Filter className="w-4 h-4 text-slate-400 shrink-0" />
-                <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 flex gap-1 text-xs font-bold border border-slate-200 dark:border-slate-700">
-                  <button
-                    onClick={() => setStatusFilter('ALL')}
-                    className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                      statusFilter === 'ALL'
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black shadow-2xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    All Invoices
-                  </button>
-                  <button
-                    onClick={() => setStatusFilter('PAID')}
-                    className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                      statusFilter === 'PAID'
-                        ? 'bg-emerald-600 text-white font-black shadow-2xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    Fully Paid
-                  </button>
-                  <button
-                    onClick={() => setStatusFilter('DUE')}
-                    className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                      statusFilter === 'DUE'
-                        ? 'bg-rose-600 text-white font-black shadow-2xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    Balance Due
-                  </button>
-                  <button
-                    onClick={() => setStatusFilter('AGENCY')}
-                    className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                      statusFilter === 'AGENCY'
-                        ? 'bg-blue-600 text-white font-black shadow-2xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    Agency TAC
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Invoices Table */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      <th className="p-4 pl-6">Invoice # & Channel</th>
-                      <th className="p-4">Billed Guest / Agency</th>
-                      <th className="p-4">Stay Dates</th>
-                      <th className="p-4">Total Amount</th>
-                      <th className="p-4">Advance Paid</th>
-                      <th className="p-4">Balance Due</th>
-                      <th className="p-4 pr-6 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
-                    {isBookingsLoading ? (
-                      <tr>
-                        <td colSpan={7} className="p-12 text-center text-slate-500 font-bold">
-                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-600 mb-2" />
-                          <span>Loading invoice records...</span>
-                        </td>
-                      </tr>
-                    ) : filteredBookings.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="p-12 text-center text-slate-500 font-bold">
-                          <Receipt className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                          <p className="text-sm font-black text-slate-800 dark:text-white">No Invoices Found</p>
-                          <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search criteria</p>
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredBookings.map((b) => {
-                        const isAgency = b.channel === 'AGENCY' || !!b.agencyId;
-                        const realInv = b.invoices?.[0];
-                        const invNumber = realInv?.invoiceNumber || (isAgency
-                          ? `AGY-${b.id.slice(0, 8).toUpperCase()}`
-                          : `INV-${b.id.slice(0, 8).toUpperCase()}`);
-
-                        const billedTo = isAgency
-                          ? b.agency?.name || 'Travel Agency Partner'
-                          : b.guest?.fullName || 'Guest';
-
-                        const subBilled = isAgency
-                          ? `Passenger: ${b.guest?.fullName || 'Guest'}`
-                          : b.guest?.phone || b.guest?.email || '—';
-
-                        const isFullyPaid = (b.balanceDue || 0) <= 0;
-
-                        return (
-                          <tr
-                            key={b.id}
-                            className="hover:bg-slate-50/80 dark:hover:bg-slate-850/50 transition-colors"
-                          >
-                            {/* Invoice # & Channel */}
-                            <td className="p-4 pl-6">
-                              <div className="flex items-center gap-2.5">
-                                <div
-                                  className={`p-2 rounded-xl shrink-0 ${
-                                    isAgency
-                                      ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
-                                      : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                                  }`}
-                                >
-                                  {isAgency ? <Building2 className="w-4 h-4" /> : <Receipt className="w-4 h-4" />}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-black text-slate-900 dark:text-white font-mono text-xs block">
-                                      {invNumber}
-                                    </span>
-                                    {realInv?.status === 'READY' && (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                        READY
-                                      </span>
-                                    )}
-                                    {realInv?.status === 'GENERATING' && (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                                        GENERATING
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                                    {b.channel}
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* Billed Guest / Agency */}
-                            <td className="p-4">
-                              <p className="font-black text-slate-900 dark:text-white truncate">{billedTo}</p>
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
-                                {subBilled}
-                              </p>
-                            </td>
-
-                            {/* Stay Dates */}
-                            <td className="p-4">
-                              <span className="font-extrabold text-slate-800 dark:text-slate-200 block text-[11px]">
-                                {formatDate(b.checkInDate)} &rarr; {formatDate(b.checkOutDate)}
-                              </span>
-                              <span className="text-[10px] font-semibold text-slate-500">
-                                {b.roomType?.name || 'Deluxe Room'}
-                              </span>
-                            </td>
-
-                            {/* Total Amount */}
-                            <td className="p-4">
-                              <span className="font-black text-slate-900 dark:text-white">
-                                {formatCurrency(b.totalAmount)}
-                              </span>
-                            </td>
-
-                            {/* Advance Paid */}
-                            <td className="p-4">
-                              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                                {formatCurrency(b.advancePaid)}
-                              </span>
-                            </td>
-
-                            {/* Balance Due */}
-                            <td className="p-4">
-                              {isFullyPaid ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                                  <CheckCheck className="w-3 h-3 text-emerald-600" />
-                                  PAID IN FULL
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
-                                  DUE: {formatCurrency(b.balanceDue)}
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Actions */}
-                            <td className="p-4 pr-6 text-right">
-                              <div className="inline-flex items-center justify-end gap-1.5">
-                                {(() => {
-                                  const issuedInvoice = b.invoices?.[0];
-
-                                  return (
-                                    <>
-                                      {issuedInvoice && (
-                                        <>
-                                          <button
-                                            onClick={() => setSelectedInvoiceBooking(b)}
-                                            className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
-                                            title="View & Print PDF"
-                                          >
-                                            <FileText className="w-3.5 h-3.5" />
-                                            <span>View PDF</span>
-                                          </button>
-
-                                          <button
-                                            onClick={() => handleRowDownload(issuedInvoice.id, issuedInvoice.invoiceNumber || 'INV-FINAL')}
-                                            disabled={downloadingInvoiceId === issuedInvoice.id}
-                                            className="h-8 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                            title="Download PDF"
-                                          >
-                                            {downloadingInvoiceId === issuedInvoice.id ? (
-                                              <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600 dark:text-slate-300" />
-                                            ) : (
-                                              <Download className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                                            )}
-                                          </button>
-                                        </>
-                                      )}
-
-                                      <button
-                                        onClick={() => setSelectedInvoiceBooking(b)}
-                                        className="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 cursor-pointer"
-                                        title="Preview Invoice"
-                                      >
-                                        <Eye className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                                        <span>Preview</span>
-                                      </button>
-                                    </>
-                                  );
-                                })()}
-
-                                {!isFullyPaid && (
-                                  <button
-                                    onClick={() => setSelectedPaymentBooking(b)}
-                                    className="h-8 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
-                                    title="Record Payment"
-                                  >
-                                    <CreditCard className="w-3.5 h-3.5" />
-                                    <span>Pay</span>
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </main>
-        )}
-
-        {/* ═══ TAB 2: PAYMENT TRANSACTIONS LEDGER ═══ */}
-        {activeTab === 'payments' && (
-          <main className="px-6 pb-12 space-y-4 flex-1">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-emerald-600" />
-                  Recorded Payments & Receipts
-                </h3>
-                <span className="text-xs font-bold text-slate-500">
-                  Real-time transaction history across all reservations
-                </span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      <th className="p-4 pl-6">Transaction Ref</th>
-                      <th className="p-4">Guest / Booking</th>
-                      <th className="p-4">Payment Method</th>
-                      <th className="p-4">Amount Received</th>
-                      <th className="p-4">Date & Time</th>
-                      <th className="p-4 pr-6 text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
-                    {bookings.map((b) => {
-                      if (!b.advancePaid || b.advancePaid <= 0) return null;
-
-                      return (
-                        <tr key={`pay-${b.id}`} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="p-4 pl-6 font-mono font-black text-slate-900 dark:text-white">
-                            TXN-{b.id.slice(0, 8).toUpperCase()}
-                          </td>
-                          <td className="p-4 font-extrabold text-slate-900 dark:text-white">
-                            {b.guest?.fullName || 'Guest'}
-                            <span className="block text-[11px] font-semibold text-slate-500">
-                              {b.roomType?.name || 'Deluxe Room'}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                              <CreditCard className="w-3 h-3 text-emerald-600" />
-                              CASH / UPI / CARD
-                            </span>
-                          </td>
-                          <td className="p-4 font-black text-emerald-600 dark:text-emerald-400">
-                            {formatCurrency(b.advancePaid)}
-                          </td>
-                          <td className="p-4 text-slate-500 font-medium">{formatDate(b.createdAt)}</td>
-                          <td className="p-4 pr-6 text-right">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              CONFIRMED
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </main>
-        )}
-
-        {/* ═══ TAB 3: INVOICE TEMPLATE CUSTOMIZER WORKSPACE ═══ */}
-        {activeTab === 'templates' && (
-          <main className="px-6 pb-12 space-y-6 flex-1 max-w-[1400px]">
-            {/* Template Presets Bar */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-2xs">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    Template Presets
-                  </h3>
-                  <p className="text-xs font-bold text-slate-800 dark:text-white mt-0.5">
-                    Select a pre-designed layout or customize your property brand styling below
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => handleApplyPreset(PRESET_TEMPLATES.STANDARD)}
-                    className="px-3.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-black transition-all cursor-pointer"
-                  >
-                    Standard Hotel
-                  </button>
-                  <button
-                    onClick={() => handleApplyPreset(PRESET_TEMPLATES.CORPORATE)}
-                    className="px-3.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs font-black transition-all cursor-pointer"
-                  >
-                    Corporate Tax
-                  </button>
-                  <button
-                    onClick={() => handleApplyPreset(PRESET_TEMPLATES.LUXURY)}
-                    className="px-3.5 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-black transition-all cursor-pointer"
-                  >
-                    Luxury Resort
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Template Editor Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column: Visual / Code Editor Controls */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xs space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-                  <div className="flex items-center gap-2">
-                    <Palette className="w-5 h-5 text-emerald-600" />
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                      Invoice Brand Customizer
-                    </h3>
-                  </div>
-
-                  <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 flex gap-1 text-xs font-bold border border-slate-200 dark:border-slate-700">
-                    <button
-                      onClick={() => setEditorMode('visual')}
-                      className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                        editorMode === 'visual'
-                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black shadow-2xs'
-                          : 'text-slate-500 hover:text-slate-900'
-                      }`}
-                    >
-                      Visual Mode
-                    </button>
-                    <button
-                      onClick={() => setEditorMode('code')}
-                      className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                        editorMode === 'code'
-                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black shadow-2xs'
-                          : 'text-slate-500 hover:text-slate-900'
-                      }`}
-                    >
-                      Code Mode
-                    </button>
-                  </div>
-                </div>
-
-                {editorMode === 'visual' ? (
-                  <div className="space-y-4 text-xs">
-                    <div>
-                      <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Template Name
-                      </label>
-                      <input
-                        type="text"
-                        value={templateName}
-                        onChange={(e) => setTemplateName(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Brand Accent Color
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="color"
-                          value={accentColor}
-                          onChange={(e) => handleVisualParamChange(e.target.value, footerNote, showBankDetails)}
-                          className="w-10 h-10 rounded-xl cursor-pointer border-0"
-                        />
-                        <span className="font-mono font-extrabold text-slate-700 dark:text-slate-300">
-                          {accentColor}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Footer Note
-                      </label>
-                      <input
-                        type="text"
-                        value={footerNote}
-                        onChange={(e) => handleVisualParamChange(accentColor, e.target.value, showBankDetails)}
-                        className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
-                      />
-                    </div>
-
-                    <div className="pt-2">
-                      <label className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showBankDetails}
-                          onChange={(e) => handleVisualParamChange(accentColor, footerNote, e.target.checked)}
-                          className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
-                        />
-                        <span>Include Bank Settlement Instructions</span>
-                      </label>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs">
-                      HTML Source Code
-                    </label>
-                    <textarea
-                      value={htmlContent}
-                      onChange={(e) => handleCodeChange(e.target.value)}
-                      rows={14}
-                      className="w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none resize-none leading-relaxed"
-                    />
-                  </div>
-                )}
-
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">
-                    {isSaved ? 'Saved as draft' : 'Unsaved changes'}
-                  </span>
-                  <button
-                    onClick={handleSave}
-                    disabled={saveDraftMutation.isPending}
-                    className="px-5 py-2.5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
-                  >
-                    {saveDraftMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    <span>Save Template</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Right Column: Live Render Preview Panel */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-emerald-600" />
-                  Live Render Preview
-                </h3>
-
-                <div className="w-full h-[480px] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white shadow-inner">
-                  <iframe
-                    srcDoc={htmlContent}
-                    title="Invoice Live Preview"
-                    className="w-full h-full border-0 bg-white"
-                  />
-                </div>
-              </div>
-            </div>
-          </main>
-        )}
-      </div>
+      )}
 
       {/* Invoice Preview Modal */}
       {selectedInvoiceBooking && (
@@ -973,6 +1000,6 @@ export default function InvoicesPage() {
           onClose={() => setSelectedPaymentBooking(null)}
         />
       )}
-    </div>
+    </AppShell>
   );
 }

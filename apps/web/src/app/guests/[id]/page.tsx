@@ -1,13 +1,12 @@
 'use client';
 
 import React from 'react';
-import { DashboardSidebar } from '@/components/dashboard-sidebar';
-import { AppHeader } from '@/components/app-header';
+import { AppShell } from '@/components/app-shell';
 import { usePropertyStore, useActivePropertyQuery } from '@/features/properties';
 import { useGuestQuery } from '@/features/guests/api/use-guests';
 import { useTranslation } from '@/lib/i18n';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GuestProfileCard } from '@/features/guests/components/guest-profile-card';
 import { StayHistoryTimeline } from '@/features/guests/components/stay-history-timeline';
@@ -27,46 +26,41 @@ export default function GuestDetailPage() {
   const guest = (rawGuest as any)?.data?.id ? (rawGuest as any).data : rawGuest;
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative bg-slate-50/50 dark:bg-slate-950">
-      <DashboardSidebar />
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        <AppHeader>
-          <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="sm" onClick={() => router.push('/guests')} className="mr-2">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
-                {guest?.fullName ? formatDisplayName(guest.fullName) : t('guestDetails')}
-              </h1>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
-                {activeProperty?.name || t('activeManagementHub')}
-              </p>
-            </div>
+    <AppShell
+      sectionIcon={Users}
+      sectionTitle={guest?.fullName ? formatDisplayName(guest.fullName) : (t('guestDetails') || 'Guest Profile')}
+      sectionDescription={t('sectionGuestsCrmDesc')}
+      sectionTabs={[
+        { label: t('tabGuestDirectory') || 'Guest Directory', icon: Users, href: '/guests' },
+      ]}
+      sectionActions={
+        <button
+          onClick={() => router.push('/guests')}
+          className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs border border-slate-200 dark:border-slate-700"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>{t('backToGuests') || 'Back to Directory'}</span>
+        </button>
+      }
+    >
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        </div>
+      ) : !guest ? (
+        <div className="text-center py-20 text-slate-500">
+          {t('guestNotFound') || 'Guest not found'}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1 space-y-6">
+            <GuestProfileCard guest={guest} />
           </div>
-        </AppHeader>
-
-        <main className="p-4 sm:p-6 space-y-6 w-full flex-1">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-            </div>
-          ) : !guest ? (
-            <div className="text-center py-20 text-slate-500">
-              {t('guestNotFound') || 'Guest not found'}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1 space-y-6">
-                <GuestProfileCard guest={guest} />
-              </div>
-              <div className="lg:col-span-2 space-y-6">
-                <StayHistoryTimeline guest={guest} />
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
+          <div className="lg:col-span-2 space-y-6">
+            <StayHistoryTimeline guest={guest} />
+          </div>
+        </div>
+      )}
+    </AppShell>
   );
 }

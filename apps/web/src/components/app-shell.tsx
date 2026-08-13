@@ -1,43 +1,93 @@
 'use client';
 
 import React from 'react';
+import { LucideIcon } from 'lucide-react';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import { AppHeader } from '@/components/app-header';
+import { SectionHeader, SectionTab } from '@/components/section-header';
+
+/**
+ * Semantic layout modes for consistent content width across the application.
+ *
+ * - "standard" (default) — max-w-7xl (1280px). KPI cards, forms, overview panels.
+ * - "wide"    — max-w-[1600px]. Data tables, invoice lists, booking feeds.
+ * - "full"    — No max-width constraint. Calendars, tape charts, visual tools.
+ * - "narrow"  — max-w-4xl (896px). Focused forms, approval queues, detail views.
+ */
+export type AppShellLayout = 'standard' | 'wide' | 'full' | 'narrow';
+
+const LAYOUT_MAX_WIDTH: Record<AppShellLayout, string> = {
+  standard: 'max-w-7xl',
+  wide:     'max-w-[1600px]',
+  full:     '',
+  narrow:   'max-w-4xl',
+};
 
 interface AppShellProps {
   children: React.ReactNode;
-  /** Optional custom header actions or search */
-  headerActions?: React.ReactNode;
-  /** Optional left side title or breadcrumb override for the header */
-  headerTitle?: React.ReactNode;
-  /** Constrain max width for optimal reading (default: max-w-5xl ~ 1024px) */
-  maxWidth?: 'max-w-4xl' | 'max-w-5xl' | 'max-w-6xl' | 'max-w-7xl' | 'max-w-full';
-  /** Additional container padding styling */
+  /** Lucide icon for the current section */
+  sectionIcon: LucideIcon;
+  /** Section title (e.g., "Booking Management") */
+  sectionTitle: string;
+  /** Short contextual description for the section */
+  sectionDescription?: string;
+  /** Right-side action buttons for the section header */
+  sectionActions?: React.ReactNode;
+  /** Optional horizontal sub-navigation tabs for multi-page sections */
+  sectionTabs?: SectionTab[];
+  /** Semantic layout mode controlling content max-width (default: "standard") */
+  layout?: AppShellLayout;
+  /**
+   * @deprecated Use `layout` prop instead. Kept for backward compatibility.
+   */
+  maxWidth?: string;
+  /**
+   * @deprecated Use `layout` prop instead. Kept for backward compatibility.
+   */
   containerClassName?: string;
 }
 
 export const AppShell: React.FC<AppShellProps> = ({
   children,
-  headerActions,
-  headerTitle,
-  maxWidth = 'max-w-5xl',
-  containerClassName = 'p-4 lg:p-6',
+  sectionIcon,
+  sectionTitle,
+  sectionDescription,
+  sectionActions,
+  sectionTabs,
+  layout = 'standard',
+  maxWidth,
+  containerClassName,
 }) => {
+  // Resolve max-width: prefer new `layout` prop, fall back to deprecated `maxWidth`
+  const resolvedMaxWidth = maxWidth
+    ? maxWidth
+    : LAYOUT_MAX_WIDTH[layout];
+
+  // Resolve container padding: prefer deprecated `containerClassName`, else consistent default
+  const resolvedPadding = containerClassName ?? 'px-4 lg:px-6 py-5 lg:py-6';
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-[#080c0a] text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
       {/* Persistent Left Navigation Sidebar */}
       <DashboardSidebar />
 
       {/* Main App Layout Shell */}
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        {/* Persistent Top Header */}
-        <AppHeader actions={headerActions}>
-          {headerTitle}
-        </AppHeader>
+        {/* Global Top Header — Property, Sync, Language, Notifications, Avatar */}
+        <AppHeader />
+
+        {/* Section Header — Title, Description, Actions, Sub-Navigation Tabs */}
+        <SectionHeader
+          icon={sectionIcon}
+          title={sectionTitle}
+          description={sectionDescription}
+          actions={sectionActions}
+          tabs={sectionTabs}
+        />
 
         {/* Content Viewport Container */}
-        <main className={`flex-1 w-full ${containerClassName}`}>
-          <div className={`${maxWidth} mx-auto space-y-6 animate-fadeIn`}>
+        <main className={`flex-1 w-full ${resolvedPadding}`}>
+          <div className={`${resolvedMaxWidth} mx-auto space-y-5`}>
             {children}
           </div>
         </main>

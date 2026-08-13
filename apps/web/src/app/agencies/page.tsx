@@ -21,9 +21,9 @@ import {
   TrendingUp,
   Receipt,
   MessageSquare,
+  Globe,
 } from 'lucide-react';
-import { AppHeader } from '@/components/app-header';
-import { DashboardSidebar } from '@/components/dashboard-sidebar';
+import { AppShell } from '@/components/app-shell';
 import { useTranslation } from '@/lib/i18n';
 import { usePropertyStore } from '@/features/properties/store/use-property-store';
 import {
@@ -180,117 +180,111 @@ export default function AgenciesPage() {
   }, [agencies]);
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative overflow-hidden bg-slate-50/70 dark:bg-slate-950">
-      <DashboardSidebar />
-
-      <div className="flex-1 min-w-0 transition-all duration-300 relative z-10 flex flex-col min-h-screen overflow-y-auto">
-        {/* Header Standardized across app */}
-        <AppHeader
-          actions={
-            <button
-              onClick={() => {
-                resetForm();
-                setIsAddModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs shadow-md shadow-emerald-900/20 active:scale-95 transition-all cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">{t('addAgency') || 'Add agency'}</span>
-            </button>
-          }
+    <AppShell
+      sectionIcon={Globe}
+      sectionTitle={t('sectionChannelManager')}
+      sectionDescription={t('sectionChannelManagerDesc')}
+      sectionTabs={[
+        { label: t('tabOtaChannels'), icon: Globe, href: '/settings/channels' },
+        { label: t('tabAgencies'), icon: Building2, count: agencies.length, href: '/agencies' },
+      ]}
+      sectionActions={
+        <button
+          onClick={() => {
+            resetForm();
+            setIsAddModalOpen(true);
+          }}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs shadow-md shadow-emerald-900/20 active:scale-95 transition-all cursor-pointer shrink-0"
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
-              <Building2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add Agency Partner</span>
+        </button>
+      }
+      layout="wide"
+    >
+      <div className="space-y-4">
+        {/* ─── 1. TAC Summary Metrics Bar ─── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* Headline Metric: Total TAC */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-2xs space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                Total TAC Generated
+              </span>
+              <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
+                <TrendingUp className="w-3.5 h-3.5" />
+              </div>
             </div>
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
-                {t('tacModuleTitle') || 'Travel Agency Commissions (TAC)'}
-              </h1>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
-                {activeProperty?.name || t('activeManagementHub')}
-              </p>
-            </div>
+            <p className="text-base sm:text-lg font-black text-emerald-700 dark:text-emerald-300">
+              ₹{summaryMetrics.totalTacEarned.toLocaleString('en-IN')}
+            </p>
+            <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+              Gross TAC generated to date
+            </p>
           </div>
-        </AppHeader>
 
-        <main className="p-4 sm:p-6 space-y-6 w-full flex-1">
-          {/* ─── 1. TAC Summary Metrics Bar (Sentence Case & Headline Metric) ─── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Headline Metric: Total TAC (Accent Visual Weight) */}
-            <div className="bg-emerald-50/70 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 p-5 shadow-2xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                  Total TAC
-                </span>
-                <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+          {/* Metric 2: Active TAC agencies */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-2xs space-y-1">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Active TAC Partners
+              </span>
+              <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                <Building2 className="w-3.5 h-3.5 text-emerald-600" />
               </div>
-              <p className="text-3xl font-black text-emerald-800 dark:text-emerald-200 tracking-tight">
-                ₹{summaryMetrics.totalTacEarned.toLocaleString('en-IN')}
-              </p>
-              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                Gross TAC generated to date
-              </p>
             </div>
+            <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+              {summaryMetrics.totalAgencies}
+            </p>
+            <p className="text-[10px] font-medium text-slate-400">Registered agency partners</p>
+          </div>
 
-            {/* Metric 2: Active TAC agencies */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs space-y-2">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Active TAC agencies
-                </span>
-                <Building2 className="w-4 h-4 text-emerald-600" />
-              </div>
-              <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                {summaryMetrics.totalAgencies}
-              </p>
-              <p className="text-[11px] font-medium text-slate-500">Registered travel agency partners</p>
-            </div>
-
-            {/* Metric 3: Pending TAC (Amber ONLY when pendingLedger > 0, else neutral) */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs space-y-2">
-              <div className="flex items-center justify-between text-slate-400">
-                <span
-                  className={`text-xs font-bold uppercase tracking-wider ${
-                    summaryMetrics.pendingLedger > 0
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-slate-500 dark:text-slate-400'
-                  }`}
-                >
-                  Pending TAC
-                </span>
-                <Clock
-                  className={`w-4 h-4 ${
-                    summaryMetrics.pendingLedger > 0 ? 'text-amber-500' : 'text-slate-400'
-                  }`}
-                />
-              </div>
-              <p
-                className={`text-2xl font-black tracking-tight ${
+          {/* Metric 3: Pending TAC */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-2xs space-y-1">
+            <div className="flex items-center justify-between text-slate-400">
+              <span
+                className={`text-[11px] font-bold uppercase tracking-wider ${
                   summaryMetrics.pendingLedger > 0
                     ? 'text-amber-600 dark:text-amber-400'
                     : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
-                ₹{summaryMetrics.pendingLedger.toLocaleString('en-IN')}
-              </p>
-              <p className="text-[11px] font-medium text-slate-500">Unsettled commission payouts</p>
-            </div>
-
-            {/* Metric 4: TAC paid */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs space-y-2">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  TAC paid
-                </span>
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                Pending TAC Payouts
+              </span>
+              <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+                <Clock className="w-3.5 h-3.5" />
               </div>
-              <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 tracking-tight">
-                ₹{summaryMetrics.totalTacPaid.toLocaleString('en-IN')}
-              </p>
-              <p className="text-[11px] font-medium text-slate-500">Total settled agency payouts</p>
             </div>
+            <p
+              className={`text-base sm:text-lg font-black ${
+                summaryMetrics.pendingLedger > 0
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              ₹{summaryMetrics.pendingLedger.toLocaleString('en-IN')}
+            </p>
+            <p className="text-[10px] font-medium text-slate-400">Unsettled commission payouts</p>
           </div>
+
+          {/* Metric 4: TAC paid */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-2xs space-y-1">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                TAC Settled / Paid
+              </span>
+              <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              </div>
+            </div>
+            <p className="text-base sm:text-lg font-black text-emerald-700 dark:text-emerald-300">
+              ₹{summaryMetrics.totalTacPaid.toLocaleString('en-IN')}
+            </p>
+            <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+              Commissions paid out
+            </p>
+          </div>
+        </div>
 
           {/* ─── 2. Search & Tab Filter Bar ─── */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-2xs flex items-center justify-between gap-4 flex-wrap">
@@ -520,8 +514,6 @@ export default function AgenciesPage() {
               </div>
             </div>
           )}
-        </main>
-      </div>
 
       {/* Floating Bottom-Right Support Chat Launcher Button */}
       <button
@@ -756,6 +748,7 @@ export default function AgenciesPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AppShell>
   );
 }

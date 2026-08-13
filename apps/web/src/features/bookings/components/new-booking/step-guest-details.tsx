@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { User, Phone, Mail, Globe2, CheckCircle2, AlertCircle } from 'lucide-react';
+import React from 'react';
+import { User, Phone, Mail, Globe, CreditCard, MapPin } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import { CreateBookingPayload } from '../../types/booking.types';
 
@@ -10,121 +10,181 @@ interface StepGuestDetailsProps {
   onChange: (field: string, value: any) => void;
 }
 
-/* ─── Clean SaaS Form Input ─── */
-function FormFieldInput({
-  label,
-  value,
-  onChange,
-  type = 'text',
-  icon: Icon,
-  required,
-  placeholder,
-  validation,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-  icon: any;
-  required?: boolean;
-  placeholder?: string;
-  validation?: (v: string) => boolean;
-}) {
-  const [touched, setTouched] = useState(false);
-  const hasValue = value && value.length > 0;
-  const isValid = validation ? validation(value) : true;
-  const showError = touched && required && !hasValue;
-  const showSuccess = touched && hasValue && isValid;
+const NATIONALITY_OPTIONS = [
+  { code: 'US', label: 'United States' },
+  { code: 'GB', label: 'United Kingdom' },
+  { code: 'IN', label: 'India' },
+  { code: 'CA', label: 'Canada' },
+  { code: 'DE', label: 'Germany' },
+  { code: 'FR', label: 'France' },
+  { code: 'IT', label: 'Italy' },
+  { code: 'ES', label: 'Spain' },
+  { code: 'AU', label: 'Australia' },
+  { code: 'AE', label: 'United Arab Emirates' },
+  { code: 'SG', label: 'Singapore' },
+  { code: 'JP', label: 'Japan' },
+];
 
-  return (
-    <div>
-      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-        {label} {required && <span className="text-emerald-600">*</span>}
-      </label>
-
-      <div className="relative group">
-        <Icon className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-200 ${
-          showError ? 'text-rose-400' : showSuccess ? 'text-emerald-500' : 'text-slate-400 group-focus-within:text-emerald-600'
-        }`} />
-
-        <input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={() => setTouched(true)}
-          placeholder={placeholder}
-          className={`w-full pl-10 pr-10 py-3 rounded-xl bg-slate-50 border text-slate-900 text-xs font-semibold focus:outline-none transition-all duration-200 focus-ring-emerald ${
-            showError
-              ? 'border-rose-300 bg-rose-50/40 focus:border-rose-500'
-              : showSuccess
-              ? 'border-emerald-300 bg-white focus:border-emerald-600'
-              : 'border-slate-200 focus:border-emerald-600 focus:bg-white'
-          }`}
-        />
-
-        {/* Validation Status Icon */}
-        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
-          {showError && <AlertCircle className="w-4 h-4 text-rose-500" />}
-          {showSuccess && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-        </div>
-      </div>
-
-      {/* Inline Error Message */}
-      {showError && (
-        <p className="text-[10px] font-bold text-rose-500 mt-1.5 ml-1">
-          {label} is required
-        </p>
-      )}
-    </div>
-  );
-}
+const ID_TYPE_OPTIONS = [
+  { value: 'PASSPORT', label: 'Passport' },
+  { value: 'NATIONAL_ID', label: 'National ID' },
+  { value: 'DRIVING_LICENSE', label: "Driver's License" },
+  { value: 'AADHAAR', label: 'Aadhaar Card' },
+  { value: 'VOTER_ID', label: 'Voter ID' },
+];
 
 export function StepGuestDetails({ form, onChange }: StepGuestDetailsProps) {
   const { t } = useTranslation();
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-100 pb-4">
-        <h2 className="text-lg font-black text-slate-900 tracking-tight">{t('guestDetails')}</h2>
-        <p className="text-xs text-slate-500 font-medium mt-1 min-w-0">{t('enterGuestIdentity') || 'Enter primary guest identity and contact details.'}</p>
+      {/* Step Title Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+          <User className="w-4 h-4" />
+        </div>
+        <div>
+          <h2 className="text-base font-black text-slate-900 dark:text-white">Guest Details</h2>
+          <p className="text-xs text-slate-400 font-medium">Enter primary guest identity and contact details.</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <FormFieldInput
-          label={t('guestName')}
-          value={form.guestName || ''}
-          onChange={(v) => onChange('guestName', v)}
-          icon={User}
-          required
-          placeholder={t('enterGuestName')}
-        />
+      {/* Two-Column Form Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* 1. Guest Name */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+            Guest Name <span className="text-emerald-700">*</span>
+          </label>
+          <div className="relative">
+            <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={form.guestName || ''}
+              onChange={(e) => onChange('guestName', e.target.value)}
+              placeholder="Enter guest full name"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
+            />
+          </div>
+        </div>
 
-        <FormFieldInput
-          label={t('phoneNumber')}
-          value={form.guestPhone || ''}
-          onChange={(v) => onChange('guestPhone', v)}
-          type="tel"
-          icon={Phone}
-          placeholder={t('enterPhone')}
-        />
+        {/* 2. Phone Number */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+            Phone Number <span className="text-emerald-700">*</span>
+          </label>
+          <div className="relative">
+            <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="tel"
+              value={form.guestPhone || ''}
+              onChange={(e) => onChange('guestPhone', e.target.value)}
+              placeholder="Enter phone number"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
+            />
+          </div>
+        </div>
 
-        <FormFieldInput
-          label={t('email')}
-          value={form.guestEmail || ''}
-          onChange={(v) => onChange('guestEmail', v)}
-          type="email"
-          icon={Mail}
-          placeholder={t('enterEmail')}
-          validation={(v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)}
-        />
+        {/* 3. Email Address */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+            Email Address
+          </label>
+          <div className="relative">
+            <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="email"
+              value={form.guestEmail || ''}
+              onChange={(e) => onChange('guestEmail', e.target.value)}
+              placeholder="Enter email address"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
+            />
+          </div>
+        </div>
 
-        <FormFieldInput
-          label={t('nationality')}
-          value={form.guestNationality || ''}
-          onChange={(v) => onChange('guestNationality', v)}
-          icon={Globe2}
-          placeholder={t('enterNationality')}
-        />
+        {/* 4. Nationality */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+            Nationality
+          </label>
+          <div className="relative">
+            <Globe className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <select
+              value={form.guestNationality || (form as any).nationality || 'US'}
+              onChange={(e) => {
+                onChange('guestNationality', e.target.value);
+                onChange('nationality', e.target.value);
+              }}
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600 focus:bg-white transition-all cursor-pointer"
+            >
+              <option value="">Select nationality</option>
+              {NATIONALITY_OPTIONS.map((n) => (
+                <option key={n.code} value={n.code}>
+                  {n.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* 5. ID Type */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+            ID Type
+          </label>
+          <div className="relative">
+            <CreditCard className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <select
+              value={(form as any).idType || ''}
+              onChange={(e) => onChange('idType', e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600 focus:bg-white transition-all cursor-pointer"
+            >
+              <option value="">Select ID type</option>
+              {ID_TYPE_OPTIONS.map((idOpt) => (
+                <option key={idOpt.value} value={idOpt.value}>
+                  {idOpt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* 6. ID Number */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+            ID Number
+          </label>
+          <div className="relative">
+            <CreditCard className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={(form as any).idNumber || ''}
+              onChange={(e) => onChange('idNumber', e.target.value)}
+              placeholder="Enter ID number"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
+            />
+          </div>
+        </div>
+
+        {/* 7. Address (Optional) Spanning 2 Columns */}
+        <div className="md:col-span-2">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+            Address <span className="text-slate-400 font-normal">(Optional)</span>
+          </label>
+          <div className="relative">
+            <MapPin className="w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
+            <textarea
+              rows={2}
+              value={form.notes || (form as any).address || ''}
+              onChange={(e) => {
+                onChange('address', e.target.value);
+                onChange('notes', e.target.value);
+              }}
+              placeholder="Enter address"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all resize-none"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -9,14 +9,7 @@ import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationInbox } from '@/features/notifications/components/notification-inbox';
 
-interface AppHeaderProps {
-  /** Left side content — typically page title or property info */
-  children?: React.ReactNode;
-  /** Additional right-side actions (e.g., Add Property button) */
-  actions?: React.ReactNode;
-}
-
-export const AppHeader: React.FC<AppHeaderProps> = ({ children, actions }) => {
+export const AppHeader: React.FC = () => {
   const { t } = useTranslation();
   const activeProperty = usePropertyStore((state) => state.activeProperty);
 
@@ -28,19 +21,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ children, actions }) => {
   });
 
   const user = profileData?.user || profileData?.data?.user || profileData;
-  const userRole = user?.role || 'OWNER';
-  const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN';
-  const isManager = userRole === 'MANAGER';
-  const isReception = userRole === 'RECEPTION_STAFF';
-  const isViewer = userRole === 'VIEWER';
-
-  const getRoleLabel = () => {
-    if (isOwner) return t('propertyOwner');
-    if (isManager) return t('operationsManager');
-    if (isReception) return t('receptionStaff');
-    if (isViewer) return t('propertyViewer');
-    return userRole;
-  };
 
   const getDisplayName = () => {
     return user?.name || user?.owner?.fullName || user?.fullName || user?.email?.split('@')[0] || 'User';
@@ -53,34 +33,28 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ children, actions }) => {
 
   return (
     <header className="h-14 bg-white/95 dark:bg-[#09100d]/95 backdrop-blur-xl border-b border-divider sticky top-0 z-30 px-4 lg:px-6 flex items-center justify-between gap-4 shrink-0 transition-colors duration-150">
-      {/* Left: Page-specific content */}
+      {/* Left: Active Property Context */}
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        {children || (
-          <>
-            {!activeProperty ? (
-              <div className="space-y-1">
-                <Skeleton className="h-4 w-36" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-            ) : (
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
-                  {activeProperty.name}
-                </h2>
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                  {activeProperty.city ? `${activeProperty.city}, ${activeProperty.country || 'IN'}` : t('activeManagementHub')}
-                </p>
-              </div>
-            )}
-          </>
+        {!activeProperty ? (
+          <div className="space-y-1">
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        ) : (
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
+              {activeProperty.name}
+            </h2>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              {activeProperty.city ? `${activeProperty.city}, ${activeProperty.country || 'IN'}` : t('activeManagementHub')}
+            </p>
+          </div>
         )}
       </div>
 
-      {/* Right: Actions cluster */}
+      {/* Right: Global actions cluster */}
       <div className="flex items-center gap-2 shrink-0">
-        {actions}
-
         {/* Live Socket Realtime Pulse Badge */}
         <div
           className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-400"

@@ -52,34 +52,34 @@ export function RevenueSummaryCards({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Card 1: Today's Revenue */}
-      <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] space-y-3">
+      <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             {t('todayRevenue')}
           </span>
-          <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 border border-divider flex items-center justify-center">
-            <DollarSign className="w-4 h-4 text-slate-400" />
+          <div className="w-8.5 h-8.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center">
+            <DollarSign className="w-4 h-4 text-slate-500 dark:text-slate-400" />
           </div>
         </div>
-        <div className="text-2xl sm:text-3xl font-bold tabular-data text-slate-900 dark:text-white">
+        <div className="text-2xl sm:text-3xl font-extrabold tabular-data text-slate-900 dark:text-white">
           {formattedTodayRev}
         </div>
         <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Live payments collected
+          <span className="w-2 h-2 rounded-full bg-[#0B6E4F]" /> Live payments collected
         </p>
       </div>
 
       {/* Card 2: Monthly Revenue */}
-      <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] space-y-3">
+      <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             {t('monthlyRevenue')}
           </span>
-          <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 border border-divider flex items-center justify-center">
-            <Calendar className="w-4 h-4 text-slate-400" />
+          <div className="w-8.5 h-8.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center">
+            <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" />
           </div>
         </div>
-        <div className="text-2xl sm:text-3xl font-bold tabular-data text-slate-900 dark:text-white">
+        <div className="text-2xl sm:text-3xl font-extrabold tabular-data text-slate-900 dark:text-white">
           {formattedMonthlyRev}
         </div>
         <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
@@ -88,21 +88,21 @@ export function RevenueSummaryCards({
       </div>
 
       {/* Card 3: Check-ins & Check-outs */}
-      <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] space-y-3">
+      <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             Today's Movement
           </span>
-          <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 border border-divider flex items-center justify-center">
-            <UserCheck className="w-4 h-4 text-slate-400" />
+          <div className="w-8.5 h-8.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center">
+            <UserCheck className="w-4 h-4 text-slate-500 dark:text-slate-400" />
           </div>
         </div>
-        <div className="text-2xl sm:text-3xl font-bold tabular-data text-slate-900 dark:text-white flex items-baseline gap-2">
+        <div className="text-2xl sm:text-3xl font-extrabold tabular-data text-slate-900 dark:text-white flex items-baseline gap-2">
           <span>{metrics?.todayCheckIns || 0}</span>
-          <span className="text-[11px] font-medium text-slate-400">Ins</span>
-          <span className="text-slate-300">/</span>
+          <span className="text-[11px] font-bold text-slate-400">Ins</span>
+          <span className="text-slate-300 dark:text-slate-700">/</span>
           <span>{metrics?.todayCheckOuts || 0}</span>
-          <span className="text-[11px] font-medium text-slate-400">Outs</span>
+          <span className="text-[11px] font-bold text-slate-400">Outs</span>
         </div>
         <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
           <Clock className="w-3 h-3 text-slate-400" /> Scheduled for today
@@ -110,24 +110,24 @@ export function RevenueSummaryCards({
       </div>
 
       {/* Card 4: Occupancy & Room Status */}
-      <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] space-y-3">
+      <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             Booked Rate
           </span>
-          <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 border border-divider flex items-center justify-center">
-            <BedDouble className="w-4 h-4 text-slate-400" />
+          <div className="w-8.5 h-8.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center">
+            <BedDouble className="w-4 h-4 text-slate-500 dark:text-slate-400" />
           </div>
         </div>
-        <div className="text-2xl sm:text-3xl font-bold tabular-data text-slate-900 dark:text-white flex items-baseline gap-2">
+        <div className="text-2xl sm:text-3xl font-extrabold tabular-data text-slate-900 dark:text-white flex items-baseline gap-2">
           <span>{metrics?.occupancyRate || 0}%</span>
-          <span className="text-[11px] font-medium text-slate-400">
+          <span className="text-[11px] font-bold text-slate-400">
             ({metrics?.occupiedRooms || 0}/{metrics?.totalRooms || 0})
           </span>
         </div>
-        <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-2">
+        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-2">
           <div
-            className="bg-emerald-600 h-full rounded-full transition-all duration-500"
+            className="bg-[#0B6E4F] h-full rounded-full transition-all duration-500"
             style={{ width: `${metrics?.occupancyRate || 0}%` }}
           />
         </div>

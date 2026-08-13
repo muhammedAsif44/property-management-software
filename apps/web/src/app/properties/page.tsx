@@ -12,12 +12,13 @@ import {
   PropertyItem,
 } from '@/features/properties';
 import { authService } from '@/features/auth';
-import { DashboardSidebar } from '@/components/dashboard-sidebar';
-import { AppHeader } from '@/components/app-header';
+import { AppShell } from '@/components/app-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import {
   Building2,
+  Users,
+  Sliders,
   Plus,
   Check,
   RefreshCw,
@@ -177,43 +178,27 @@ export default function PropertiesPage() {
   };
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100 font-sans antialiased flex relative">
-      {/* Left Navigation Sidebar */}
-      <DashboardSidebar />
-
-      {/* Main Content Area */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        {/* ═══ Top Header Bar ═══ */}
-        <AppHeader
-          actions={
-            isOwner ? (
-              <Link
-                href="/onboarding/property?new=true"
-                className="h-9 px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="truncate">{t('addProperty')}</span>
-              </Link>
-            ) : undefined
-          }
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
-              <Building2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
-                {t('propertiesPortfolio')}
-              </h1>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
-                {t('propertiesPortfolioSubtitle')}
-              </p>
-            </div>
-          </div>
-        </AppHeader>
-
-        {/* Properties Workspace */}
-        <main className="p-4 lg:p-6 space-y-6 w-full flex-1">
+    <AppShell
+      sectionIcon={Settings}
+      sectionTitle={t('sectionSystemAdmin')}
+      sectionDescription={t('sectionSystemAdminDesc')}
+      sectionTabs={[
+        { label: t('tabProperties'), icon: Building2, count: properties.length, href: '/properties' },
+        { label: t('tabStaff'), icon: Users, href: '/settings/staff' },
+        { label: t('tabSettings'), icon: Sliders, href: '/settings' },
+      ]}
+      sectionActions={
+        isOwner ? (
+          <Link
+            href="/onboarding/property?new=true"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs shadow-md shadow-emerald-900/20 active:scale-95 transition-all cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t('addProperty')}</span>
+          </Link>
+        ) : undefined
+      }
+    >
           
           {/* Hero Banner & Search Filter Bar */}
           <div className="p-5 sm:p-6 rounded-xl bg-white dark:bg-slate-900 border-l-4 border-emerald-600 border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative overflow-hidden space-y-6">
@@ -744,10 +729,7 @@ export default function PropertiesPage() {
             isActive={drawerProperty?.id === activeProperty?.id}
             onClose={() => setDrawerProperty(null)}
             onSwitch={handleSwitch}
-            isSwitching={switchMutation.isPending && switchMutation.variables === drawerProperty?.id}
           />
-        </main>
-      </div>
-    </div>
+    </AppShell>
   );
 }

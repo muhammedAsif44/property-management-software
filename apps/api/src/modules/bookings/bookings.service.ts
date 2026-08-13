@@ -113,6 +113,7 @@ export class BookingsService {
         include: {
           guest: true,
           roomType: true,
+          roomUnit: true,
           agency: true,
           invoices: { orderBy: { createdAt: 'desc' } },
           createdByUser: { select: { id: true, email: true, role: true } },

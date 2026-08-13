@@ -26,12 +26,53 @@ export function useUpdateUnitStatusMutation() {
   return useMutation({
     mutationFn: ({ unitId, status, notes }: { unitId: string; status: string; notes?: string }) =>
       housekeepingService.updateUnitStatus(unitId, status, notes),
-    onSuccess: () => {
-      toast.success('Room unit status updated', 'Housekeeping Updated');
-      queryClient.invalidateQueries({ queryKey: housekeepingKeys.all });
+    onMutate: async ({ unitId, status, notes }) => {
+      // Cancel outgoing queries to avoid overwriting our optimistic update
+      await queryClient.cancelQueries({ queryKey: housekeepingKeys.all });
+
+      // Snapshot previous cache values
+      const previousData = queryClient.getQueriesData({ queryKey: housekeepingKeys.all });
+
+      // Optimistically update all matching cache queries instantly (0ms delay)
+      queryClient.setQueriesData({ queryKey: housekeepingKeys.all }, (old: any) => {
+        if (!old) return old;
+
+        const updateUnitInList = (unitsList: any[]) =>
+          unitsList.map((unit: any) =>
+            unit.id === unitId
+              ? { ...unit, cleanlinessStatus: status, ...(notes !== undefined ? { notes } : {}) }
+              : unit
+          );
+
+        if (Array.isArray(old)) {
+          return updateUnitInList(old);
+        }
+        if (old.units && Array.isArray(old.units)) {
+          return { ...old, units: updateUnitInList(old.units) };
+        }
+        if (old.data?.units && Array.isArray(old.data.units)) {
+          return { ...old, data: { ...old.data, units: updateUnitInList(old.data.units) } };
+        }
+        if (old.data && Array.isArray(old.data)) {
+          return { ...old, data: updateUnitInList(old.data) };
+        }
+        return old;
+      });
+
+      return { previousData };
     },
-    onError: (err: any) => {
+    onError: (err: any, _variables, context) => {
+      // Rollback on network failure
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
       toast.error(err?.message || 'Failed to update unit status', 'Error');
+    },
+    onSettled: () => {
+      // Silent background query invalidation to ensure server consistency
+      queryClient.invalidateQueries({ queryKey: housekeepingKeys.all, refetchType: 'none' });
     },
   });
 }

@@ -249,7 +249,8 @@ export default function RoomsPage() {
   return (
     <AppShell
       sectionIcon={BedDouble}
-      sectionTitle={t('roomsAndUnits') || 'Rooms & Inventory'}
+      breadcrumb={{ parent: t('roomsAndOperations') || 'Rooms & Operations' }}
+      sectionTitle={t('roomsAndUnits') || 'Rooms & Units'}
       sectionDescription="Physical room inventory, categories, floor configurations, and asset management"
       sectionTabs={[
         {

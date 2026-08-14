@@ -15,13 +15,10 @@ export default function ChannelsPage() {
   return (
     <AppShell
       sectionIcon={Globe}
-      sectionTitle={t('sectionChannelManager')}
-      sectionDescription={t('sectionChannelManagerDesc')}
-      sectionTabs={[
-        { label: t('tabOtaChannels'), icon: Globe, href: '/settings/channels' },
-        { label: t('tabAgencies'), icon: Building2, href: '/agencies' },
-      ]}
-      layout="standard"
+      breadcrumb={{ parent: t('channelManagerTitle') || 'Channel Manager & OTAs' }}
+      sectionTitle={t('channelManager') || 'OTA Channel Manager'}
+      sectionDescription="Real-time 2-way ARI channel synchronization with global OTAs"
+      layout="wide"
     >
       {!activeProperty ? (
         <div className="flex flex-col items-center justify-center min-h-[50vh] p-6 text-center space-y-4 min-w-0">

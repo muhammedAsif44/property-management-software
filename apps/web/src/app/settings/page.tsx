@@ -291,13 +291,9 @@ function Settings3ColumnContent() {
   return (
     <AppShell
       sectionIcon={Settings}
-      sectionTitle={t('sectionSystemAdmin')}
-      sectionDescription={t('sectionSystemAdminDesc')}
-      sectionTabs={[
-        { label: t('tabProperties'), icon: Building2, href: '/properties' },
-        { label: t('tabStaff'), icon: Users, href: '/settings/staff' },
-        { label: t('tabSettings'), icon: Sliders, href: '/settings' },
-      ]}
+      breadcrumb={{ parent: t('systemAdministration') || 'System Administration' }}
+      sectionTitle={t('settings') || 'System Settings'}
+      sectionDescription="Property configuration, operational rules, GST taxes, and notification policies"
       layout="wide"
       containerClassName="p-0"
     >

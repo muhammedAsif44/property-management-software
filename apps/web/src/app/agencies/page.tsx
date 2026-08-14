@@ -321,13 +321,10 @@ export default function AgenciesPage() {
 
   return (
     <AppShell
-      sectionIcon={Globe}
-      sectionTitle={t('sectionChannelManager')}
-      sectionDescription={t('sectionChannelManagerDesc')}
-      sectionTabs={[
-        { label: t('tabOtaChannels'), icon: Globe, href: '/settings/channels' },
-        { label: t('tabAgencies'), icon: Building2, count: agencies.length, href: '/agencies' },
-      ]}
+      sectionIcon={Building2}
+      breadcrumb={{ parent: t('agenciesAndTac') || 'Agencies & TAC' }}
+      sectionTitle={t('agenciesAndTac') || 'Agencies & TAC'}
+      sectionDescription="Manage corporate agency partnerships, commission tiers, and TAC settlements"
       sectionActions={
         <button
           onClick={() => {

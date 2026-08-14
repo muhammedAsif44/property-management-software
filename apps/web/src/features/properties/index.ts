@@ -8,6 +8,7 @@ export * from './types/property-onboarding.types';
 
 // Components
 export * from './components/property-switcher';
+export * from './components/property-gallery';
 export * from './components/step-1-identity';
 export * from './components/step-2-times-terms';
 export * from './components/step-3-rooms';

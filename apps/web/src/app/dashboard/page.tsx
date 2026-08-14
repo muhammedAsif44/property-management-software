@@ -30,13 +30,18 @@ import {
   AlertTriangle,
   Calendar as CalendarIcon,
   Plus,
+  Sparkles,
 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import { useTheme } from '@/lib/theme/theme-context';
 import { formatDisplayName } from '@/lib/utils';
+import { SplitFlapText } from '@/components/ui/split-flap-text';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   // Query active & my properties on load
   const { isError: propError, error: propQueryError } = useActivePropertyQuery();
@@ -342,14 +347,8 @@ export default function DashboardPage() {
   return (
     <AppShell
       sectionIcon={LayoutDashboard}
-      sectionTitle={t('sectionDashboard') || 'Dashboard'}
+      sectionTitle={t('sectionDashboard') || 'Dashboard Hub'}
       sectionDescription={`Welcome back, ${userName}! Here's your property overview.`}
-      sectionTabs={[
-        { label: t('tabOverview') || 'Overview', icon: LayoutDashboard, href: '/dashboard', isActive: true },
-        { label: t('tabReservations') || 'Reservations', icon: Calendar, href: '/bookings' },
-        { label: t('tabInvoices') || 'Invoices', icon: Receipt, href: '/invoices' },
-        { label: t('tabReports') || 'Reports', icon: BarChart3, href: '/reports' },
-      ]}
       sectionActions={
         <div className="flex items-center gap-2">
           {/* Today's Date Indicator Badge */}
@@ -388,7 +387,40 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ─── 1. Essential KPI Summary Grid (4 Horizontal Cards) ─── */}
+        {/* ─── Live SplitFlap Operational Signal Ticker Banner ─── */}
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#111c17] border border-slate-200/90 dark:border-[#1d3329] shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 overflow-hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200/80 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900 dark:text-white">
+                Realtime Operational Signal Ticker
+              </p>
+              <p className="text-[11px] text-slate-400">
+                Live multi-property synchronization & 2-way ARI channel engines online
+              </p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto py-1 max-w-full">
+            <SplitFlapText
+              words={['ORVYN LIVE', 'SYSTEM SYNCED', 'REVPAR UP 18%', 'CHANNELS READY']}
+              flipDuration={0.12}
+              stagger={0.05}
+              cycleDelay={2800}
+              tileColor={isDark ? '#09100d' : '#f1f5f9'}
+              textColor={isDark ? '#10b981' : '#047857'}
+              tileRadius={6}
+              gap={5}
+              fontSize={22}
+              showSplitLine={false}
+              loop
+            />
+          </div>
+        </div>
+
+        {/* ─── 1. Essential KPI Summary Grid (Bento Grid with Spotlight Cards) ─── */}
         <DashboardKpiGrid
           metrics={analyticsData?.metrics}
           loading={analyticsLoading}

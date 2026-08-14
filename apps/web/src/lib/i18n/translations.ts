@@ -941,8 +941,39 @@ export const translations = {
     exportExcel: 'Export Excel',
     exportPdf: 'Export PDF',
     addRoom: 'Add Room',
+
+    // Super Admin Panel
+    platformOverview: 'Platform Overview',
+    broadcastAnnouncements: 'Broadcast Announcements',
+    ownerApprovals: 'Owner Approvals',
+    tenantManagement: 'Tenant Management',
+    systemHealth: 'System Health',
+    totalTenants: 'Total Tenants',
+    totalProperties: 'Total Properties',
+    pendingApplications: 'Pending Applications',
+    totalUsers: 'Total Users',
+    recentTenants: 'Recent Tenant Registrations',
+    approveOwner: 'Approve Owner',
+    rejectOwner: 'Reject Owner',
+    suspendTenant: 'Suspend Tenant',
+    activateTenant: 'Activate Tenant',
+    backupLogs: 'Backup & Sync Logs',
+    owners: 'Owners',
+    propertyGallery: 'Property Gallery',
+
+    // Reports & Analytics Layout
+    categoryPerformanceBreakdown: 'Category performance breakdown',
+    channelShareDistribution: 'Channel share distribution',
+    financialStatementTaxSummary: 'Financial statement & tax summary',
+    revenueOccupancyTrend: 'Revenue & occupancy trend',
   },
   ml: {
+    // Reports & Analytics Layout
+    categoryPerformanceBreakdown: 'കാറ്റഗറി പ്രകടന വിവരങ്ങൾ',
+    channelShareDistribution: 'ചാനൽ പങ്കാളിത്ത വിതരണം',
+    financialStatementTaxSummary: 'ധനകാര്യ പ്രസ്താവനയും നികുതി സംഗ്രഹവും',
+    revenueOccupancyTrend: 'വരുമാനവും ഒക്യുപൻസി ട്രെൻഡും',
+
     // OTA Channel Manager
     channelManager: 'OTA ചാനൽ മാനേജർ',
     channelManagerDesc: 'ഇന്ത്യൻ, ഗ്ലോബൽ OTA-കളിലേക്ക് തത്സമയ 2-വേ സമന്വയം (MMT, Goibibo, EaseMyTrip, Yatra, Booking.com, Agoda, Airbnb)',
@@ -1862,6 +1893,25 @@ export const translations = {
     exportExcel: 'Excel എക്സ്പോർട്ട് ചെയ്യുക',
     exportPdf: 'PDF എക്സ്പോർട്ട് ചെയ്യുക',
     addRoom: 'റൂം ചേർക്കുക',
+
+    // Super Admin Panel
+    platformOverview: 'പ്ലാറ്റ്ഫോം അവലോകനം',
+    broadcastAnnouncements: 'ബ്രോഡ്കാസ്റ്റ് പ്രഖ്യാപനങ്ങൾ',
+    ownerApprovals: 'ഉടമ അനുമോദനങ്ങൾ',
+    tenantManagement: 'ടെനന്റ് മാനേജ്മെന്റ്',
+    systemHealth: 'സിസ്റ്റം ആരോഗ്യം',
+    totalTenants: 'ആകെ ടെനന്റുകൾ',
+    totalProperties: 'ആകെ പ്രോപ്പർട്ടികൾ',
+    pendingApplications: 'തീർപ്പാക്കാത്ത അപേക്ഷകൾ',
+    totalUsers: 'ആകെ ഉപയോക്താക്കൾ',
+    recentTenants: 'സമീപകാല ടെനന്റ് രജിസ്ട്രേഷനുകൾ',
+    approveOwner: 'ഉടമയെ അംഗീകരിക്കുക',
+    rejectOwner: 'ഉടമയെ നിരസിക്കുക',
+    suspendTenant: 'ടെനന്റിനെ സസ്പെൻഡ് ചെയ്യുക',
+    activateTenant: 'ടെനന്റിനെ സജീവമാക്കുക',
+    backupLogs: 'ബാക്കപ്പ് & സിങ്ക് ലോഗുകൾ',
+    owners: 'ഉടമകൾ',
+    propertyGallery: 'പ്രോപ്പർട്ടി ഗാലറി',
   },
 };
 

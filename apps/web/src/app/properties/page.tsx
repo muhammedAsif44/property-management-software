@@ -38,10 +38,12 @@ import {
   ChevronRight,
   LayoutGrid,
   Table as TableIcon,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
 import { Sparkline } from '@/components/ui/sparkline';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
+import { PropertyGallery } from '@/features/properties';
 import dynamic from 'next/dynamic';
 
 const QuickDrawer = (dynamic as any)(() => import('@/components/ui/quick-drawer').then(m => m.QuickDrawer), { ssr: false });
@@ -51,7 +53,8 @@ export default function PropertiesPage() {
   const toast = useToast();
   const { t } = useTranslation();
 
-  // View Mode, Selection & Search Filter State
+  // View Mode, Selection, Page Tab & Search Filter State
+  const [pageTab, setPageTab] = useState<'portfolio' | 'gallery'>('portfolio');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'live' | 'setup'>('all');
@@ -179,14 +182,11 @@ export default function PropertiesPage() {
 
   return (
     <AppShell
-      sectionIcon={Settings}
-      sectionTitle={t('sectionSystemAdmin')}
-      sectionDescription={t('sectionSystemAdminDesc')}
-      sectionTabs={[
-        { label: t('tabProperties'), icon: Building2, count: properties.length, href: '/properties' },
-        { label: t('tabStaff'), icon: Users, href: '/settings/staff' },
-        { label: t('tabSettings'), icon: Sliders, href: '/settings' },
-      ]}
+      sectionIcon={Building2}
+      breadcrumb={{ parent: t('systemAdministration') || 'System Administration' }}
+      sectionTitle={t('properties') || 'Properties Portfolio'}
+      sectionDescription="Manage your multi-property hotel portfolios, branches, and configurations"
+      layout="wide"
       sectionActions={
         isOwner ? (
           <Link
@@ -199,9 +199,42 @@ export default function PropertiesPage() {
         ) : undefined
       }
     >
-          
-          {/* Hero Banner & Search Filter Bar */}
-          <div className="p-5 sm:p-6 rounded-xl bg-white dark:bg-slate-900 border-l-4 border-emerald-600 border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative overflow-hidden space-y-6">
+      <div className="space-y-4">
+        {/* Page Sub-Tab Bar */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-800 w-fit">
+          <button
+            type="button"
+            onClick={() => setPageTab('portfolio')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              pageTab === 'portfolio'
+                ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-2xs'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            <span>Properties Portfolio</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPageTab('gallery')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              pageTab === 'gallery'
+                ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-2xs'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+            }`}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>Property Gallery</span>
+          </button>
+        </div>
+
+        {pageTab === 'gallery' ? (
+          <PropertyGallery />
+        ) : (
+          <>
+            {/* Hero Banner & Search Filter Bar */}
+            <div className="p-5 sm:p-6 rounded-xl bg-white dark:bg-slate-900 border-l-4 border-emerald-600 border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative overflow-hidden space-y-6">
             <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-wrap min-w-0">
                 <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-divider text-slate-500 text-[10px] font-semibold uppercase tracking-wider">
@@ -723,13 +756,17 @@ export default function PropertiesPage() {
             isPending={switchMutation.isPending}
           />
 
-          {/* Slide-Over Quick Drawer Preview */}
-          <QuickDrawer
-            property={drawerProperty}
-            isActive={drawerProperty?.id === activeProperty?.id}
-            onClose={() => setDrawerProperty(null)}
-            onSwitch={handleSwitch}
-          />
+          </>
+        )}
+      </div>
+
+      {/* Slide-Over Quick Drawer Preview */}
+      <QuickDrawer
+        property={drawerProperty}
+        isActive={drawerProperty?.id === activeProperty?.id}
+        onClose={() => setDrawerProperty(null)}
+        onSwitch={handleSwitch}
+      />
     </AppShell>
   );
 }

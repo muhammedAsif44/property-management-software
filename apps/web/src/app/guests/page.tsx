@@ -20,6 +20,7 @@ import {
   CalendarDays,
   Sparkles,
 } from 'lucide-react';
+import { VipLoyaltyCard, VipGuest } from '@/features/guests/components/vip-loyalty-card';
 import { format } from 'date-fns';
 import { formatDisplayName } from '@/lib/utils';
 
@@ -110,17 +111,9 @@ export default function GuestsPage() {
   return (
     <AppShell
       sectionIcon={Users}
-      sectionTitle={t('sectionGuestsCrm')}
+      breadcrumb={{ parent: t('guestsAndCrm') || 'Guests & CRM' }}
+      sectionTitle={t('guests') || 'Guest Directory'}
       sectionDescription={t('sectionGuestsCrmDesc') || 'Guest directory and relationship management'}
-      sectionTabs={[
-        {
-          label: t('tabGuestDirectory') || 'Guest Directory',
-          icon: Users,
-          count: crmSummary.totalGuests,
-          isActive: true,
-          href: '/guests',
-        },
-      ]}
       layout="wide"
     >
       <div className="space-y-4">
@@ -172,6 +165,58 @@ export default function GuestsPage() {
               {formatCurrency(crmSummary.totalSpend)}
             </p>
             <p className="text-[10px] font-medium text-slate-400">Across current guest list</p>
+          </div>
+        </div>
+
+        {/* ─── VIP Loyalty Profile Cards Showcase ─── */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+              Featured VIP Guest Loyalty Profiles
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <VipLoyaltyCard
+              guest={{
+                id: 'vip-1',
+                name: 'Vikramaditya Sharma',
+                email: 'vikram.sharma@luxurytravel.in',
+                phone: '+91 98200 12345',
+                tier: 'PLATINUM',
+                totalStays: 14,
+                totalSpent: 285400,
+                lastStayDate: '2026-08-10',
+              }}
+              onViewProfile={() => router.push('/guests')}
+            />
+            <VipLoyaltyCard
+              guest={{
+                id: 'vip-2',
+                name: 'Ananya Deshmukh',
+                email: 'ananya.deshmukh@designcorp.io',
+                phone: '+91 98111 54321',
+                tier: 'GOLD',
+                totalStays: 8,
+                totalSpent: 142000,
+                lastStayDate: '2026-08-04',
+              }}
+              onViewProfile={() => router.push('/guests')}
+            />
+            <VipLoyaltyCard
+              guest={{
+                id: 'vip-3',
+                name: 'Dr. Rajesh Nair',
+                email: 'dr.nair@healthconnect.org',
+                phone: '+91 94470 99887',
+                tier: 'SILVER',
+                totalStays: 4,
+                totalSpent: 68500,
+                lastStayDate: '2026-07-28',
+              }}
+              onViewProfile={() => router.push('/guests')}
+            />
           </div>
         </div>
 

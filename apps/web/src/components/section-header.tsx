@@ -14,16 +14,23 @@ export interface SectionTab {
   count?: number | string;
 }
 
+export interface SectionBreadcrumb {
+  parent: string;
+  parentHref?: string;
+}
+
 interface SectionHeaderProps {
   /** Lucide icon for the section */
   icon: LucideIcon;
-  /** Section title (e.g. "Booking Management") */
+  /** Section title (e.g. "Reservations Feed") */
   title: string;
   /** Short contextual description */
   description?: string;
+  /** Optional breadcrumb hierarchy context (e.g. { parent: "Booking Management" }) */
+  breadcrumb?: SectionBreadcrumb;
   /** Right-side action buttons */
   actions?: React.ReactNode;
-  /** Optional horizontal sub-navigation tabs */
+  /** Optional genuine page-level sub-navigation tabs */
   tabs?: SectionTab[];
 }
 
@@ -31,6 +38,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   icon: Icon,
   title,
   description,
+  breadcrumb,
   actions,
   tabs,
 }) => {
@@ -45,6 +53,18 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
             <Icon className="w-3.5 h-3.5 text-[#0B6E4F] dark:text-emerald-400" />
           </div>
           <div className="min-w-0">
+            {breadcrumb && (
+              <div className="text-[10px] font-bold text-[#0B6E4F] dark:text-emerald-400 tracking-wider uppercase flex items-center gap-1.5 leading-none mb-0.5">
+                {breadcrumb.parentHref ? (
+                  <Link href={breadcrumb.parentHref} className="hover:underline">
+                    {breadcrumb.parent}
+                  </Link>
+                ) : (
+                  <span>{breadcrumb.parent}</span>
+                )}
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+              </div>
+            )}
             <h1 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate leading-tight">
               {title}
             </h1>
@@ -63,9 +83,9 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
         )}
       </div>
 
-      {/* Optional Horizontal Sub-Navigation Tabs */}
+      {/* Optional Genuine Page-Level Sub-Navigation Tabs */}
       {tabs && tabs.length > 0 && (
-        <div className="px-4 lg:px-6 flex items-center gap-1 -mb-px overflow-x-auto scrollbar-none">
+        <div className="px-4 lg:px-6 flex items-center gap-1 -mb-px overflow-x-auto scrollbar-none border-t border-slate-100 dark:border-slate-800/60">
           {tabs.map((tab, idx) => {
             const TabIcon = tab.icon;
             const isTabActive =

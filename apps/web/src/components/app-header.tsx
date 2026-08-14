@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { authService } from '@/features/auth';
@@ -8,9 +8,14 @@ import { usePropertyStore } from '@/features/properties';
 import { useTranslation, LanguageSwitcher } from '@/lib/i18n';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationInbox } from '@/features/notifications/components/notification-inbox';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { useTheme } from '@/lib/theme/theme-context';
+import { SplitFlapText } from '@/components/ui/split-flap-text';
 
 export const AppHeader: React.FC = () => {
   const { t } = useTranslation();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const activeProperty = usePropertyStore((state) => state.activeProperty);
 
   const { data: profileData } = useQuery({
@@ -30,6 +35,14 @@ export const AppHeader: React.FC = () => {
     const name = user?.name || user?.email;
     return name ? name.charAt(0).toUpperCase() : 'U';
   };
+
+  const propertyName = activeProperty?.name
+    ? activeProperty.name.toUpperCase().slice(0, 12)
+    : 'AZURA RESORT';
+
+  const headerWords = useMemo(() => {
+    return [propertyName, 'SYSTEM SYNCED', '2WAY ARI LIVE', 'ALL ROOMS OK'];
+  }, [propertyName]);
 
   return (
     <header className="h-14 bg-white/95 dark:bg-[#09100d]/95 backdrop-blur-xl border-b border-divider sticky top-0 z-30 px-4 lg:px-6 flex items-center justify-between gap-4 shrink-0 transition-colors duration-150">
@@ -55,14 +68,34 @@ export const AppHeader: React.FC = () => {
 
       {/* Right: Global actions cluster */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Live Socket Realtime Pulse Badge */}
+        {/* Live Socket Realtime SplitFlap Signal Indicator */}
         <div
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-400"
-          title="Multi-device live real-time synchronization active"
+          className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50/80 dark:bg-emerald-950/80 border border-emerald-200/90 dark:border-emerald-800/80 shadow-2xs overflow-hidden"
+          title={`Multi-device live real-time synchronization active for ${activeProperty?.name || 'Property'}`}
         >
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>{t('realtimeSyncActive')}</span>
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <div className="flex items-center overflow-hidden">
+            <SplitFlapText
+              words={headerWords}
+              flipDuration={0.12}
+              stagger={0.05}
+              cycleDelay={3200}
+              tileColor={isDark ? '#09100d' : '#f1f5f9'}
+              textColor={isDark ? '#10b981' : '#047857'}
+              tileRadius={5}
+              gap={3}
+              fontSize={13}
+              showSplitLine={false}
+              loop
+            />
+          </div>
         </div>
+
+        {/* Dark / Light Mode Theme Toggle */}
+        <ThemeToggle />
 
         {/* Language Switcher */}
         <LanguageSwitcher />

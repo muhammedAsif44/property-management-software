@@ -179,14 +179,20 @@ export default function BookingDetailPage() {
   return (
     <AppShell
       sectionIcon={Calendar}
-      sectionTitle={t('sectionBookingManagement')}
-      sectionDescription={t('sectionBookingManagementDesc')}
-      sectionTabs={[
-        { label: t('tabReservations'), href: '/bookings' },
-        { label: t('tabNewBooking'), href: '/bookings/new' },
-      ]}
+      breadcrumb={{ parent: t('bookingManagement') || 'Booking Management', parentHref: '/bookings' }}
+      sectionTitle={(booking as any)?.bookingNumber ? `Reservation #${(booking as any).bookingNumber}` : (t('bookingDetails') || 'Reservation Details')}
+      sectionDescription="Folio details, guest information, payments & room assignment"
       sectionActions={
         <div className="flex items-center gap-2">
+          {/* Back to Reservations Feed */}
+          <button
+            onClick={() => router.push('/bookings')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer shadow-2xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>{t('backToBookings') || 'Back to Reservations'}</span>
+          </button>
+
           {/* Booking Status Badge */}
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusCfg.bg} ${statusCfg.color}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />

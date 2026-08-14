@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
 import { AppShell } from '@/components/app-shell';
+import { SpotlightCard } from '@/components/ui/spotlight-card';
+import { FloatingDock } from '@/components/ui/floating-dock';
 import { usePropertyStore, useActivePropertyQuery } from '@/features/properties';
 import { authService } from '@/features/auth';
 import {
@@ -410,12 +412,9 @@ export default function BookingsPage() {
   return (
     <AppShell
       sectionIcon={Calendar}
-      sectionTitle={t('sectionBookingManagement')}
-      sectionDescription={t('sectionBookingManagementDesc') || 'Manage all reservations and bookings'}
-      sectionTabs={[
-        { label: t('tabReservations') || 'Reservations', icon: Calendar, count: totalBookingsCount, href: '/bookings', isActive: true },
-        { label: t('tabNewBooking') || 'New Booking', icon: Plus, href: '/bookings/new' },
-      ]}
+      breadcrumb={{ parent: t('bookingManagement') || 'Booking Management' }}
+      sectionTitle={t('tabReservations') || t('bookings') || 'Reservations Feed'}
+      sectionDescription={t('sectionBookingManagementDesc') || 'Search, filter, and manage all guest reservations'}
       sectionActions={
         <div className="flex items-center gap-2">
           <button
@@ -431,94 +430,98 @@ export default function BookingsPage() {
     >
       <div className="space-y-4 w-full">
         {/* ══════════════════════════════════════════════════════════════════
-           1. COMPACT MODERN BOOKING KPI OVERVIEW STRIP (Matching Screenshot)
+           1. COMPACT MODERN BENTO GRID SPOTLIGHT OVERVIEW STRIP
            ══════════════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xs p-3.5 flex items-center justify-between gap-2 overflow-x-auto divide-x divide-slate-100 dark:divide-slate-800">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {/* 1. All Reservations */}
-          <div className="flex items-center gap-3 px-3 min-w-[150px]">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
-              <Calendar className="w-4 h-4" />
+          <SpotlightCard
+            spotlightColor="rgba(16, 185, 129, 0.16)"
+            className="p-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">All Bookings</span>
+              <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">All Reservations</p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white tabular-nums">{summaryKPIs.total}</span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium truncate">Total bookings</p>
-            </div>
-          </div>
+            <p className="text-xl font-black text-slate-900 dark:text-white my-1 tabular-nums">
+              {summaryKPIs.total}
+            </p>
+            <p className="text-[10px] text-slate-400 font-medium truncate">Total reservations</p>
+          </SpotlightCard>
 
           {/* 2. Checked-in */}
-          <div className="flex items-center gap-3 px-3 min-w-[140px]">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
-              <UserCheck className="w-4 h-4" />
+          <SpotlightCard
+            spotlightColor="rgba(59, 130, 246, 0.16)"
+            className="p-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Checked-in</span>
+              <UserCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Checked-in</p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-lg font-black text-blue-700 dark:text-blue-400 tabular-nums">{summaryKPIs.checkedIn}</span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium truncate">{summaryKPIs.checkedInPct}% of total</p>
-            </div>
-          </div>
+            <p className="text-xl font-black text-blue-600 dark:text-blue-400 my-1 tabular-nums">
+              {summaryKPIs.checkedIn}
+            </p>
+            <p className="text-[10px] text-slate-400 font-medium truncate">{summaryKPIs.checkedInPct}% of total</p>
+          </SpotlightCard>
 
           {/* 3. Confirmed */}
-          <div className="flex items-center gap-3 px-3 min-w-[140px]">
-            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4" />
+          <SpotlightCard
+            spotlightColor="rgba(245, 158, 11, 0.16)"
+            className="p-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Confirmed</span>
+              <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Confirmed</p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-lg font-black text-amber-800 dark:text-amber-300 tabular-nums">{summaryKPIs.confirmed}</span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium truncate">{summaryKPIs.confirmedPct}% of total</p>
-            </div>
-          </div>
+            <p className="text-xl font-black text-amber-600 dark:text-amber-400 my-1 tabular-nums">
+              {summaryKPIs.confirmed}
+            </p>
+            <p className="text-[10px] text-slate-400 font-medium truncate">{summaryKPIs.confirmedPct}% of total</p>
+          </SpotlightCard>
 
           {/* 4. Checked-out */}
-          <div className="flex items-center gap-3 px-3 min-w-[140px]">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0">
-              <LogOut className="w-4 h-4" />
+          <SpotlightCard
+            spotlightColor="rgba(148, 163, 184, 0.16)"
+            className="p-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Checked-out</span>
+              <LogOut className="w-4 h-4 text-slate-400" />
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Checked-out</p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-lg font-black text-slate-800 dark:text-slate-200 tabular-nums">{summaryKPIs.checkedOut}</span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium truncate">{summaryKPIs.checkedOutPct}% of total</p>
-            </div>
-          </div>
+            <p className="text-xl font-black text-slate-800 dark:text-slate-200 my-1 tabular-nums">
+              {summaryKPIs.checkedOut}
+            </p>
+            <p className="text-[10px] text-slate-400 font-medium truncate">{summaryKPIs.checkedOutPct}% of total</p>
+          </SpotlightCard>
 
           {/* 5. Cancelled */}
-          <div className="flex items-center gap-3 px-3 min-w-[140px]">
-            <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0">
-              <Ban className="w-4 h-4" />
+          <SpotlightCard
+            spotlightColor="rgba(244, 63, 94, 0.16)"
+            className="p-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Cancelled</span>
+              <Ban className="w-4 h-4 text-rose-600 dark:text-rose-400" />
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Cancelled</p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-lg font-black text-rose-700 dark:text-rose-400 tabular-nums">{summaryKPIs.cancelled}</span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium truncate">{summaryKPIs.cancelledPct}% of total</p>
-            </div>
-          </div>
+            <p className="text-xl font-black text-rose-600 dark:text-rose-400 my-1 tabular-nums">
+              {summaryKPIs.cancelled}
+            </p>
+            <p className="text-[10px] text-slate-400 font-medium truncate">{summaryKPIs.cancelledPct}% of total</p>
+          </SpotlightCard>
 
           {/* 6. Total Revenue */}
-          <div className="flex items-center gap-3 px-3 min-w-[170px]">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-4 h-4" />
+          <SpotlightCard
+            spotlightColor="rgba(16, 185, 129, 0.16)"
+            className="p-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Total Revenue</span>
+              <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Total Revenue</p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-lg font-black text-emerald-800 dark:text-emerald-400 tabular-nums">
-                  {formatCurrency(summaryKPIs.totalRevenue)}
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium truncate">This period</p>
-            </div>
-          </div>
+            <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 my-1 tabular-nums truncate">
+              {formatCurrency(summaryKPIs.totalRevenue)}
+            </p>
+            <p className="text-[10px] text-slate-400 font-medium truncate">This period</p>
+          </SpotlightCard>
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
@@ -1235,6 +1238,21 @@ export default function BookingsPage() {
             }}
           />
         )}
+
+        {/* Floating Reception Dock Action Bar */}
+        <FloatingDock
+          arrivalsCount={summaryKPIs.confirmed}
+          departuresCount={summaryKPIs.checkedOut}
+          inHouseCount={summaryKPIs.checkedIn}
+          unassignedCount={summaryKPIs.confirmed}
+          onNewBooking={() => router.push('/bookings/new')}
+          onSelect={(id) => {
+            if (id === 'arrivals') setStatusFilter('CONFIRMED');
+            else if (id === 'departures') setStatusFilter('CHECKED_OUT');
+            else if (id === 'in_house') setStatusFilter('CHECKED_IN');
+            else setStatusFilter('ALL');
+          }}
+        />
       </div>
     </AppShell>
   );

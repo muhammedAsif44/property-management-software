@@ -140,14 +140,10 @@ export default function StaffDirectoryPage() {
 
   return (
     <AppShell
-      sectionIcon={Settings}
-      sectionTitle={t('sectionSystemAdmin')}
-      sectionDescription={t('sectionSystemAdminDesc')}
-      sectionTabs={[
-        { label: t('tabProperties'), icon: Building2, href: '/properties' },
-        { label: t('tabStaff'), icon: Users, count: Array.isArray(staffData) ? staffData.length : undefined, href: '/settings/staff' },
-        { label: t('tabSettings'), icon: Sliders, href: '/settings' },
-      ]}
+      sectionIcon={Users}
+      breadcrumb={{ parent: t('systemAdministration') || 'System Administration' }}
+      sectionTitle={t('staffDirectory') || 'Staff Directory'}
+      sectionDescription="Manage team member roles, system permissions, and operational access"
       sectionActions={
         <button
           onClick={() => setIsInviteModalOpen(true)}

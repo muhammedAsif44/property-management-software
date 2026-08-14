@@ -32,13 +32,10 @@ export default function ApprovalsPage() {
 
   return (
     <AppShell
-      sectionIcon={CalendarDays}
-      sectionTitle={t('sectionFrontDeskOperations')}
-      sectionDescription={t('sectionFrontDeskOperationsDesc')}
-      sectionTabs={[
-        { label: t('tabTapeChart'), icon: CalendarDays, href: '/bookings/room-calendar' },
-        { label: t('tabApprovals'), icon: ShieldAlert, href: '/bookings/approvals' },
-      ]}
+      sectionIcon={ShieldAlert}
+      breadcrumb={{ parent: t('frontDeskOperations') || 'Front Desk Operations' }}
+      sectionTitle={t('approvalQueue') || 'Approval Requests'}
+      sectionDescription="Review deletion and manager authorization requests"
       layout="narrow"
     >
       <div className="space-y-4 pt-2">

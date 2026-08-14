@@ -320,25 +320,25 @@ function NewBookingContent() {
     return (
       <AppShell
         sectionIcon={Calendar}
-        sectionTitle={t('sectionBookingManagement')}
-        sectionDescription={t('sectionBookingManagementDesc')}
+        breadcrumb={{ parent: t('bookingManagement') || 'Booking Management', parentHref: '/bookings' }}
+        sectionTitle={t('newBooking') || 'New Reservation'}
+        sectionDescription="Create a new reservation for your guest"
       >
         <div className="flex flex-col items-center justify-center p-6 min-h-[60vh]">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full text-center space-y-4 shadow-xl">
             <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">Reservation Confirmed!</h2>
-            <p className="text-xs text-slate-500 font-medium">
-              Booking for <strong className="text-slate-800 dark:text-slate-200">{form.guestName}</strong> from{' '}
-              {form.checkInDate} to {form.checkOutDate} has been created.
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Booking Confirmed!</h2>
+            <p className="text-xs text-slate-500">
+              Reservation for <span className="font-semibold text-slate-700 dark:text-slate-300">{form.guestName}</span> has been created.
             </p>
             <div className="pt-4 flex gap-3">
               <button
                 onClick={() => router.push('/bookings')}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs transition-all cursor-pointer shadow-md"
               >
-                Go to Bookings
+                Go to Reservations Feed
               </button>
               <button
                 onClick={() => {
@@ -356,7 +356,7 @@ function NewBookingContent() {
                 }}
                 className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 transition-all cursor-pointer"
               >
-                New Booking
+                Create Another
               </button>
             </div>
           </div>
@@ -368,7 +368,8 @@ function NewBookingContent() {
   return (
     <AppShell
       sectionIcon={Calendar}
-      sectionTitle="New Booking"
+      breadcrumb={{ parent: t('bookingManagement') || 'Booking Management', parentHref: '/bookings' }}
+      sectionTitle={t('newBooking') || 'New Reservation'}
       sectionDescription="Create a new reservation for your guest"
       sectionActions={
         <button

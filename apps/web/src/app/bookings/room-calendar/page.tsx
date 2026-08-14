@@ -435,12 +435,9 @@ export default function OccupancyPage() {
   return (
     <AppShell
       sectionIcon={CalendarDays}
-      sectionTitle={t('sectionFrontDeskOperations') || 'Room Calendar'}
+      breadcrumb={{ parent: t('frontDeskOperations') || 'Front Desk Operations' }}
+      sectionTitle={t('occupancyCalendar') || 'Room Calendar & Tape Chart'}
       sectionDescription="View real-time room availability and plan your operations."
-      sectionTabs={[
-        { label: t('tabTapeChart') || 'Room Calendar', icon: CalendarDays, href: '/bookings/room-calendar', isActive: true },
-        { label: t('tabApprovals') || 'Approvals', icon: ShieldAlert, href: '/bookings/approvals' },
-      ]}
       layout="wide"
     >
       <div className="space-y-3.5 w-full">

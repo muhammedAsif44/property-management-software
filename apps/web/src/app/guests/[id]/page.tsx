@@ -28,11 +28,9 @@ export default function GuestDetailPage() {
   return (
     <AppShell
       sectionIcon={Users}
+      breadcrumb={{ parent: t('guestsAndCrm') || 'Guests & CRM', parentHref: '/guests' }}
       sectionTitle={guest?.fullName ? formatDisplayName(guest.fullName) : (t('guestDetails') || 'Guest Profile')}
-      sectionDescription={t('sectionGuestsCrmDesc')}
-      sectionTabs={[
-        { label: t('tabGuestDirectory') || 'Guest Directory', icon: Users, href: '/guests' },
-      ]}
+      sectionDescription="Guest stay history and relationship details"
       sectionActions={
         <button
           onClick={() => router.push('/guests')}

@@ -14,6 +14,7 @@ import {
   useBatchGenerateUnitsMutation,
 } from '@/features/housekeeping/api/use-housekeeping';
 import { RoomUnit } from '@/features/housekeeping/services/housekeeping.service';
+import { SpotlightCard } from '@/components/ui/spotlight-card';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -238,7 +239,8 @@ export default function HousekeepingPage() {
   return (
     <AppShell
       sectionIcon={Sparkles}
-      sectionTitle="Housekeeping"
+      breadcrumb={{ parent: t('roomsAndOperations') || 'Rooms & Operations' }}
+      sectionTitle={t('housekeeping') || 'Housekeeping & Operations'}
       sectionDescription="Daily room cleaning, staff assignments, and room readiness"
       sectionTabs={[
         {
@@ -282,82 +284,106 @@ export default function HousekeepingPage() {
         {/* ══════════════════════════════════════════════════════════════════
            1. SIMPLE 4-METRIC STRIP
            ══════════════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xs p-3.5 flex items-center justify-between gap-2 overflow-x-auto divide-x divide-slate-100 dark:divide-slate-800">
+        {/* ══════════════════════════════════════════════════════════════════
+           1. BENTO GRID SPOTLIGHT METRICS STRIP WITH LIVE PULSE RINGS
+           ══════════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {/* 1. Needs Cleaning (Dirty) */}
-          <div
+          <SpotlightCard
             onClick={() => setSelectedStatus(selectedStatus === 'DIRTY' ? 'ALL' : 'DIRTY')}
-            className={`flex items-center gap-3 px-3 min-w-[140px] cursor-pointer rounded-lg p-1.5 transition-all ${
-              selectedStatus === 'DIRTY' ? 'bg-amber-50/60 dark:bg-amber-950/40 ring-1 ring-amber-400' : ''
+            spotlightColor="rgba(245, 158, 11, 0.16)"
+            className={`cursor-pointer transition-all ${
+              selectedStatus === 'DIRTY' ? 'border-amber-500 ring-2 ring-amber-500/20' : ''
             }`}
           >
-            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider truncate">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
                 Needs Cleaning
-              </p>
-              <span className="text-lg font-black text-amber-800 dark:text-amber-300 tabular-nums">{summary.dirty} Rooms</span>
-              <p className="text-[10px] text-slate-400 font-medium truncate">Dirty rooms</p>
+              </span>
+              <div className="relative w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center justify-center shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-xl bg-amber-400 opacity-40"></span>
+                <AlertTriangle className="w-4 h-4 relative z-10" />
+              </div>
             </div>
-          </div>
+            <div className="my-2">
+              <span className="text-2xl font-black text-amber-800 dark:text-amber-300 tabular-nums">
+                {summary.dirty} Rooms
+              </span>
+              <p className="text-[11px] font-medium text-slate-400 mt-0.5">Priority housekeeping tasks</p>
+            </div>
+          </SpotlightCard>
 
           {/* 2. Clean & Ready */}
-          <div
+          <SpotlightCard
             onClick={() => setSelectedStatus(selectedStatus === 'CLEAN' ? 'ALL' : 'CLEAN')}
-            className={`flex items-center gap-3 px-3 min-w-[140px] cursor-pointer rounded-lg p-1.5 transition-all ${
-              selectedStatus === 'CLEAN' ? 'bg-emerald-50/60 dark:bg-emerald-950/40 ring-1 ring-emerald-400' : ''
+            spotlightColor="rgba(16, 185, 129, 0.16)"
+            className={`cursor-pointer transition-all ${
+              selectedStatus === 'CLEAN' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : ''
             }`}
           >
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider truncate">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
                 Clean & Ready
-              </p>
-              <span className="text-lg font-black text-emerald-700 dark:text-emerald-400 tabular-nums">{summary.clean} Rooms</span>
-              <p className="text-[10px] text-slate-400 font-medium truncate">Ready for guests</p>
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
             </div>
-          </div>
+            <div className="my-2">
+              <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300 tabular-nums">
+                {summary.clean} Rooms
+              </span>
+              <p className="text-[11px] font-medium text-slate-400 mt-0.5">Ready for guest check-in</p>
+            </div>
+          </SpotlightCard>
 
           {/* 3. Inspected */}
-          <div
+          <SpotlightCard
             onClick={() => setSelectedStatus(selectedStatus === 'INSPECTED' ? 'ALL' : 'INSPECTED')}
-            className={`flex items-center gap-3 px-3 min-w-[140px] cursor-pointer rounded-lg p-1.5 transition-all ${
-              selectedStatus === 'INSPECTED' ? 'bg-blue-50/60 dark:bg-blue-950/40 ring-1 ring-blue-400' : ''
+            spotlightColor="rgba(59, 130, 246, 0.16)"
+            className={`cursor-pointer transition-all ${
+              selectedStatus === 'INSPECTED' ? 'border-blue-500 ring-2 ring-blue-500/20' : ''
             }`}
           >
-            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider truncate">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">
                 Inspected
-              </p>
-              <span className="text-lg font-black text-blue-700 dark:text-blue-400 tabular-nums">{summary.inspected} Rooms</span>
-              <p className="text-[10px] text-slate-400 font-medium truncate">Verified clean</p>
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
             </div>
-          </div>
+            <div className="my-2">
+              <span className="text-2xl font-black text-blue-700 dark:text-blue-300 tabular-nums">
+                {summary.inspected} Rooms
+              </span>
+              <p className="text-[11px] font-medium text-slate-400 mt-0.5">Verified supervisor clean</p>
+            </div>
+          </SpotlightCard>
 
           {/* 4. Out of Order */}
-          <div
+          <SpotlightCard
             onClick={() => setSelectedStatus(selectedStatus === 'OUT_OF_ORDER' ? 'ALL' : 'OUT_OF_ORDER')}
-            className={`flex items-center gap-3 px-3 min-w-[140px] cursor-pointer rounded-lg p-1.5 transition-all ${
-              selectedStatus === 'OUT_OF_ORDER' ? 'bg-rose-50/60 dark:bg-rose-950/40 ring-1 ring-rose-400' : ''
+            spotlightColor="rgba(244, 63, 94, 0.16)"
+            className={`cursor-pointer transition-all ${
+              selectedStatus === 'OUT_OF_ORDER' ? 'border-rose-500 ring-2 ring-rose-500/20' : ''
             }`}
           >
-            <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0">
-              <Wrench className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider truncate">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">
                 Out of Order
-              </p>
-              <span className="text-lg font-black text-rose-700 dark:text-rose-400 tabular-nums">{summary.outOfOrder} Rooms</span>
-              <p className="text-[10px] text-slate-400 font-medium truncate">Under repair</p>
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center justify-center shrink-0">
+                <Wrench className="w-4 h-4" />
+              </div>
             </div>
-          </div>
+            <div className="my-2">
+              <span className="text-2xl font-black text-rose-700 dark:text-rose-300 tabular-nums">
+                {summary.outOfOrder} Rooms
+              </span>
+              <p className="text-[11px] font-medium text-slate-400 mt-0.5">Maintenance repair</p>
+            </div>
+          </SpotlightCard>
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════

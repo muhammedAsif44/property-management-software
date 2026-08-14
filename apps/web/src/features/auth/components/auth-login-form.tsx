@@ -20,15 +20,19 @@ export const AuthLoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  React.useEffect(() => {
+    router.prefetch('/dashboard');
+    router.prefetch('/admin/approvals');
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      await login({ email, password });
-      toast.success('Authenticated successfully! Redirecting to dashboard...', 'Welcome Back');
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1000);
+      const res = await login({ email, password });
+      toast.success('Authenticated successfully!', 'Welcome Back');
+      const targetUrl = res?.redirectUrl || (res?.targetApp === 'admin' ? '/admin/approvals' : '/dashboard');
+      router.replace(targetUrl);
     } catch (err: any) {
       toast.error(err?.message || error || 'Sign in failed. Check your credentials.', 'Authentication Error');
     }
@@ -40,10 +44,10 @@ export const AuthLoginForm: React.FC = () => {
         
         {/* Form Header */}
         <div className="mb-5 flex flex-col items-start min-w-0">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             {t('welcomeBack')}
           </h2>
-          <p className="text-slate-500 text-xs sm:text-sm mt-1 font-normal leading-relaxed">
+          <p className="text-emerald-100/90 text-xs sm:text-sm mt-1 font-medium leading-relaxed">
             {t('welcomeBackSubtitle')}
           </p>
         </div>
@@ -67,12 +71,12 @@ export const AuthLoginForm: React.FC = () => {
 
           <div>
             <div className="flex items-center justify-between mb-1.5 min-w-0">
-              <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <span className="block text-[11px] font-extrabold text-emerald-400 uppercase tracking-wider">
                 {t('currentPassword')}
               </span>
               <Link
                 href="/forgot-password"
-                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+                className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
               >
                 {t('forgotPasswordQuestion')}
               </Link>
@@ -91,9 +95,9 @@ export const AuthLoginForm: React.FC = () => {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                className="w-4 h-4 rounded border-emerald-800 text-emerald-600 focus:ring-emerald-500 bg-[#16241e]"
               />
-              <span className="text-xs text-slate-600 font-medium">{t('keepMeSignedIn')}</span>
+              <span className="text-xs text-emerald-200/90 font-medium">{t('keepMeSignedIn')}</span>
             </label>
           </div>
 
@@ -102,18 +106,18 @@ export const AuthLoginForm: React.FC = () => {
             isLoading={loading}
             loadingText={t('authenticating')}
             size="lg"
-            className="w-full mt-2 shadow-xl shadow-emerald-600/20 hover:shadow-emerald-600/30"
+            className="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold shadow-xl shadow-emerald-600/30"
             icon={<ArrowRight className="w-4 h-4" />}
           >
             {t('signInToPortal')}
           </Button>
         </form>
 
-        <div className="mt-5 text-center text-xs text-slate-500 leading-relaxed min-w-0">
+        <div className="mt-5 text-center text-xs text-emerald-200/80 leading-relaxed min-w-0">
           {t('areYouPropertyOwner')}{' '}
           <Link
             href="/signup/owner"
-            className="font-bold text-emerald-600 hover:text-emerald-700 underline underline-offset-4"
+            className="font-extrabold text-emerald-400 hover:underline underline-offset-4"
           >
             {t('registerCompanyAccount')}
           </Link>

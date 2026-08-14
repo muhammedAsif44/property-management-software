@@ -7,7 +7,7 @@ import { useReportsQuery } from '@/features/reports/api/use-reports';
 import { ReportPeriodPicker, ReportPeriod } from '@/features/reports/components/report-period-picker';
 import { ReportsKpiGrid } from '@/features/reports/components/reports-kpi-grid';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart3, Download, Loader2, MessageSquare, Receipt } from 'lucide-react';
+import { BarChart3, FileSpreadsheet, FileText, Loader2, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function ReportsPage() {
@@ -35,17 +35,35 @@ export default function ReportsPage() {
 
   return (
     <AppShell
-      sectionIcon={Receipt}
-      sectionTitle={t('sectionFinancials')}
-      sectionDescription={t('sectionFinancialsDesc')}
-      sectionTabs={[
-        { label: t('tabInvoices'), icon: Receipt, href: '/invoices' },
-        { label: t('tabReports'), icon: BarChart3, href: '/reports' },
-      ]}
+      sectionIcon={BarChart3}
+      breadcrumb={{ parent: t('reportsAndAnalytics') || 'Reports & Analytics' }}
+      sectionTitle={t('reportsAndAnalytics') || 'Reports & Analytics'}
+      sectionDescription={t('sectionFinancialsDesc') || 'Track financial performance and key operational metrics'}
+      sectionActions={
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportExcel}
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 h-8 px-3 rounded-lg shadow-2xs cursor-pointer"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#0B6E4F] dark:text-emerald-400" />
+            <span>{t('exportExcel') || 'Export Excel'}</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={exportPDF}
+            className="flex items-center gap-1.5 text-xs font-bold bg-[#0B6E4F] hover:bg-[#08543c] text-white h-8 px-3.5 rounded-lg shadow-2xs cursor-pointer"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>{t('exportPdf') || 'Export PDF'}</span>
+          </Button>
+        </div>
+      }
       layout="wide"
     >
-      {/* Top Control Bar: Period Picker & Action Buttons */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xs">
+      <div className="space-y-5">
+        {/* Standalone Filter Bar */}
         <ReportPeriodPicker
           period={period}
           setPeriod={setPeriod}
@@ -55,43 +73,19 @@ export default function ReportsPage() {
           setTo={setTo}
         />
 
-        <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportExcel}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>{t('exportExcel') || 'Export Excel'}</span>
-          </Button>
-          <Button
-            size="sm"
-            onClick={exportPDF}
-            className="flex items-center gap-1.5 text-xs font-bold bg-[#0B6E4F] hover:bg-[#08543c] text-white shadow-2xs"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>{t('exportPdf') || 'Export PDF'}</span>
-          </Button>
-        </div>
+        {/* Reports Content */}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <Loader2 className="h-8 w-8 animate-spin text-[#0B6E4F]" />
+          </div>
+        ) : isError ? (
+          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-rose-500 font-bold text-sm">
+            {t('errorLoadingReports') || 'Error loading reports data. Please try again.'}
+          </div>
+        ) : (
+          <ReportsKpiGrid data={data!} />
+        )}
       </div>
-
-      {/* Reports KPI Content */}
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-          <Loader2 className="h-8 w-8 animate-spin text-[#0B6E4F]" />
-        </div>
-      ) : isError ? (
-        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-rose-500 font-bold text-sm">
-          {t('errorLoadingReports') || 'Error loading reports data. Please try again.'}
-        </div>
-      ) : !data ? (
-        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 font-medium text-xs">
-          {t('selectDateRange') || 'Select a valid date range to view report analytics.'}
-        </div>
-      ) : (
-        <ReportsKpiGrid data={data} />
-      )}
     </AppShell>
   );
 }

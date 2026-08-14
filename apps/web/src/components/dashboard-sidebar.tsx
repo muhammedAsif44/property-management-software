@@ -79,19 +79,12 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
     return userName.slice(0, 2).toUpperCase();
   }, [userName]);
 
-  // Authentic Orvyn PMS Navigation Architecture
-  const rawNavigationGroups: Array<{
-    id: string;
-    title: string;
-    icon: any;
-    visible: boolean;
-    items: Array<{
-      name: string;
-      href: string;
-      icon: any;
-      visible: boolean;
-    }>;
-  }> = useMemo(
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════
+   * 10-SECTION INDUSTRY-STANDARD HOTEL PMS SAAS INFORMATION ARCHITECTURE
+   * ══════════════════════════════════════════════════════════════════════════════
+   */
+  const rawNavigationGroups = useMemo(
     () => [
       {
         id: 'frontDeskOps',
@@ -100,13 +93,13 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
         visible: !isHousekeeping,
         items: [
           {
-            name: t('occupancyCalendar') || 'Tape Chart / Room Calendar',
+            name: t('occupancyCalendar') || 'Room Calendar',
             href: '/bookings/room-calendar',
             icon: CalendarDays,
             visible: true,
           },
           {
-            name: t('approvalQueue') || 'Approval Requests',
+            name: t('approvalQueue') || 'Approval Queue',
             href: '/bookings/approvals',
             icon: ShieldCheck,
             visible: isManagerOrOwner,
@@ -120,13 +113,13 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
         visible: !isHousekeeping,
         items: [
           {
-            name: t('bookings') || 'Reservations Feed',
+            name: t('bookings') || 'Bookings',
             href: '/bookings',
             icon: Calendar,
             visible: true,
           },
           {
-            name: t('newBooking') || 'New Reservation',
+            name: t('newBooking') || 'New Booking',
             href: '/bookings/new',
             icon: PlusCircle,
             visible: true,
@@ -140,7 +133,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
         visible: !isHousekeeping,
         items: [
           {
-            name: t('guests') || 'Guest Directory',
+            name: t('guests') || 'Guests',
             href: '/guests',
             icon: Users,
             visible: true,
@@ -149,18 +142,18 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
       },
       {
         id: 'roomsOps',
-        title: t('roomsAndOperations') || 'Rooms & Housekeeping',
+        title: t('roomsAndOperations') || 'Rooms & Operations',
         icon: BedDouble,
         visible: true,
         items: [
           {
-            name: t('roomsAndUnits') || 'Rooms & Physical Units',
+            name: t('roomsAndUnits') || 'Rooms & Units',
             href: '/rooms',
             icon: BedDouble,
             visible: true,
           },
           {
-            name: t('housekeeping') || 'Housekeeping Operations',
+            name: t('housekeeping') || 'Housekeeping & Operations',
             href: '/housekeeping',
             icon: Droplets,
             visible: true,
@@ -174,13 +167,21 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
         visible: isManagerOrOwner && !isHousekeeping,
         items: [
           {
-            name: t('channelManager') || 'OTA Channel Sync',
+            name: t('channelManager') || 'OTA Channel Manager',
             href: '/settings/channels',
             icon: Globe,
             visible: true,
           },
+        ],
+      },
+      {
+        id: 'agenciesTac',
+        title: t('agenciesAndTac') || 'Agencies & TAC',
+        icon: Building2,
+        visible: isManagerOrOwner && !isHousekeeping,
+        items: [
           {
-            name: t('agenciesAndTac') || 'Travel Agencies & TAC',
+            name: t('agenciesAndTac') || 'Agencies & TAC',
             href: '/agencies',
             icon: Building2,
             visible: true,
@@ -199,11 +200,19 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
             icon: Receipt,
             visible: true,
           },
+        ],
+      },
+      {
+        id: 'reportsAnalytics',
+        title: t('reportsAndAnalytics') || 'Reports & Analytics',
+        icon: BarChart3,
+        visible: isManagerOrOwner && !isHousekeeping,
+        items: [
           {
             name: t('reportsAndAnalytics') || 'Reports & Analytics',
             href: '/reports',
             icon: BarChart3,
-            visible: isManagerOrOwner,
+            visible: true,
           },
         ],
       },
@@ -214,7 +223,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
         visible: !isHousekeeping,
         items: [
           {
-            name: t('properties') || 'Properties Portfolio',
+            name: t('properties') || 'Properties',
             href: '/properties',
             icon: Building2,
             visible: isOwner,
@@ -226,7 +235,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
             visible: isManagerOrOwner,
           },
           {
-            name: t('settings') || 'System Settings',
+            name: t('settings') || 'Settings',
             href: '/settings',
             icon: Settings,
             visible: true,
@@ -245,23 +254,46 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
 
   // Synchronous route matching helper
   const checkSubActive = (href: string) => {
-    if (href === '/bookings') return pathname === '/bookings';
-    if (href === '/settings') return pathname === '/settings';
-    if (href === '/rooms') return pathname === '/rooms';
-    if (href === '/guests') return pathname === '/guests';
-    if (href === '/invoices') return pathname === '/invoices';
-    if (href === '/reports') return pathname === '/reports';
-    if (href === '/properties') return pathname === '/properties';
-    if (href === '/agencies') return pathname === '/agencies';
-    if (href === '/housekeeping') return pathname === '/housekeeping';
+    if (href === '/dashboard') return pathname === '/dashboard';
+    if (href === '/bookings') {
+      return (
+        pathname === '/bookings' ||
+        (pathname.startsWith('/bookings/') &&
+          pathname !== '/bookings/new' &&
+          pathname !== '/bookings/room-calendar' &&
+          pathname !== '/bookings/approvals')
+      );
+    }
+    if (href === '/bookings/new') return pathname === '/bookings/new';
+    if (href === '/bookings/room-calendar') return pathname === '/bookings/room-calendar';
+    if (href === '/bookings/approvals') return pathname === '/bookings/approvals';
+    if (href === '/guests') return pathname === '/guests' || pathname.startsWith('/guests/');
+    if (href === '/rooms') return pathname === '/rooms' || pathname.startsWith('/rooms/');
+    if (href === '/housekeeping') return pathname === '/housekeeping' || pathname.startsWith('/housekeeping/');
     if (href === '/settings/channels') return pathname.startsWith('/settings/channels');
+    if (href === '/agencies') return pathname === '/agencies' || pathname.startsWith('/agencies/');
+    if (href === '/invoices') return pathname === '/invoices' || pathname.startsWith('/invoices/');
+    if (href === '/reports') return pathname === '/reports' || pathname.startsWith('/reports/');
+    if (href === '/properties') return pathname === '/properties' || pathname.startsWith('/properties/');
     if (href === '/settings/staff') return pathname.startsWith('/settings/staff');
+    if (href === '/settings') return pathname === '/settings';
     if (href === '/super-admin') return pathname.startsWith('/super-admin');
-    return pathname === href || pathname.startsWith(href);
+    return pathname === href;
   };
 
-  // Compute active expanded group state synchronously during initial render
-  const initialActiveGroups = useMemo(() => {
+  // Track expanded groups: user can toggle open/close any group freely
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    rawNavigationGroups.forEach((g) => {
+      if (g.items?.some((it) => checkSubActive(it.href))) {
+        initial[g.id] = true;
+      }
+    });
+    return initial;
+  });
+
+  // Automatically expand active parent group when route changes
+  useEffect(() => {
     const activeStates: Record<string, boolean> = {};
     rawNavigationGroups.forEach((g) => {
       const isChildActive = g.items?.some((it) => checkSubActive(it.href));
@@ -269,32 +301,14 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
         activeStates[g.id] = true;
       }
     });
-    return activeStates;
+    setExpandedGroups(activeStates);
   }, [pathname, rawNavigationGroups]);
 
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(initialActiveGroups);
-
-  // Synchronize when pathname changes
-  useEffect(() => {
-    setExpandedGroups((prev) => {
-      const activeStates: Record<string, boolean> = {};
-      let hasActive = false;
-      rawNavigationGroups.forEach((g) => {
-        const isChildActive = g.items?.some((it) => checkSubActive(it.href));
-        if (isChildActive) {
-          activeStates[g.id] = true;
-          hasActive = true;
-        }
-      });
-      return hasActive ? activeStates : prev;
-    });
-  }, [pathname, rawNavigationGroups]);
-
-  // Exclusive Accordion Toggle
+  // Exclusive toggle: clicking an unexpanded group expands it & closes others; clicking an expanded group collapses it cleanly
   const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) => {
-      const isAlreadyOpen = prev[groupId];
-      if (isAlreadyOpen) {
+      const isOpen = !!prev[groupId];
+      if (isOpen) {
         return {};
       }
       return { [groupId]: true };
@@ -422,17 +436,21 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                     className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none border-0 ${
                       isDashboardActive
                         ? 'bg-[#0B6E4F] text-white font-bold shadow-2xs'
-                        : 'text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800'
+                        : 'text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent'
                     }`}
                   >
-                    <LayoutDashboard className={`w-4.5 h-4.5 shrink-0 ${isDashboardActive ? 'text-white' : 'text-slate-500'}`} />
-                    <span className="truncate min-w-0">{t('dashboard') || 'Dashboard Hub'}</span>
+                    <LayoutDashboard
+                      className={`w-4.5 h-4.5 shrink-0 ${
+                        isDashboardActive ? 'text-white' : 'text-slate-500'
+                      }`}
+                    />
+                    <span className="truncate min-w-0">{t('dashboard') || 'Dashboard'}</span>
                   </Link>
                 )}
 
                 {filteredGroups.map((group) => {
                   const GroupIcon = group.icon;
-                  const isExpanded = !!expandedGroups[group.id] || !!searchQuery;
+                  const isExpanded = searchQuery.trim().length > 0 ? true : !!expandedGroups[group.id];
 
                   return (
                     <div key={group.id} className="space-y-1">
@@ -441,15 +459,21 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                         className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ease-in-out cursor-pointer outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none border-0 ${
                           isExpanded
                             ? 'bg-[#0B6E4F] text-white font-bold shadow-2xs'
-                            : 'bg-transparent text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                            : 'bg-transparent text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800/60 border border-transparent'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <GroupIcon className={`w-4.5 h-4.5 shrink-0 ${isExpanded ? 'text-white' : 'text-slate-500'}`} />
+                          <GroupIcon
+                            className={`w-4.5 h-4.5 shrink-0 ${
+                              isExpanded
+                                ? 'text-white'
+                                : 'text-slate-500'
+                            }`}
+                          />
                           <span className="truncate min-w-0">{group.title}</span>
                         </div>
                         <ChevronDown
-                          className={`w-4 h-4 shrink-0 ml-1 transition-transform duration-200 ${
+                          className={`w-4 h-4 shrink-0 ml-1 transition-transform duration-300 ${
                             isExpanded ? 'rotate-180 text-white' : 'rotate-0 text-slate-400'
                           }`}
                         />
@@ -462,7 +486,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                         }`}
                       >
                         <div className="overflow-hidden">
-                          <div className="ml-5 pl-3 border-l-2 border-slate-200 dark:border-slate-800 space-y-1 py-1">
+                          <div className="ml-6 pl-3 border-l border-slate-200 dark:border-slate-800 space-y-1 my-1">
                             {group.items?.map((subItem) => {
                               const SubIcon = subItem.icon;
                               const isSubActive = checkSubActive(subItem.href);
@@ -477,7 +501,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                                   onClick={() => setMobileOpen(false)}
                                   className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12.5px] transition-all duration-150 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none ${
                                     isSubActive
-                                      ? 'border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-300 font-bold shadow-2xs'
+                                      ? 'border border-emerald-300 dark:border-emerald-700 bg-emerald-50/90 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-300 font-bold shadow-2xs'
                                       : 'text-slate-600 dark:text-slate-400 font-medium hover:text-[#0B6E4F] dark:hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent'
                                   }`}
                                 >
@@ -580,8 +604,8 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
           )}
 
           {/* Clean SaaS Navigation Typography & Balanced Hierarchy */}
-          <nav className="space-y-1.5 flex-1 overflow-y-auto scrollbar-none pt-1">
-            {/* Direct Dashboard Link */}
+          <nav className="space-y-1 flex-1 overflow-y-auto scrollbar-none pt-1">
+            {/* 1. Direct Dashboard Link (No Submenu) */}
             {!isHousekeeping && (
               <Link
                 href="/dashboard"
@@ -589,12 +613,12 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                 onMouseEnter={() => router.prefetch('/dashboard')}
                 onFocus={() => router.prefetch('/dashboard')}
                 title={collapsed ? t('dashboard') || 'Dashboard' : undefined}
-                className={`interactive flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] transition-all duration-150 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none border-0 ${
+                className={`interactive flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] transition-all duration-200 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none ${
                   collapsed ? 'justify-center' : ''
                 } ${
                   isDashboardActive
                     ? 'bg-[#0B6E4F] text-white font-bold shadow-2xs'
-                    : 'text-slate-700 dark:text-slate-300 font-semibold hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/40'
+                    : 'text-slate-700 dark:text-slate-300 font-semibold hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/40 border border-transparent'
                 }`}
               >
                 <LayoutDashboard
@@ -603,19 +627,19 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                   }`}
                 />
                 {!collapsed && (
-                  <span className="truncate min-w-0">{t('dashboard') || 'Dashboard Hub'}</span>
+                  <span className="truncate min-w-0 font-medium">{t('dashboard') || 'Dashboard'}</span>
                 )}
               </Link>
             )}
 
-            {/* Category Groups & Sub-items */}
+            {/* 2 to 10. Distinct Modular Top-Level Groups */}
             {filteredGroups.map((group) => {
               const GroupIcon = group.icon;
-              const isExpanded = !!expandedGroups[group.id] || !!searchQuery;
+              const isExpanded = searchQuery.trim().length > 0 ? true : !!expandedGroups[group.id];
 
               return (
                 <div key={group.id} className="space-y-1">
-                  {/* Category Header Button: font-semibold when inactive, font-bold when expanded/active */}
+                  {/* Top-Level Section Header Button */}
                   <button
                     onClick={() => toggleGroup(group.id)}
                     title={collapsed ? group.title : undefined}
@@ -624,7 +648,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                     } ${
                       isExpanded
                         ? 'bg-[#0B6E4F] text-white font-bold shadow-2xs'
-                        : 'bg-transparent text-slate-700 dark:text-slate-300 font-semibold hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/40'
+                        : 'bg-transparent text-slate-700 dark:text-slate-300 font-semibold hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/40 border border-transparent'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -643,7 +667,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                     {!collapsed && (
                       <div className="shrink-0 ml-1">
                         <ChevronDown
-                          className={`w-4 h-4 transition-transform duration-200 ${
+                          className={`w-4 h-4 transition-transform duration-300 ease-in-out ${
                             isExpanded ? 'rotate-180 text-white' : 'rotate-0 text-slate-400'
                           }`}
                         />
@@ -651,7 +675,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                     )}
                   </button>
 
-                  {/* Submenu Accordion: font-medium when inactive, font-bold when active */}
+                  {/* Submenu Accordion with Clean Animated Vertical Guide */}
                   {!collapsed && (
                     <div
                       className={`grid transition-all duration-200 ease-in-out ${
@@ -659,7 +683,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = () => {
                       }`}
                     >
                       <div className="overflow-hidden">
-                        <div className="ml-5 pl-3 border-l-2 border-slate-200 dark:border-slate-800 space-y-1 py-1">
+                        <div className="ml-6 pl-3 border-l border-slate-200/90 dark:border-slate-800 space-y-1 my-1">
                           {group.items?.map((subItem) => {
                             const SubIcon = subItem.icon;
                             const isSubActive = checkSubActive(subItem.href);

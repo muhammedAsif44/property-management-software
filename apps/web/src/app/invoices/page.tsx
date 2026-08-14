@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import {
   FileText,
@@ -53,6 +53,7 @@ import {
   Settings,
   HelpCircle,
 } from 'lucide-react';
+import { InvoiceTemplateCarousel } from '@/features/invoices/components/invoice-template-carousel';
 import { AppShell } from '@/components/app-shell';
 import { useTranslation } from '@/lib/i18n';
 import {
@@ -114,6 +115,7 @@ const generateTemplateHtml = ({
   bankIfsc,
   showBrandColor,
   invoiceTitle = 'TAX INVOICE',
+  logoUrl,
 }: any) => `
 <!DOCTYPE html>
 <html>
@@ -124,7 +126,7 @@ const generateTemplateHtml = ({
     .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid ${showBrandColor ? accentColor : '#cbd5e1'}; padding-bottom: 16px; margin-bottom: 24px; }
     .logo-container { display: flex; align-items: center; gap: 12px; }
     .logo-title { font-size: 20px; font-weight: 900; color: ${showBrandColor ? accentColor : '#0f172a'}; letter-spacing: -0.5px; text-transform: uppercase; }
-    .inv-num { font-family: monospace; font-size: 13px; font-weight: 700; color: #059669; margin-top: 2px; }
+    .inv-num { font-family: monospace; font-size: 13px; font-weight: 700; color: ${showBrandColor ? accentColor : '#059669'}; margin-top: 2px; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; font-size: 12px; }
     .card { background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
     .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
@@ -138,9 +140,13 @@ const generateTemplateHtml = ({
 <body>
   <div class="header">
     <div class="logo-container">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${showBrandColor ? accentColor : '#059669'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-      </svg>
+      ${
+        logoUrl
+          ? `<img src="${logoUrl}" alt="${propertyName}" style="max-height: 48px; max-width: 180px; object-fit: contain;" />`
+          : `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${showBrandColor ? accentColor : '#059669'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>`
+      }
       <div>
         <div class="logo-title">${propertyName || 'AZURA RESORTS & SPA'}</div>
         <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${propertyAddress || 'Trivandrum, Kerala, India'} • GSTIN: ${propertyGst || '32AAAAA0000A1Z5'}</div>
@@ -150,7 +156,7 @@ const generateTemplateHtml = ({
       <div style="font-size: 18px; font-weight: 900; color: #0f172a; tracking: -0.5px;">${invoiceTitle}</div>
       <div class="inv-num">INV-2026-010</div>
       <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-top: 2px;">Invoice Date : 13 Aug 2026</div>
-      <div style="font-size: 10px; font-weight: 800; color: #059669;">Payment Status : PAID</div>
+      <div style="font-size: 10px; font-weight: 800; color: ${showBrandColor ? accentColor : '#059669'};">Payment Status : PAID</div>
     </div>
   </div>
 
@@ -209,13 +215,13 @@ const generateTemplateHtml = ({
         <span style="color: #64748b;">Total</span>
         <span>₹570.00</span>
       </div>
-      <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #059669;">
+      <div style="display: flex; justify-content: space-between; padding: 4px 0; color: ${showBrandColor ? accentColor : '#059669'}; font-weight: 700;">
         <span>Advance Received</span>
         <span>-₹570.00</span>
       </div>
       <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; font-weight: 900; color: #0f172a; border-top: 2px solid #e2e8f0; margin-top: 4px;">
         <span>Grand Total</span>
-        <span style="color: ${showBrandColor ? accentColor : '#059669'}; font-family: monospace;">₹570.00</span>
+        <span style="color: ${showBrandColor ? accentColor : '#0f172a'}; font-family: monospace;">₹570.00</span>
       </div>
     </div>
   </div>
@@ -290,6 +296,25 @@ export default function InvoicesPage() {
   const [previewZoom, setPreviewZoom] = useState<number>(100);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(true);
   const [customHtml, setCustomHtml] = useState<string>('');
+  const [logoUrl, setLogoUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (activeProperty) {
+      if (activeProperty.name) setPropertyName(activeProperty.name);
+      const gst = (activeProperty as any).gstin || (activeProperty as any).taxId;
+      if (gst) setPropertyGst(gst);
+      if (activeProperty.logoUrl) setLogoUrl(activeProperty.logoUrl);
+      const parts = [
+        activeProperty.address,
+        activeProperty.city,
+        activeProperty.state,
+        activeProperty.country,
+      ].filter(Boolean);
+      if (parts.length > 0) {
+        setPropertyAddress(parts.join(', '));
+      }
+    }
+  }, [activeProperty]);
 
   // Selected Modals & Drawer State
   const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<Booking | null>(null);
@@ -321,6 +346,7 @@ export default function InvoicesPage() {
       bankIfsc,
       showBrandColor: showBrandColorInInvoice,
       invoiceTitle,
+      logoUrl,
     });
   }, [
     editorMode,
@@ -337,6 +363,7 @@ export default function InvoicesPage() {
     bankIfsc,
     showBrandColorInInvoice,
     invoiceTitle,
+    logoUrl,
   ]);
 
   const handleRowDownload = async (invoiceId: string, invoiceNumber: string) => {
@@ -694,33 +721,29 @@ export default function InvoicesPage() {
   return (
     <AppShell
       sectionIcon={Receipt}
-      sectionTitle={t('sectionFinancials')}
-      sectionDescription={t('sectionFinancialsDesc')}
+      breadcrumb={{ parent: t('financialsAndBilling') || 'Financials & Billing' }}
+      sectionTitle={t('invoicesAndBilling') || 'Invoices & Billing'}
+      sectionDescription="Guest folios, tax invoices, payment transactions, and invoice themes"
       sectionTabs={[
         {
-          label: t('tabInvoices'),
+          label: t('tabInvoices') || 'Invoices & Billing',
           icon: Receipt,
           count: bookings.length,
           isActive: activeTab === 'invoices',
           onClick: () => setActiveTab('invoices'),
         },
         {
-          label: t('tabPaymentLedger'),
+          label: t('tabPaymentLedger') || 'Payment Ledger',
           icon: CreditCard,
           count: paymentTransactions.length,
           isActive: activeTab === 'payments',
           onClick: () => setActiveTab('payments'),
         },
         {
-          label: t('tabTemplates'),
+          label: t('tabTemplates') || 'Invoice Templates',
           icon: Palette,
           isActive: activeTab === 'templates',
           onClick: () => setActiveTab('templates'),
-        },
-        {
-          label: t('tabFinancialReports'),
-          icon: BarChart3,
-          href: '/reports',
         },
       ]}
       layout="wide"
@@ -729,6 +752,22 @@ export default function InvoicesPage() {
         {/* ═══ TAB 1: ALL INVOICES WORKSPACE ═══ */}
         {activeTab === 'invoices' && (
           <div className="space-y-5 w-full min-w-0">
+            {/* 3D Visual Invoice Template Selector Carousel */}
+            <InvoiceTemplateCarousel
+              activeTemplateId={activePreset}
+              onSelectTemplate={(id) => {
+                const preset = (PRESET_TEMPLATES as any)[id] || Object.values(PRESET_TEMPLATES)[0];
+                if (preset) {
+                  setActivePreset(preset.id as any);
+                  setTemplateName(preset.name);
+                  setAccentColor(preset.accentColor);
+                  setFooterNote(preset.footerNote);
+                  setCustomHtml('');
+                  toast.info(`Applied ${preset.name} template`, 'Template Selected');
+                }
+              }}
+            />
+
             {/* Financial Summary KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 min-w-0">
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-1 min-w-0">
@@ -1290,8 +1329,23 @@ export default function InvoicesPage() {
 
         {/* ═══ TAB 3: INVOICE TEMPLATE CUSTOMIZER & LIVE RENDERER ═══ */}
         {activeTab === 'templates' && (
-          <div className="space-y-4 w-full min-w-0">
-            {/* 1. TOP PRESETS SELECTOR CARDS (Exact match to visual reference & app presets) */}
+          <div className="space-y-6 w-full min-w-0">
+            {/* 3D Visual Invoice Template Selector Carousel */}
+            <InvoiceTemplateCarousel
+              activeTemplateId={activePreset}
+              onSelectTemplate={(id) => {
+                const preset = (PRESET_TEMPLATES as any)[id] || Object.values(PRESET_TEMPLATES)[0];
+                if (preset) {
+                  setActivePreset(preset.id as any);
+                  setTemplateName(preset.name);
+                  setAccentColor(preset.accentColor);
+                  setFooterNote(preset.footerNote);
+                  setCustomHtml('');
+                  toast.info(`Applied ${preset.name} template`, 'Template Selected');
+                }
+              }}
+            />
+
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-2">
                 Template Presets
@@ -1454,12 +1508,27 @@ export default function InvoicesPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                onClick={() => toast.info('Select new logo image', 'Upload Logo')}
-                                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[11px] hover:bg-slate-50 transition"
-                              >
-                                Change Logo
-                              </button>
+                              <label className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[11px] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5">
+                                <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Change Logo</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onload = (ev) => {
+                                        setLogoUrl(ev.target?.result as string);
+                                        setHasUnsavedChanges(true);
+                                        toast.success('Custom logo updated in live invoice preview', 'Logo Uploaded');
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                />
+                              </label>
                             </div>
                           </div>
                         </div>
@@ -1810,8 +1879,18 @@ export default function InvoicesPage() {
                     </button>
 
                     <button
-                      onClick={() => toast.info('Opening print preview dialog...', 'Print Preview')}
-                      className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-900 dark:text-white font-bold text-[11px] transition flex items-center gap-1 border border-slate-200 dark:border-slate-700"
+                      onClick={() => {
+                        const printWin = window.open('', '_blank', 'width=800,height=900');
+                        if (printWin) {
+                          printWin.document.write(previewHtml);
+                          printWin.document.close();
+                          printWin.focus();
+                          setTimeout(() => printWin.print(), 250);
+                        } else {
+                          toast.error('Please allow pop-ups to view print preview.', 'Print Error');
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-900 dark:text-white font-bold text-[11px] transition flex items-center gap-1 border border-slate-200 dark:border-slate-700 cursor-pointer"
                     >
                       <Printer className="w-3.5 h-3.5 text-emerald-600" />
                       <span className="hidden sm:inline">Print Preview</span>

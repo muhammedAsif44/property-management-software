@@ -44,10 +44,8 @@ function ResetPasswordForm() {
     setLoading(true);
     try {
       await authService.resetPassword({ email, token, newPassword });
-      toast.success('Password updated successfully! Redirecting to login...', 'Password Reset');
-      setTimeout(() => {
-        router.push('/login');
-      }, 1500);
+      toast.success('Password updated successfully!', 'Password Reset');
+      router.replace('/login');
     } catch (err: any) {
       toast.error(err?.message || 'Password reset failed. Token may be expired.', 'Reset Error');
     } finally {

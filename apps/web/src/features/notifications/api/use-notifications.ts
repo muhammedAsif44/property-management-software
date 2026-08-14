@@ -16,11 +16,25 @@ export function useNotificationsQuery() {
   return useQuery({
     queryKey: [NOTIFICATIONS_QUERY_KEY],
     queryFn: async () => {
-      const res = await api.get<Notification[]>(`/notifications`);
-      return res;
+      const res = await api.get<any>(`/notifications`);
+      
+      // TransformInterceptor + NestJS Controller response unwrapping:
+      // Response shape: { success: true, statusCode: 200, data: { data: Notification[], meta: ... } }
+      const level1 = res?.data ?? res;
+      const level2 = level1?.data ?? level1?.notifications ?? level1?.items ?? level1;
+      const list: Notification[] = Array.isArray(level2)
+        ? level2
+        : Array.isArray(level2?.data)
+          ? level2.data
+          : Array.isArray(res)
+            ? res
+            : [];
+
+      return list;
     },
-    // Poll every 30 seconds for new notifications
-    refetchInterval: 30000,
+    refetchInterval: 4000, // Poll every 4 seconds for rapid broadcast detection
+    staleTime: 1000,
+    refetchOnWindowFocus: true,
   });
 }
 

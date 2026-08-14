@@ -26,6 +26,7 @@ export interface PropertyItem {
     qrCodeUrl?: string;
     activeInvoiceTemplateId?: string;
     activeInvoiceTemplate?: any;
+    galleryImages?: any[];
   };
   roomTypes?: Array<{
     id?: string;

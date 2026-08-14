@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { LanguageSwitcher, useTranslation } from '@/lib/i18n';
+import { useTranslation } from '@/lib/i18n';
 
 interface AuthHeaderProps {
   currentTab: 'login' | 'signup';
@@ -28,27 +28,25 @@ export const AuthHeader: React.FC<AuthHeaderProps> = ({ currentTab }) => {
         </div>
       </Link>
 
-      {/* Switcher Navigation & Language Switcher */}
+      {/* Switcher Navigation */}
       <div className="flex items-center gap-2.5">
-        <LanguageSwitcher />
-
-        <div className="flex items-center bg-white/90 p-1 sm:p-1.5 rounded-2xl border border-slate-200/90 backdrop-blur-md shadow-sm">
+        <div className="flex items-center bg-[#0d1612]/90 p-1 sm:p-1.5 rounded-2xl border border-[#1d3329] backdrop-blur-xl shadow-md">
           <Link
             href="/login"
-            className={`px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+            className={`px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs font-extrabold rounded-xl transition-all duration-200 ${
               currentTab === 'login'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 border border-emerald-500'
+                : 'text-emerald-200/70 hover:text-white hover:bg-[#16241e]'
             }`}
           >
             {t('signInTitle')}
           </Link>
           <Link
             href="/signup/owner"
-            className={`px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+            className={`px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs font-extrabold rounded-xl transition-all duration-200 ${
               currentTab === 'signup'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 border border-emerald-500'
+                : 'text-emerald-200/70 hover:text-white hover:bg-[#16241e]'
             }`}
           >
             {t('registerCompany')}

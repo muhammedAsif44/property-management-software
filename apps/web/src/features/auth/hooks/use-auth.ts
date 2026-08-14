@@ -54,9 +54,18 @@ export function useAuth() {
     setLoading(true);
     setError(null);
     try {
-      clearUserSession();
       const res = await authService.login(payload);
-      await queryClient.invalidateQueries();
+      const userObj = res?.user || (res as any)?.data?.user;
+      if (userObj) {
+        setUser({
+          id: userObj.id,
+          email: userObj.email,
+          role: userObj.role,
+          organizationId: userObj.organizationId,
+          name: userObj.fullName || userObj.name || userObj.email?.split('@')[0],
+        });
+        queryClient.setQueryData(['auth', 'profile'], { user: userObj, data: { user: userObj } });
+      }
       return res;
     } catch (err: any) {
       setError(err.message || 'Login failed.');
@@ -70,7 +79,6 @@ export function useAuth() {
     setLoading(true);
     setError(null);
     try {
-      clearUserSession();
       return await authService.ownerSignup(payload);
     } catch (err: any) {
       setError(err.message || 'Registration failed.');
@@ -84,8 +92,19 @@ export function useAuth() {
     setLoading(true);
     setError(null);
     try {
-      clearUserSession();
-      return await authService.staffSignup(payload);
+      const res = await authService.staffSignup(payload);
+      const userObj = res?.user || (res as any)?.data?.user;
+      if (userObj) {
+        setUser({
+          id: userObj.id,
+          email: userObj.email,
+          role: userObj.role,
+          organizationId: userObj.organizationId,
+          name: userObj.fullName || userObj.name || userObj.email?.split('@')[0],
+        });
+        queryClient.setQueryData(['auth', 'profile'], { user: userObj, data: { user: userObj } });
+      }
+      return res;
     } catch (err: any) {
       setError(err.message || 'Staff registration failed.');
       throw err;

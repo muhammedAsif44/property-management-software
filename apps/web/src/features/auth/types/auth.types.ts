@@ -31,6 +31,11 @@ export interface LoginResponse {
     id: string;
     email: string;
     role: string;
+    fullName?: string;
     name?: string;
+    organizationName?: string;
+    organizationId?: string;
+    approvalStatus?: string;
   };
 }
+

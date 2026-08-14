@@ -10,9 +10,9 @@ export class PasswordService {
     private readonly configService: ConfigService,
   ) {}
 
-  // 1. Hash Plaintext Password
+  // 1. Hash Plaintext Password (10 rounds for ~60ms fast secure execution)
   async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 12);
+    return bcrypt.hash(password, 10);
   }
 
   // 2. Compare Plaintext & Hashed Password

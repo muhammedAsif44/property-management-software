@@ -4,7 +4,7 @@ import React from 'react';
 import { LucideIcon } from 'lucide-react';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import { AppHeader } from '@/components/app-header';
-import { SectionHeader, SectionTab } from '@/components/section-header';
+import { SectionHeader, SectionTab, SectionBreadcrumb } from '@/components/section-header';
 
 /**
  * Semantic layout modes for consistent content width across the application.
@@ -31,9 +31,11 @@ interface AppShellProps {
   sectionTitle: string;
   /** Short contextual description for the section */
   sectionDescription?: string;
+  /** Optional breadcrumb hierarchy context (e.g. { parent: "Financials & Billing" }) */
+  breadcrumb?: SectionBreadcrumb;
   /** Right-side action buttons for the section header */
   sectionActions?: React.ReactNode;
-  /** Optional horizontal sub-navigation tabs for multi-page sections */
+  /** Optional genuine page-level horizontal sub-navigation tabs */
   sectionTabs?: SectionTab[];
   /** Semantic layout mode controlling content max-width (default: "standard") */
   layout?: AppShellLayout;
@@ -52,6 +54,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   sectionIcon,
   sectionTitle,
   sectionDescription,
+  breadcrumb,
   sectionActions,
   sectionTabs,
   layout = 'standard',
@@ -76,11 +79,12 @@ export const AppShell: React.FC<AppShellProps> = ({
         {/* Global Top Header — Property, Sync, Language, Notifications, Avatar */}
         <AppHeader />
 
-        {/* Section Header — Title, Description, Actions, Sub-Navigation Tabs */}
+        {/* Section Header — Title, Description, Breadcrumb, Actions, Sub-Navigation Tabs */}
         <SectionHeader
           icon={sectionIcon}
           title={sectionTitle}
           description={sectionDescription}
+          breadcrumb={breadcrumb}
           actions={sectionActions}
           tabs={sectionTabs}
         />

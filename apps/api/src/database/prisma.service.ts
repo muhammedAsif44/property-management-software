@@ -10,7 +10,21 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    await this.$connect();
+    let retries = 5;
+    while (retries > 0) {
+      try {
+        await this.$connect();
+        break;
+      } catch (err) {
+        retries--;
+        if (retries === 0) {
+          console.error('Failed to connect to database after 5 attempts:', err);
+          throw err;
+        }
+        console.warn(`Database connection attempt failed. Retrying in 2 seconds... (${retries} retries left)`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
 
     // Global Soft Delete Middleware (supported on Prisma versions <= 5)
     if (typeof (this as any).$use === 'function') {
